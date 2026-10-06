@@ -1,0 +1,4 @@
+app/config.php
+public/uploads/logos/*
+!public/uploads/logos/.gitkeep
+.DS_Store

@@ -1,0 +1,5 @@
+# Uploaded logos are images only — never run scripts from here
+<FilesMatch "\.(php|phtml|phar|php\d|pl|py|cgi|sh)$">
+  Require all denied
+</FilesMatch>
+Options -Indexes

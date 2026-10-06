@@ -1,0 +1,296 @@
+<title>TimeInOut Blueprint</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (blueprint document) that widens for diagrams and the screen gallery. Palette = the product's own kiosk colors. */
+:root {
+  --bg: #F6F6FB; --surface: #FFFFFF; --ink: #1F2340; --muted: #5F6488; --line: #E3E4F0; --soft: #EEEEF7;
+  --student: #6C5CE7; --teacher: #00A383; --pickup: #E8673F; --info: #0984E3;
+  --display: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12142A; --surface: #1B1E3C; --ink: #ECEDF8; --muted: #A3A7C8; --line: #2E3260; --soft: #24284C;
+  --student: #A99CFF; --teacher: #34D9B4; --pickup: #FF9A76; --info: #5DB7FF; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #12142A; --surface: #1B1E3C; --ink: #ECEDF8; --muted: #A3A7C8; --line: #2E3260; --soft: #24284C;
+  --student: #A99CFF; --teacher: #34D9B4; --pickup: #FF9A76; --info: #5DB7FF; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6; margin: 0; }
+.page { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; }
+.read { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 2.9rem); font-weight: 800; letter-spacing: -.03em; }
+h2 { font-size: 1.55rem; font-weight: 800; letter-spacing: -.02em; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--student); }
+code { font-family: var(--mono); font-size: .86em; background: var(--soft); padding: 1px 6px; border-radius: 6px; }
+.eyebrow { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.muted { color: var(--muted); }
+header.top { display: grid; gap: 18px; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
+.lead { font-size: 1.15rem; color: var(--muted); max-width: 62ch; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 2px; }
+.fact b { font-size: 1rem; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a { font-size: .85rem; font-weight: 600; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; }
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--student); outline: none; }
+section { padding-top: 48px; display: grid; gap: 18px; scroll-margin-top: 16px; }
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.role { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: grid; gap: 8px; align-content: start; }
+.role .tag { justify-self: start; font-size: .75rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; color: var(--surface); }
+.role ol { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: .93rem; }
+.t-student { background: var(--student); } .t-teacher { background: var(--teacher); } .t-pickup { background: var(--pickup); } .t-admin { background: var(--info); }
+.callout { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--teacher); border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; background: none; text-align: center; font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.shots.phone { grid-template-columns: repeat(auto-fit, minmax(200px, 260px)); }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0; }
+figure img { width: 100%; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: block; }
+figcaption { font-size: .88rem; color: var(--muted); }
+figcaption b { color: var(--ink); }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+.steps { display: grid; gap: 10px; counter-reset: s; margin: 0; padding: 0; list-style: none; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+.steps li::before { content: counter(s); width: 30px; height: 30px; border-radius: 9px; background: var(--soft); color: var(--ink); font-weight: 800; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+.palette { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw { display: flex; align-items: center; gap: 8px; font-size: .85rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px 4px 4px; }
+.sw i { width: 22px; height: 22px; border-radius: 50%; display: block; }
+footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <span class="eyebrow">Blueprint · v1 · ready to test</span>
+    <h1>TimeInOut</h1>
+    <p class="lead">A simple, colorful check-in portal for schools, daycares and after-school programs. Students sign in and out with the parent who drops them off, teachers clock in and out, families pick up materials, and the owner gets daily, weekly and monthly reports. Each subscriber signs up and gets their own branded portal at <code>name.abc.com</code> straight away.</p>
+    <div class="facts">
+      <div class="fact"><span class="eyebrow">Stack</span><b>PHP 8 + MySQL</b><span class="muted">No framework, no build step</span></div>
+      <div class="fact"><span class="eyebrow">Hosting</span><b>Any cPanel host or VPS</b><span class="muted">Apache .htaccess included</span></div>
+      <div class="fact"><span class="eyebrow">Tenancy</span><b>One codebase, one database</b><span class="muted">Every row tagged with tenant_id</span></div>
+      <div class="fact"><span class="eyebrow">Check-in</span><b>3–4 taps</b><span class="muted">Auto-resets for the next person</span></div>
+    </div>
+    <nav class="toc" aria-label="Sections">
+      <a href="#roles">Who uses it</a><a href="#provisioning">Provisioning</a><a href="#architecture">Architecture</a>
+      <a href="#kiosk">Kiosk flow</a><a href="#admin">Admin portal</a><a href="#reports">Reports</a><a href="#data">Data model</a><a href="#golive">Go live</a><a href="#roadmap">Roadmap</a>
+    </nav>
+  </header>
+
+  <section id="roles">
+    <span class="eyebrow">Who uses it</span>
+    <h2>Three kiosk flows and one admin portal</h2>
+    <div class="roles">
+      <div class="role"><span class="tag t-student">Student</span><h3>Sign in / sign out with a guardian</h3>
+        <ol><li>Pick the day</li><li>Type a few letters, tap the name</li><li>Tap Father, Mother or another guardian. Only that student's guardians appear.</li><li>Sign In (drop-off) or Sign Out (pick-up)</li></ol></div>
+      <div class="role"><span class="tag t-teacher">Teacher / Staff</span><h3>Start and end the day</h3>
+        <ol><li>Pick the day</li><li>Type a few letters, tap the name</li><li>Sign In or Sign Out. Hours are totalled in reports.</li></ol></div>
+      <div class="role"><span class="tag t-pickup">Material pickup</span><h3>Collect homework, books, uniforms</h3>
+        <ol><li>Find the student</li><li>Tap the guardian picking up</li><li>Tick the items, or type something else</li><li>Confirm pickup</li></ol></div>
+      <div class="role"><span class="tag t-admin">Owner / Admin</span><h3>Run the portal</h3>
+        <ol><li>Upload students, parents and teachers from CSV</li><li>See who is on site now</li><li>Log, reports and CSV export</li><li>Logo, colors, welcome text, own domain</li></ol></div>
+    </div>
+  </section>
+
+  <section id="provisioning">
+    <span class="eyebrow">Key decision</span>
+    <h2>How "provisioning a new customer" works</h2>
+    <div class="callout read">
+      <p>The original idea was to copy all the files and a fresh database into a new folder for every customer. Most shared hosts don't let PHP create databases or subdomains, and every fix would then have to be copied many times.</p>
+      <p><b>This build gets the same result in under a second:</b> sign-up inserts a tenant row, the owner's login, default pickup items and optional sample people. A wildcard DNS record <code>*.abc.com</code> sends every subdomain to the same code, which reads the hostname and loads that customer's data and branding. Custom domains are a CNAME plus a domain alias. Until wildcard DNS is on, every portal also works at <code>abc.com/s/name</code>.</p>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  actor C as New customer
+  participant W as abc.com/signup
+  participant P as provision_tenant()
+  participant DB as MySQL
+  C->>W: "Sunrise Academy"
+  W-->>C: Suggests sunrise-academy (checked live)
+  C->>W: Name, email, password, plan, time zone, sample data
+  W->>P: Validated details
+  P->>DB: BEGIN
+  P->>DB: tenants row (30-day trial, default branding)
+  P->>DB: owner login (bcrypt)
+  P->>DB: 5 default pickup items
+  P->>DB: sample students, guardians, teachers
+  P->>DB: COMMIT
+  W-->>C: Portal ready at sunrise-academy.abc.com
+</pre>
+    </div>
+    <div class="shots">
+      <figure><img src="screens/02-signup.png" alt="Sign-up form with organization name, portal address, owner details, plan and time zone"><figcaption><b>Sign-up.</b> The address is suggested from the name and checked as you type.</figcaption></figure>
+      <figure><img src="screens/03-welcome.png" alt="Your portal is ready confirmation with portal link"><figcaption><b>Provisioned.</b> The portal link works immediately.</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <span class="eyebrow">Architecture</span>
+    <h2>One front controller, four controllers, one database</h2>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  U1[Parents, students, teachers<br>on a tablet] --> DNS
+  U2[Subscriber admin] --> DNS
+  U3[Platform owner] --> DNS
+  DNS["abc.com · *.abc.com · custom domains"] --> IDX["public/index.php"]
+  IDX --> RES{"resolve_tenant()<br>/s/name · subdomain · custom domain"}
+  RES -- platform --> PLAT["Landing · Sign-up · /super"]
+  RES -- tenant --> KIO["Kiosk + JSON API"]
+  RES -- tenant --> ADM["Admin portal"]
+  PLAT --> DB[("MySQL")]
+  KIO --> DB
+  ADM --> DB
+  ADM --> FS[("Logo uploads")]
+  CRON["Hourly cron"] --> REP["Report builder"] --> MAIL["mail() or SMTP"]
+  REP --> DB
+</pre>
+    </div>
+  </section>
+
+  <section id="kiosk">
+    <span class="eyebrow">Kiosk flow</span>
+    <h2>From "Who are you?" to done in four taps</h2>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TD
+  H([Kiosk home]) --> D[Pick day: Today, Yesterday or another day]
+  D --> R{Who are you?}
+  R -- Student --> S[Type letters, pick student]
+  R -- Teacher --> T[Type letters, pick teacher]
+  R -- Material pickup --> M[Type letters, pick student]
+  S --> G1["Show only this student's guardians"] --> ST
+  M --> G2["Show only this student's guardians"] --> MAT[Tick items]
+  T --> ST{Signed in already today?}
+  ST -- no --> IN[Highlight SIGN IN]
+  ST -- yes --> OUT[Highlight SIGN OUT]
+  IN --> REC[Save entry]
+  OUT --> REC
+  MAT --> REC
+  REC --> OK[Success screen]
+  OK -- after 6 seconds --> H
+</pre>
+    </div>
+    <div class="shots">
+      <figure><img src="screens/05-kiosk-home.png" alt="Kiosk home with Student, Teacher and Material Pickup cards"><figcaption><b>1 · Who are you?</b> Day chips on top, three color-coded cards.</figcaption></figure>
+      <figure><img src="screens/06-kiosk-search.png" alt="Search box with Ava Johnson result"><figcaption><b>2 · Type a few letters.</b> Matches first name, last name or full name.</figcaption></figure>
+      <figure><img src="screens/07-kiosk-guardian.png" alt="Guardian picker showing Michael Johnson, Father and Sarah Johnson, Mother"><figcaption><b>3 · Pick the guardian.</b> Only Ava's father and mother appear.</figcaption></figure>
+      <figure><img src="screens/08-kiosk-action.png" alt="Sign In and Sign Out buttons"><figcaption><b>4 · Sign In or Sign Out.</b> The expected choice is highlighted, with the last time shown.</figcaption></figure>
+      <figure><img src="screens/11-kiosk-material.png" alt="Material pickup checklist"><figcaption><b>Material pickup.</b> Items come from the admin's Materials list.</figcaption></figure>
+      <figure><img src="screens/09-kiosk-done.png" alt="Success screen with green check"><figcaption><b>Done.</b> Confirms who, by whom and when, then resets.</figcaption></figure>
+    </div>
+    <div class="shots phone">
+      <figure><img src="screens/25-mobile-kiosk.png" alt="Kiosk on a phone"><figcaption><b>Phone</b> kiosk, branded with a custom welcome title and color.</figcaption></figure>
+      <figure><img src="screens/26-mobile-admin.png" alt="Admin dashboard on a phone"><figcaption><b>Phone</b> admin dashboard.</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="admin">
+    <span class="eyebrow">Admin portal</span>
+    <h2>Everything the owner needs on one sidebar</h2>
+    <div class="shots">
+      <figure><img src="screens/12-admin-dashboard.png" alt="Admin dashboard with on-site counts"><figcaption><b>Dashboard.</b> On site now, today's counts, 14-day trend, latest activity.</figcaption></figure>
+      <figure><img src="screens/13-admin-students.png" alt="Students list with guardian chips"><figcaption><b>Students &amp; guardians.</b> Search, grade filter, guardians at a glance.</figcaption></figure>
+      <figure><img src="screens/22-admin-student-edit.png" alt="Student edit page with guardians"><figcaption><b>Student page.</b> Add or remove guardians; recent activity.</figcaption></figure>
+      <figure><img src="screens/16-admin-import.png" alt="CSV import for students and teachers"><figcaption><b>CSV import.</b> Sample files; re-uploading updates instead of duplicating.</figcaption></figure>
+      <figure><img src="screens/17-admin-logs.png" alt="Attendance log with filters"><figcaption><b>Attendance log.</b> Filter by dates, person type, action, name. CSV export.</figcaption></figure>
+      <figure><img src="screens/20-admin-settings.png" alt="Branding and settings page"><figcaption><b>Branding.</b> Name, logo, colors, welcome text, time zone, custom domain.</figcaption></figure>
+      <figure><img src="screens/24-super.png" alt="Platform owner subscriber list"><figcaption><b>Platform owner.</b> All subscribers, usage, plan and status.</figcaption></figure>
+      <figure><img src="screens/01-landing.png" alt="Marketing landing page with pricing"><figcaption><b>Landing page.</b> Features, pricing and the sign-up button.</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="reports">
+    <span class="eyebrow">Reports</span>
+    <h2>Daily, weekly and monthly, on screen and by email</h2>
+    <div class="shots" style="grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr)">
+      <figure><img src="screens/19-admin-reports-weekly.png" alt="Weekly report with tiles, chart, teacher hours"><figcaption><b>Weekly report.</b> Totals, sign-ins by day, teacher hours, people never signed out, pickups.</figcaption></figure>
+      <div class="diagram" style="align-self:start">
+<pre class="mermaid">
+flowchart TD
+  C[Cron every hour] --> T{After 6 AM local time?}
+  T -- yes --> D["Daily: yesterday<br>Weekly: Mondays<br>Monthly: the 1st"]
+  D --> L{Already sent?}
+  L -- no --> E[Build HTML email and send]
+  E --> W[Record in report_log]
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="data">
+    <span class="eyebrow">Data model</span>
+    <h2>Eight tables</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Table</th><th>Holds</th><th>Notes</th></tr>
+        <tr><td><code>tenants</code></td><td>One row per subscriber</td><td>Address, custom domain, plan, status, branding, time zone, report settings</td></tr>
+        <tr><td><code>users</code></td><td>Logins</td><td>Owner, admin or staff; email unique within a portal</td></tr>
+        <tr><td><code>students</code></td><td>Students</td><td>Optional student ID, grade, active flag</td></tr>
+        <tr><td><code>guardians</code></td><td>Parents and guardians of one student</td><td>Deleted with the student</td></tr>
+        <tr><td><code>teachers</code></td><td>Teachers and staff</td><td>Optional employee ID</td></tr>
+        <tr><td><code>materials</code></td><td>Items that can be picked up</td><td>Show, hide, reorder</td></tr>
+        <tr><td><code>attendance</code></td><td>Every kiosk action</td><td>Names copied in, so history survives edits</td></tr>
+        <tr><td><code>report_log</code></td><td>Emails already sent</td><td>Stops duplicate reports</td></tr>
+      </table>
+    </div>
+    <div class="palette" aria-label="Kiosk color code">
+      <span class="sw"><i class="t-student"></i>Student</span>
+      <span class="sw"><i class="t-teacher"></i>Teacher</span>
+      <span class="sw"><i class="t-pickup"></i>Material pickup</span>
+      <span class="sw"><i class="t-admin"></i>Sign-out / info</span>
+    </div>
+  </section>
+
+  <section id="golive">
+    <span class="eyebrow">Go live</span>
+    <h2>Testing on your hosting today</h2>
+    <ol class="steps read">
+      <li><span>Upload the project. Point <code>abc.com</code> at the <code>public/</code> folder, or upload everything into <code>public_html</code>.</span></li>
+      <li><span>Create a MySQL database in cPanel and import <code>database/schema.sql</code> in phpMyAdmin.</span></li>
+      <li><span>Copy <code>app/config.sample.php</code> to <code>app/config.php</code>. Fill in the database, <code>base_domain</code>, your owner login, mail settings and a cron key.</span></li>
+      <li><span>Open <code>abc.com</code>, click <b>Start free trial</b>, and tick the sample data box.</span></li>
+      <li><span>Log in, open the kiosk on a tablet or phone, and try all three flows.</span></li>
+      <li><span>Add an hourly cron job: <code>php cron/send_reports.php</code>.</span></li>
+      <li><span>Later, add a wildcard DNS record <code>*.abc.com</code> and a wildcard subdomain, then set <code>tenant_url_mode</code> to <code>subdomain</code>.</span></li>
+    </ol>
+  </section>
+
+  <section id="roadmap">
+    <span class="eyebrow">Roadmap</span>
+    <h2>After the first test</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Phase</th><th>Adds</th></tr>
+        <tr><td>2 · Billing</td><td>Stripe Checkout and webhook to activate subscribers automatically; plan limits</td></tr>
+        <tr><td>3 · Safety</td><td>Guardian PIN or photo, authorized-pickup flag, SMS or email to parents on sign-out, signatures</td></tr>
+        <tr><td>4 · Convenience</td><td>QR badges, guardians shared across siblings, multiple sites, late-pickup alerts</td></tr>
+        <tr><td>5 · Scale</td><td>VPS, Redis sessions, optional separate database for very large customers</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>Screens are real captures of the working build with sample data. Full detail lives in <code>docs/MASTER_PLAN.md</code>, <code>docs/BLUEPRINT.md</code> and <code>docs/ARCHITECTURE.md</code>.</footer>
+</div>
+
+<script>
+// Opened straight from the repo (not as a hosted artifact): render the diagrams with Mermaid from the CDN.
+setTimeout(function () {
+  if (document.querySelector('pre.mermaid svg') || window.mermaid) return;
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js';
+  s.onload = function () {
+    var dark = matchMedia('(prefers-color-scheme: dark)').matches;
+    window.mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default' });
+    window.mermaid.run({ querySelector: 'pre.mermaid' });
+  };
+  document.head.appendChild(s);
+}, 1200);
+</script>

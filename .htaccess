@@ -1,0 +1,10 @@
+# Used only when the whole project folder is your web root (e.g. you uploaded
+# everything into public_html). Sends requests into /public and hides the rest.
+Options -Indexes
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(app|database|cron|docs)(/|$) - [F,L]
+  RewriteRule ^(\.git|README\.md) - [F,L]
+  RewriteCond %{REQUEST_URI} !^/public/
+  RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
