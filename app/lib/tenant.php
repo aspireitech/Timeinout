@@ -7,7 +7,7 @@
 //   3. custom    https://checkin.xyzschool.org/... (tenants.custom_domain)
 // Anything else (abc.com, www.abc.com, localhost) is the marketing/platform site.
 
-const RESERVED_SLUGS = ['www', 'admin', 'api', 'app', 'mail', 'ftp', 'cpanel', 'webmail', 'super', 's', 'static', 'assets', 'support', 'help', 'billing', 'demo-admin'];
+const RESERVED_SLUGS = ['www', 'admin', 'api', 'app', 'mail', 'ftp', 'cpanel', 'webmail', 'super', 's', 'static', 'assets', 'support', 'help', 'billing', 'demo', 'demo-admin'];
 
 /**
  * @return array|null|false  tenant row, null for the platform site, false for an unknown tenant

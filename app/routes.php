@@ -46,6 +46,7 @@ function platform_routes(string $path): void
         ['GET',      '/super/logout',        'super_logout'],
         ['GET',      '/super',               'super_tenants'],
         ['POST',     '/super/tenants/{id}',  'super_update_tenant'],
+        ['POST',     '/super/demo',          'super_seed_demo'],
         ['GET',      '/cron',                'web_cron'],
     ]);
 }

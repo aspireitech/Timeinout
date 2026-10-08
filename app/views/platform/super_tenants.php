@@ -1,7 +1,12 @@
 <div class="card" style="margin-bottom:60px">
   <div class="card-head">
     <h2><?= icon('globe') ?> Subscribers (<?= count($tenants) ?>)</h2>
-    <a class="btn btn-primary btn-sm" href="<?= e(base_path() . '/signup') ?>"><?= icon('plus', 16) ?> New portal</a>
+    <div class="row">
+      <form method="post" action="<?= e(base_path() . '/super/demo') ?>" data-confirm="Build the demo portal? Any existing demo data is replaced.">
+        <?= csrf_field() ?><button class="btn btn-accent btn-sm"><?= icon('users', 16) ?> <?= demo_tenant() ? 'Reset demo portal' : 'Load demo portal' ?></button>
+      </form>
+      <a class="btn btn-primary btn-sm" href="<?= e(base_path() . '/signup') ?>"><?= icon('plus', 16) ?> New portal</a>
+    </div>
   </div>
   <div class="table-wrap">
   <table class="table">

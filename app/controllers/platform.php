@@ -4,7 +4,7 @@
 
 function platform_home(): void
 {
-    view('platform/home', ['plans' => cfg('plans', [])], 'platform');
+    view('platform/home', ['plans' => cfg('plans', []), 'demo' => demo_tenant()], 'platform');
 }
 
 function platform_check_slug(): void
@@ -103,6 +103,14 @@ function super_update_tenant(int $id): void
         update('tenants', ['status' => $status, 'plan' => $plan], 'id = ?', [$id]);
         flash('success', 'Subscriber updated.');
     }
+    redirect(base_path() . '/super');
+}
+
+function super_seed_demo(): void
+{
+    require_super();
+    $r = seed_demo_tenant();
+    flash('success', "Demo portal ready: {$r['students']} students, {$r['teachers']} teachers, {$r['events']} check-ins. Log in as admin@demo.com / Demo@1234.");
     redirect(base_path() . '/super');
 }
 

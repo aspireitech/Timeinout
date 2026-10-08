@@ -105,6 +105,22 @@ server {
 
 ---
 
+## Demo portal (for showing the product)
+
+After importing `schema.sql`, load a ready-made school, **Bright Future Academy**. It has 32 students with their parents, 8 teachers, 7 pickup items and six weeks of check-ins. There are two ways to load it:
+
+- **In the browser:** log in at `abc.com/super` → **Load demo portal**. The same button resets it later.
+- **From the command line:** `php database/seed_demo.php`
+
+The demo lives at `abc.com/s/demo` (or `demo.abc.com` once subdomains are on). The homepage then shows a **Try the live demo** section with these logins:
+
+| Role | Email | Password |
+|---|---|---|
+| Admin (owner) | `admin@demo.com` | `Demo@1234` |
+| Front desk (staff) | `staff@demo.com` | `Staff@1234` |
+
+The demo login page also has tap-to-fill buttons for both accounts. Visitors can change demo data, so reset it from `/super` before an important presentation.
+
 ## Who logs in where
 
 | Who | URL | Login |

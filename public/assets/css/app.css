@@ -251,3 +251,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: .92rem; }
   .role-card { min-height: 150px; padding: 22px; }
   .k-panel { padding: 18px; border-radius: 20px; }
 }
+
+/* Demo login helper */
+.demo-creds { display: grid; gap: 8px; background: var(--soft); border-radius: 14px; padding: 14px; margin-bottom: 16px; }
+.demo-fill { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1.5px dashed var(--line); background: #fff; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: .85rem; color: var(--ink); cursor: pointer; text-align: left; }
+.demo-fill:hover { border-color: var(--brand); }
+.demo-fill code { font-size: .82rem; }
