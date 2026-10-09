@@ -110,6 +110,13 @@ function import_students(int $tenantId, array $rows): array
                 continue;
             }
             $exists = val('SELECT id FROM guardians WHERE tenant_id = ? AND student_id = ? AND name = ?', [$tenantId, $sid, $gName]);
+            if (!$exists && $rel !== '') {
+                // A real name replaces a placeholder such as "Ava's Father", so past check-ins stay linked
+                $exists = val('SELECT id FROM guardians WHERE tenant_id = ? AND student_id = ? AND relationship = ? AND name LIKE ?', [$tenantId, $sid, $rel, "%'s " . $rel]);
+                if ($exists) {
+                    update('guardians', ['name' => $gName], 'id = ?', [$exists]);
+                }
+            }
             if ($exists) {
                 update('guardians', ['relationship' => $rel ?: null, 'phone' => encrypt_pii($phone), 'email' => encrypt_pii($email)], 'id = ?', [$exists]);
             } else {
