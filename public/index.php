@@ -42,7 +42,7 @@ header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com; base-uri 'self'");
 if (is_https()) {
     header('Strict-Transport-Security: max-age=31536000');
 }
@@ -71,9 +71,11 @@ if ($resolved === null) {
     platform_routes($path);
 } else {
     $GLOBALS['tenant'] = $resolved;
-    if (in_array($resolved['status'], ['suspended', 'cancelled'], true)) {
+    // Suspended by the provider: everything is closed. A cancelled or unpaid subscription is
+    // handled by billing_gate(), which still lets admins sign in and renew under Billing.
+    if ($resolved['status'] === 'suspended') {
         http_response_code(403);
-        view('partials/error', ['code' => 403, 'message' => 'This portal is currently ' . $resolved['status'] . '. Please contact the administrator.']);
+        view('partials/error', ['code' => 403, 'message' => 'This portal is currently suspended. Please contact your service provider.']);
     }
     tenant_routes($path);
 }

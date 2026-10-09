@@ -38,15 +38,15 @@
 </div>
 
 <div class="grid c4" style="margin-bottom:18px">
-  <div class="tile t1"><?= icon('in', 30) ?><div class="num"><?= $r['totals']['student_in'] ?></div><div class="lbl">Student sign-ins · <?= $r['unique_students'] ?> unique</div></div>
-  <div class="tile t2"><?= icon('out', 30) ?><div class="num"><?= $r['totals']['student_out'] ?></div><div class="lbl">Student sign-outs</div></div>
-  <div class="tile t3"><?= icon('teacher', 30) ?><div class="num"><?= $r['totals']['teacher_in'] ?></div><div class="lbl">Teacher sign-ins · <?= $r['unique_teachers'] ?> unique</div></div>
+  <div class="tile t1"><?= icon('in', 30) ?><div class="num"><?= $r['totals']['student_in'] ?></div><div class="lbl"><?= e(term('a1')) ?> sign-ins · <?= $r['unique_students'] ?> unique</div></div>
+  <div class="tile t2"><?= icon('out', 30) ?><div class="num"><?= $r['totals']['student_out'] ?></div><div class="lbl"><?= e(term('a1')) ?> sign-outs</div></div>
+  <div class="tile t3"><?= icon('teacher', 30) ?><div class="num"><?= $r['totals']['teacher_in'] ?></div><div class="lbl"><?= e(term('b1')) ?> sign-ins · <?= $r['unique_teachers'] ?> unique</div></div>
   <div class="tile t4"><?= icon('box', 30) ?><div class="num"><?= $r['totals']['pickups'] ?></div><div class="lbl">Material pickups</div></div>
 </div>
 
 <div class="grid c2" style="margin-bottom:18px">
   <div class="card">
-    <h3><?= icon('chart') ?> Student sign-ins by day</h3>
+    <h3><?= icon('chart') ?> <?= e(term('a1')) ?> sign-ins by day</h3>
     <?php $max = max(1, max(array_column($r['by_day'], 'student_in') ?: [0])); $many = count($r['by_day']) > 10; ?>
     <div class="bars">
       <?php foreach ($r['by_day'] as $d => $v): ?>
@@ -55,7 +55,7 @@
     </div>
   </div>
   <div class="card">
-    <h3><?= icon('clock') ?> Teacher hours</h3>
+    <h3><?= icon('clock') ?> <?= e(term('b1')) ?> hours</h3>
     <?php if (!$r['teacher_minutes']): ?><div class="empty">No completed teacher sign-in/out pairs.</div><?php endif; ?>
     <table class="table">
       <?php foreach ($r['teacher_minutes'] as $name => $m): ?>

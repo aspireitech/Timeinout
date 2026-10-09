@@ -191,7 +191,7 @@ function pdf_title(SimplePdf $pdf, array $t, string $title, string $subtitle): v
 function pdf_attendance(array $t, string $type, string $date, array $rows, array $count): string
 {
     $pdf = new SimplePdf(true, $t['name'] . ' · ' . cfg('app_name') . ' · printed ' . tenant_now()->format('M j, Y g:i A'));
-    pdf_title($pdf, $t, ($type === 'teacher' ? 'Teacher attendance' : 'Student attendance'), fmt_date($date));
+    pdf_title($pdf, $t, term($type === 'teacher' ? 'b1' : ($type === 'visitor' ? 'v1' : 'a1'), $t) . ' attendance', fmt_date($date));
     $pdf->text($pdf->margin, $pdf->y, sprintf('Checked in: %d    Checked out: %d    Not checked out: %d    Absent: %d', $count['present'], $count['out'], $count['in'], $count['absent']), 10, true);
     $pdf->y += 22;
     $label = ['in' => 'Not checked out', 'out' => 'Checked out', 'absent' => 'Absent'];
@@ -202,9 +202,15 @@ function pdf_attendance(array $t, string $type, string $date, array $rows, array
             ? [$r['name'], fmt_time($r['in']), fmt_time($r['out']), $dur, $label[$r['status']]]
             : [$r['name'], (string) $r['grade'], (string) $r['in_by'], fmt_time($r['in']), (string) $r['out_by'], fmt_time($r['out']), $dur, $label[$r['status']]];
     }
-    $cols = $type === 'teacher'
-        ? [['Teacher', 4], ['Check-in', 2], ['Check-out', 2], ['Hours', 2], ['Status', 2.4]]
-        : [['Student', 3.2], ['Grade', 1.4], ['Dropped off by', 3], ['Check-in', 1.6], ['Picked up by', 3], ['Check-out', 1.6], ['Time', 1.5], ['Status', 2.2]];
+    if ($type === 'visitor') {
+        $data = array_map(fn($r) => [$r['name'], (string) $r['in_by'], (string) $r['grade'], fmt_time($r['in']), fmt_time($r['out']),
+            $r['minutes'] !== null ? fmt_minutes($r['minutes']) : '', $r['status'] === 'out' ? 'Checked out' : 'Not checked out'], $rows);
+    }
+    $cols = $type === 'visitor'
+        ? [[term('v1', $t), 3.2], ['Company', 2.6], ['Visiting', 2.6], ['Sign-in', 1.6], ['Sign-out', 1.6], ['Time', 1.5], ['Status', 2.2]]
+        : ($type === 'teacher'
+        ? [[term('b1', $t), 4], ['Check-in', 2], ['Check-out', 2], ['Hours', 2], ['Status', 2.4]]
+        : [[term('a1', $t), 3.2], ['Group', 1.4], ['Came with', 3], ['Check-in', 1.6], ['Left with', 3], ['Check-out', 1.6], ['Time', 1.5], ['Status', 2.2]]);
     $pdf->table($cols, $data, function ($row) {
         $s = end($row);
         return $s === 'Checked out' ? [0.03, 0.48, 0.36] : ($s === 'Absent' ? [0.45, 0.47, 0.6] : [0.75, 0.42, 0]);
@@ -218,9 +224,9 @@ function pdf_report(array $t, string $title, array $r): string
     $pdf = new SimplePdf(false, $t['name'] . ' · ' . cfg('app_name') . ' · printed ' . tenant_now()->format('M j, Y g:i A'));
     pdf_title($pdf, $t, $title, fmt_date($r['from']) . ($r['from'] !== $r['to'] ? ' – ' . fmt_date($r['to']) : ''));
     $tiles = [
-        ['Student sign-ins', $r['totals']['student_in'], [0.42, 0.36, 0.91]],
-        ['Student sign-outs', $r['totals']['student_out'], [0.04, 0.52, 0.89]],
-        ['Teacher sign-ins', $r['totals']['teacher_in'], [0, 0.72, 0.58]],
+        [term('a1', $t) . ' sign-ins', $r['totals']['student_in'], [0.42, 0.36, 0.91]],
+        [term('a1', $t) . ' sign-outs', $r['totals']['student_out'], [0.04, 0.52, 0.89]],
+        [term('b1', $t) . ' sign-ins', $r['totals']['teacher_in'], [0, 0.72, 0.58]],
         ['Material pickups', $r['totals']['pickups'], [0.88, 0.44, 0.33]],
     ];
     $tw = ($pdf->w - 2 * $pdf->margin - 30) / 4;
@@ -231,7 +237,7 @@ function pdf_report(array $t, string $title, array $r): string
         $pdf->text($x + 10, $pdf->y + 35, $label, 8.5, false, [1, 1, 1]);
     }
     $pdf->y += 66;
-    $pdf->text($pdf->margin, $pdf->y, 'Unique students: ' . $r['unique_students'] . '     Unique teachers: ' . $r['unique_teachers'], 10);
+    $pdf->text($pdf->margin, $pdf->y, term('a2', $t) . ': ' . $r['unique_students'] . '     ' . term('b2', $t) . ': ' . $r['unique_teachers'], 10);
     $pdf->y += 24;
     if (count($r['by_day']) > 1) {
         $pdf->heading('By day');
@@ -239,21 +245,21 @@ function pdf_report(array $t, string $title, array $r): string
         foreach ($r['by_day'] as $day => $v) {
             $rows[] = [date('D, M j', strtotime($day)), $v['student_in'], $v['student_out'], $v['teacher_in'], $v['pickups']];
         }
-        $pdf->table([['Day', 3], ['Students in', 2], ['Students out', 2], ['Teachers in', 2], ['Pickups', 2]], $rows);
+        $pdf->table([['Day', 3], [term('a2', $t) . ' in', 2], [term('a2', $t) . ' out', 2], [term('b2', $t) . ' in', 2], ['Pickups', 2]], $rows);
     }
     if ($r['teacher_minutes']) {
-        $pdf->heading('Teacher hours');
+        $pdf->heading(term('b1', $t) . ' hours');
         $rows = [];
         foreach ($r['teacher_minutes'] as $name => $m) {
             $rows[] = [$name, fmt_minutes($m)];
         }
-        $pdf->table([['Teacher', 4], ['Hours', 2]], $rows);
+        $pdf->table([[term('b1', $t), 4], ['Hours', 2]], $rows);
     }
     $pdf->heading('Signed in but never signed out (' . count($r['not_signed_out']) . ')');
     $rows = array_map(fn($ev) => [$ev['person_name'], ucfirst($ev['person_type']), date('D, M j', strtotime($ev['event_date'])), fmt_time($ev['event_time'])], $r['not_signed_out']);
     $pdf->table([['Name', 4], ['Type', 2], ['Day', 2.5], ['Signed in', 2]], $rows);
     $pdf->heading('Material pickups (' . count($r['pickups']) . ')');
     $rows = array_map(fn($ev) => [date('M j', strtotime($ev['event_date'])) . ' ' . fmt_time($ev['event_time']), $ev['person_name'], (string) $ev['guardian_name'], (string) $ev['materials']], $r['pickups']);
-    $pdf->table([['When', 2], ['Student', 3], ['Picked up by', 3], ['Items', 5]], $rows);
+    $pdf->table([['When', 2], [term('a1', $t), 3], ['Picked up by', 3], ['Items', 5]], $rows);
     return $pdf->output();
 }

@@ -1,15 +1,17 @@
-// Kiosk flow: pick day → role → name → guardian → sign in/out or pickup → done.
+// Kiosk flow: pick day → tile → name → (contact) → sign in/out or pickup → done.
+// Visitor tiles: type your details to sign in, or tap your name to sign out.
 (function () {
   const root = document.getElementById('kiosk');
   if (!root) return;
   const API = root.dataset.api, CSRF = root.dataset.csrf, TODAY = root.dataset.today, TZ = root.dataset.tz;
   const $ = (s) => root.querySelector(s);
   const $$ = (s) => Array.from(root.querySelectorAll(s));
-  const S = { day: TODAY, mode: null, person: null, guardian: null };
+  const S = { day: TODAY, tile: null, person: null, guardian: null };
   let resetTimer = null, idleTimer = null;
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const current = () => ($$('[data-step]').find((s) => !s.classList.contains('hidden')) || {}).dataset?.step;
+  const isStaff = () => S.tile && S.tile.type === 'staff';
 
   function show(step) {
     $$('[data-step]').forEach((s) => s.classList.toggle('hidden', s.dataset.step !== step));
@@ -46,23 +48,26 @@
     if (inp) { inp.value = d; inp.parentElement.classList.toggle('on', !matched); }
     $$('.time-field').forEach((f) => f.classList.toggle('hidden', d === TODAY));
     if (current() === 'action') loadStatus();
+    if (current() === 'visitor') loadVisitors();
   }
   $$('#daybar button').forEach((b) => b.addEventListener('click', () => setDay(b.dataset.day)));
   const dayInput = $('#day-input');
   if (dayInput) dayInput.addEventListener('change', () => dayInput.value && setDay(dayInput.value));
 
-  // ---- Step 1: role
-  const titles = { student: 'Student — find your name', teacher: 'Teacher / Staff — find your name', material: 'Material pickup — find the student' };
-  $$('[data-mode]').forEach((b) => b.addEventListener('click', () => {
-    S.mode = b.dataset.mode; S.person = S.guardian = null;
-    $('#search-title').textContent = titles[S.mode];
+  // ---- Step 1: tiles
+  $$('[data-tile]').forEach((b) => b.addEventListener('click', () => {
+    S.tile = { id: +b.dataset.tile, type: b.dataset.type, contact: b.dataset.contact === '1', label: b.dataset.label };
+    S.person = S.guardian = null;
+    if (S.tile.type === 'visitor') return openVisitor();
+    $('#search-title').textContent = S.tile.label + ': find ' + (S.tile.type === 'pickup' ? 'the name' : 'your name');
     $('#search').value = '';
     $('#results').innerHTML = '';
     setHint('Start typing a first or last name.');
     show('search');
   }));
   $$('[data-back]').forEach((b) => b.addEventListener('click', () => show(b.dataset.back)));
-  $('#action-back').addEventListener('click', () => show(S.mode === 'teacher' ? 'search' : 'guardian'));
+  $('#action-back').addEventListener('click', () => show(S.tile.contact && !isStaff() ? 'guardian' : 'search'));
+  $('#mat-back').addEventListener('click', () => show(S.tile.contact ? 'guardian' : 'search'));
 
   async function getJSON(path) {
     const r = await fetch(API + path, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
@@ -78,12 +83,11 @@
     const q = $('#search').value.trim();
     const mine = ++seq;
     if (!q) { $('#results').innerHTML = ''; setHint('Start typing a first or last name.'); return; }
-    const type = S.mode === 'teacher' ? 'teacher' : 'student';
-    const list = await getJSON(`/search?type=${type}&q=${encodeURIComponent(q)}&date=${S.day}`);
+    const list = await getJSON(`/search?type=${isStaff() ? 'staff' : 'members'}&q=${encodeURIComponent(q)}&date=${S.day}`);
     if (mine !== seq) return; // a newer search is already running
     $('#results').innerHTML = list.map((p, i) =>
-      `<button class="pick" data-i="${i}"><span class="avatar ${type === 'teacher' ? 'teacher' : ''}">${esc(p.initials)}</span>` +
-      `<span><div class="nm">${esc(p.name)}</div>${p.grade ? `<div class="sb">${esc(p.grade)}</div>` : ''}</span>${badge(p.status)}</button>`).join('');
+      `<button class="pick" data-i="${i}"><span class="avatar ${isStaff() ? 'teacher' : ''}">${esc(p.initials)}</span>` +
+      `<span><div class="nm">${esc(p.name)}</div>${p.grade ? `<div class="sb">${esc(p.grade)}</div>` : ''}</span>${S.tile.type === 'pickup' ? '' : badge(p.status)}</button>`).join('');
     setHint(list.length ? '' : 'No match. Try fewer letters, or ask the front desk.');
     $$('#results .pick').forEach((b) => b.addEventListener('click', () => pickPerson(list[+b.dataset.i])));
   }
@@ -97,57 +101,54 @@
   }
 
   function whoHTML() {
-    const cls = S.mode === 'teacher' ? 'teacher' : '';
-    let sub = S.person.grade || (S.mode === 'teacher' ? 'Teacher / Staff' : '');
+    let sub = S.person.grade || (isStaff() ? S.tile.label : '');
     if (S.guardian) sub = (sub ? sub + ' · ' : '') + 'with ' + S.guardian.name + (S.guardian.relationship ? ` (${S.guardian.relationship})` : '');
-    return `<span class="avatar ${cls}">${esc(S.person.initials)}</span><div><div style="font-weight:800;font-size:1.15rem">${esc(S.person.name)}</div><div class="muted">${esc(sub)}</div></div>${badge(S.person.status)}`;
+    return `<span class="avatar ${isStaff() ? 'teacher' : ''}">${esc(S.person.initials)}</span><div><div style="font-weight:800;font-size:1.15rem">${esc(S.person.name)}</div><div class="muted">${esc(sub)}</div></div>${S.tile.type === 'pickup' ? '' : badge(S.person.status)}`;
   }
 
-  // ---- Step 3: only this student's guardians
+  // ---- Step 3: only this person's contacts (when the tile asks for one)
   async function pickPerson(p) {
     S.person = p; S.guardian = null;
-    if (S.mode === 'teacher') return openAction();
+    if (!S.tile.contact || isStaff()) return S.tile.type === 'pickup' ? openMaterial() : openAction();
     $('#who-g').innerHTML = whoHTML();
-    $('#guardian-title').textContent = S.mode === 'material' ? 'Who is picking up?' : 'Who is dropping off or picking up?';
+    $('#guardian-title').textContent = S.tile.type === 'pickup' ? 'Who is picking up?' : 'Who is with them?';
     $('#guardians').innerHTML = '<div class="spinner"></div>';
     show('guardian');
     const list = await getJSON(`/guardians?student_id=${p.id}`);
     if (!list.length) {
-      $('#guardians').innerHTML = '<div class="k-hint">No parent or guardian is on file for this student. Please see the front desk.</div>';
+      $('#guardians').innerHTML = '<div class="k-hint">No contact is on file for this person. Please see the front desk.</div>';
       return;
     }
     $('#guardians').innerHTML = list.map((g, i) =>
       `<button class="pick" data-i="${i}"><span class="avatar material">${esc(g.initials)}</span>` +
-      `<span><div class="nm">${esc(g.name)}</div><div class="sb">${esc(g.relationship || 'Guardian')}</div></span></button>`).join('');
+      `<span><div class="nm">${esc(g.name)}</div><div class="sb">${esc(g.relationship || 'Contact')}</div></span></button>`).join('');
     $$('#guardians .pick').forEach((b) => b.addEventListener('click', () => {
       S.guardian = list[+b.dataset.i];
-      S.mode === 'material' ? openMaterial() : openAction();
+      S.tile.type === 'pickup' ? openMaterial() : openAction();
     }));
   }
 
-  // ---- Step 4a: sign in / out, with the likely choice highlighted
+  // ---- Step 4a: sign in / out, with only the valid choice enabled
   function openAction() {
     $('#who-a').innerHTML = whoHTML();
-    $('#in-sub').textContent = S.mode === 'teacher' ? 'Start my day' : 'Arriving / drop-off';
-    $('#out-sub').textContent = S.mode === 'teacher' ? 'End my day' : 'Leaving / pick-up';
     show('action');
     loadStatus();
   }
   async function loadStatus() {
     const note = $('#status-note');
     const btnIn = $('.action.in'), btnOut = $('.action.out');
-    const inSub = S.mode === 'teacher' ? 'Start my day' : 'Arriving / drop-off';
-    const outSub = S.mode === 'teacher' ? 'End my day' : 'Leaving / pick-up';
+    const withContact = S.tile.contact && !isStaff();
+    const inSub = withContact ? 'Arriving / drop-off' : 'Start / arrive';
+    const outSub = withContact ? 'Leaving / pick-up' : 'Finish / leave';
     note.className = 'status-note hidden';
     [btnIn, btnOut].forEach((b) => { b.disabled = true; b.classList.remove('suggest'); }); // no taps until we know
-    const type = S.mode === 'teacher' ? 'teacher' : 'student';
-    const st = await getJSON(`/status?type=${type}&id=${S.person.id}&date=${S.day}`);
+    const st = await getJSON(`/status?type=${isStaff() ? 'teacher' : 'student'}&id=${S.person.id}&date=${S.day}`);
     S.person.status = st.state === 'none' ? null : st;
     $('#who-a').innerHTML = whoHTML();
     const day = S.day === TODAY ? 'today' : 'that day';
     const by = st.guardian ? ` by ${st.guardian}` : '';
     if (st.state === 'in') {
-      note.textContent = `✓ Checked in at ${st.time}${by}. Waiting for sign-out.`;
+      note.textContent = `✓ Signed in at ${st.time}${by}. Waiting for sign-out.`;
       note.className = 'status-note is-in';
       btnOut.disabled = false; btnOut.classList.add('suggest');
       $('#in-sub').textContent = `Already signed in at ${st.time}`;
@@ -161,7 +162,7 @@
     }
   }
 
-  // ---- Step 4b: material pickup
+  // ---- Step 4b: item pickup
   function openMaterial() {
     $('#who-m').innerHTML = whoHTML();
     $$('input[name=mat]').forEach((c) => { c.checked = false; });
@@ -169,13 +170,40 @@
     show('material');
   }
 
+  // ---- Visitors
+  function openVisitor() {
+    $('#visitor-title').textContent = S.tile.label;
+    ['#v-name', '#v-company', '#v-host'].forEach((s) => { $(s).value = ''; });
+    show('visitor');
+    setTimeout(() => $('#v-name').focus(), 60);
+    loadVisitors();
+  }
+  async function loadVisitors() {
+    const box = $('#v-list');
+    const list = await getJSON(`/visitors?date=${S.day}`);
+    box.innerHTML = list.length ? list.map((v, i) =>
+      `<button class="pick" data-i="${i}"><span class="avatar material">${esc(v.initials)}</span>` +
+      `<span><div class="nm">${esc(v.name)}</div><div class="sb">${esc([v.company, v.host && 'visiting ' + v.host].filter(Boolean).join(' · '))}</div></span>` +
+      `<span class="st st-in">In since ${esc(v.since)}</span></button>`).join('') : '<div class="k-hint">No visitors are signed in.</div>';
+    $$('#v-list .pick').forEach((b) => b.addEventListener('click', () => submit('visitor', {
+      tile_id: S.tile.id, action: 'sign_out', visit_id: list[+b.dataset.i].visit_id, date: S.day, time: pastTime('visitor'),
+    }, b)));
+  }
+  $('#v-submit').addEventListener('click', (e) => {
+    if ($('#v-name').value.trim().length < 2) return fail('visitor', 'Please type your full name.');
+    submit('visitor', { tile_id: S.tile.id, action: 'sign_in', visitor_name: $('#v-name').value, company: $('#v-company').value,
+      host: $('#v-host').value, date: S.day, time: pastTime('visitor') }, e.currentTarget);
+  });
+
   const pastTime = (step) => ($(`[data-step="${step}"] .past-time`) || {}).value || '';
+  function fail(step, m) {
+    const err = $(`[data-step="${step}"] .k-error`);
+    err.textContent = m; err.classList.remove('hidden');
+  }
 
   async function submit(step, payload, btn) {
-    const err = $(`[data-step="${step}"] .k-error`);
-    const fail = (m) => { err.textContent = m; err.classList.remove('hidden'); };
-    err.classList.add('hidden');
-    if (S.day !== TODAY && !payload.time) return fail('Please enter the time for that day.');
+    $(`[data-step="${step}"] .k-error`).classList.add('hidden');
+    if (S.day !== TODAY && !payload.time) return fail(step, 'Please enter the time for that day.');
     btn.disabled = true;
     try {
       const r = await fetch(API + '/record', {
@@ -183,33 +211,28 @@
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF, Accept: 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (r.status === 419) { fail('Session expired — reloading…'); setTimeout(() => location.reload(), 1200); return; }
+      if (r.status === 419) { fail(step, 'Session expired. Reloading…'); setTimeout(() => location.reload(), 1200); return; }
       const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok) return fail(data.error || 'Something went wrong. Please try again.');
+      if (!r.ok || !data.ok) return fail(step, data.error || 'Something went wrong. Please try again.');
       done(data);
     } catch (e) {
-      fail('Connection problem. Please try again.');
+      fail(step, 'Connection problem. Please try again.');
     } finally {
       btn.disabled = false;
     }
   }
 
   $$('.action').forEach((b) => b.addEventListener('click', () => submit('action', {
-    mode: S.mode, person_id: S.person.id, guardian_id: S.guardian ? S.guardian.id : 0,
+    tile_id: S.tile.id, person_id: S.person.id, guardian_id: S.guardian ? S.guardian.id : 0,
     action: b.dataset.action, date: S.day, time: pastTime('action'),
   }, b)));
 
   $('#mat-submit').addEventListener('click', (e) => {
     const items = $$('input[name=mat]:checked').map((c) => c.value);
     const other = $('#mat-other').value.trim();
-    if (!items.length && !other) {
-      const err = $('[data-step="material"] .k-error');
-      err.textContent = 'Please choose at least one item.';
-      err.classList.remove('hidden');
-      return;
-    }
+    if (!items.length && !other) return fail('material', 'Please choose at least one item.');
     submit('material', {
-      mode: 'material', person_id: S.person.id, guardian_id: S.guardian.id,
+      tile_id: S.tile.id, person_id: S.person.id, guardian_id: S.guardian ? S.guardian.id : 0,
       materials: items, other, date: S.day, time: pastTime('material'),
     }, e.currentTarget);
   });
@@ -226,7 +249,7 @@
   }
   function reset() {
     clearTimeout(resetTimer);
-    S.mode = S.person = S.guardian = null;
+    S.tile = S.person = S.guardian = null;
     $$('.past-time').forEach((t) => { t.value = ''; }); // never carry a time over to the next person
     show('role');
     setDay(TODAY);

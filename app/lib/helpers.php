@@ -205,6 +205,16 @@ function icon(string $name, int $size = 20): string
         'plus'     => '<path d="M12 5v14M5 12h14"/>',
         'globe'    => '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
         'calendar' => '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+        'badge'    => '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M8 17c.8-1.6 2.2-2.5 4-2.5s3.2.9 4 2.5M10 3v2h4V3"/>',
+        'briefcase'=> '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>',
+        'heart'    => '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+        'tool'     => '<path d="M3 18h18M5 18v-3a7 7 0 0 1 14 0v3M10 8.5V12M14 8.5V12M12 8V6"/>',
+        'truck'    => '<path d="M2 7h11v9H2zM13 10h4l4 3.5V16h-8"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+        'dumbbell' => '<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>',
+        'book'     => '<path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6z"/><path d="M12 6v14.5"/>',
+        'card'     => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+        'dollar'   => '<path d="M12 3v18M17 7.5C16 6 14.2 5.5 12 5.5c-2.8 0-4.5 1.3-4.5 3.2 0 4.3 9.5 2.3 9.5 6.6 0 2-1.9 3.2-5 3.2-2.4 0-4.2-.7-5-2.2"/>',
+        'grid'     => '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     ][$name] ?? '';
     return '<svg class="ic" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $p . '</svg>';
 }

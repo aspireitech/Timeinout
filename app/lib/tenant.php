@@ -189,9 +189,13 @@ function provision_tenant(array $d): array
             'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+' . (int) cfg('trial_days', 30) . ' days')),
             'timezone'      => $d['timezone'],
             'welcome_title' => 'Welcome to ' . $d['org_name'],
-            'welcome_text'  => 'Tap below to sign in, sign out or pick up materials.',
+            'welcome_text'  => 'Tap a button below to sign in or out.',
             'report_emails' => $d['email'],
+            'industry'      => $d['industry'],
+            'state'         => $d['state'] ?: null,
+            'city'          => $d['city'] ?: null,
         ]);
+        seed_tiles($tenantId, $d['industry']);
         insert('users', [
             'tenant_id'     => $tenantId,
             'name'          => $d['admin_name'],
@@ -199,11 +203,11 @@ function provision_tenant(array $d): array
             'password_hash' => password_hash($d['password'], PASSWORD_DEFAULT),
             'role'          => 'owner',
         ]);
-        foreach (['Homework folder', 'Books', 'Uniform', 'Lunch box', 'Art project'] as $i => $m) {
+        foreach (industry($d['industry'])['items'] as $i => $m) {
             insert('materials', ['tenant_id' => $tenantId, 'name' => $m, 'sort_order' => $i]);
         }
         if (!empty($d['demo'])) {
-            seed_demo_people($tenantId);
+            seed_demo_people($tenantId, $d['industry']);
         }
         $pdo->commit();
     } catch (Throwable $ex) {
@@ -213,8 +217,10 @@ function provision_tenant(array $d): array
     return row('SELECT * FROM tenants WHERE id = ?', [$tenantId]);
 }
 
-function seed_demo_people(int $tenantId): void
+function seed_demo_people(int $tenantId, string $industry = 'school'): void
 {
+    $contacts = in_array($industry, ['school', 'tutoring'], true);
+    $groups = $contacts ? null : ['Morning shift', 'Day shift', 'Evening shift', 'Day shift', 'Morning shift', 'Evening shift'];
     $students = [
         ['S001', 'Ava', 'Johnson', 'Grade 2', [['Michael Johnson', 'Father', '555-0101'], ['Sarah Johnson', 'Mother', '555-0102']]],
         ['S002', 'Liam', 'Patel', 'Grade 3', [['Raj Patel', 'Father', '555-0111'], ['Priya Patel', 'Mother', '555-0112']]],
@@ -224,8 +230,9 @@ function seed_demo_people(int $tenantId): void
         ['S006', 'Ethan', 'Brown', 'Grade 5', [['James Brown', 'Father', '555-0151'], ['Olivia Brown', 'Mother', '555-0152']]],
     ];
     foreach ($students as [$code, $fn, $ln, $grade, $gs]) {
-        $sid = insert('students', ['tenant_id' => $tenantId, 'student_code' => $code, 'first_name' => $fn, 'last_name' => $ln, 'grade' => $grade]);
-        foreach ($gs as [$gname, $rel, $phone]) {
+        $sid = insert('students', ['tenant_id' => $tenantId, 'student_code' => $code, 'first_name' => $fn, 'last_name' => $ln,
+            'grade' => $groups ? $groups[(int) substr($code, 1) - 1] : $grade]);
+        foreach ($contacts ? $gs : [] as [$gname, $rel, $phone]) {
             insert('guardians', ['tenant_id' => $tenantId, 'student_id' => $sid, 'name' => $gname, 'relationship' => $rel, 'phone' => encrypt_pii($phone)]);
         }
     }

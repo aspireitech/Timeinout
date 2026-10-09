@@ -36,6 +36,8 @@ function seed_demo_tenant(): array
             'welcome_text' => 'Tap below to sign in, sign out or pick up materials.',
             'allow_past_days' => 7, 'report_emails' => 'admin@demo.com',
         ]);
+        seed_tiles($tid, 'school');
+        q("UPDATE kiosk_tiles SET active = 1 WHERE tenant_id = ? AND type = 'visitor'", [$tid]); // show visitors in the demo
         foreach (DEMO_LOGINS as [$role, $name, $email, $pass]) {
             insert('users', ['tenant_id' => $tid, 'name' => $name, 'email' => $email, 'role' => $role, 'password_hash' => password_hash($pass, PASSWORD_DEFAULT)]);
         }
@@ -150,6 +152,18 @@ function seed_demo_tenant(): array
                     $at = mt_rand(7 * 60 + 30, min($cap, 9 * 60));
                 }
                 $att->execute([$tid, 'student', $st['id'], $st['name'], $g[0], $g[1], 'material_pickup', $date, $t($at), implode(', ', (array) $items)]);
+            }
+        }
+        // A few visitors today, so the Visitor tile and sheet have something to show
+        $vt = (int) val("SELECT id FROM kiosk_tiles WHERE tenant_id = ? AND type = 'visitor'", [$tid]);
+        foreach ([['Jordan Lee', 'BrightPath Books', 'Ms. Lee', 8 * 60 + 40, 9 * 60 + 25], ['Alex Rivera', 'City Fire Dept', 'Office', 10 * 60 + 5, null]] as [$vn, $vc, $vh, $vin, $vout]) {
+            $today = $now->format('Y-m-d');
+            $vid = insert('attendance', ['tenant_id' => $tid, 'person_type' => 'visitor', 'tile_id' => $vt, 'person_id' => 0, 'person_name' => $vn,
+                'guardian_name' => $vc, 'kind' => 'sign_in', 'event_date' => $today, 'event_time' => $t($vin), 'note' => 'Visiting: ' . $vh]);
+            q('UPDATE attendance SET person_id = id WHERE id = ?', [$vid]);
+            if ($vout) {
+                insert('attendance', ['tenant_id' => $tid, 'person_type' => 'visitor', 'tile_id' => $vt, 'person_id' => $vid, 'person_name' => $vn,
+                    'guardian_name' => $vc, 'kind' => 'sign_out', 'event_date' => $today, 'event_time' => $t($vout), 'note' => 'Visiting: ' . $vh]);
             }
         }
         $pdo->commit();

@@ -24,12 +24,14 @@ $nav = function (string $path, string $ico, string $label) use ($here) {
       <?= $nav('/admin/logs', 'list', 'Activity log') ?>
       <?= $nav('/admin/reports', 'chart', 'Reports') ?>
       <div class="nav-label">People</div>
-      <?= $nav('/admin/students', 'users', 'Students & guardians') ?>
-      <?= $nav('/admin/teachers', 'teacher', 'Teachers & staff') ?>
-      <?= $nav('/admin/materials', 'box', 'Materials') ?>
+      <?= $nav('/admin/students', 'users', term('a2') . (uses_contacts() ? ' & ' . strtolower(term('c2')) : '')) ?>
+      <?= $nav('/admin/teachers', 'teacher', term('b2')) ?>
+      <?= $nav('/admin/materials', 'box', 'Pickup ' . strtolower(term('items'))) ?>
       <?= $nav('/admin/import', 'upload', 'Import CSV') ?>
       <div class="nav-label">Setup</div>
+      <?= $nav('/admin/tiles', 'grid', 'Kiosk tiles') ?>
       <?= $nav('/admin/settings', 'settings', 'Branding & settings') ?>
+      <?= $nav('/admin/billing', 'card', 'Billing') ?>
       <?= $nav('/admin/users', 'shield', 'Users') ?>
       <?= $nav('/admin/audit', 'list', 'Audit log') ?>
       <a href="<?= e(url('/logout')) ?>"><?= icon('logout') ?><span class="t">Log out</span></a>
@@ -40,12 +42,13 @@ $nav = function (string $path, string $ico, string $label) use ($here) {
     </div>
   </aside>
   <main class="main">
-    <?php if ($t['status'] === 'trial' && $t['trial_ends_at']):
-        $left = (int) ceil((strtotime($t['trial_ends_at']) - time()) / 86400); ?>
+    <?php $bs = billing_state($t); if (in_array($bs, ['trial', 'grace'], true) && !str_starts_with($here, '/admin/billing')): $left = trial_days_left($t); ?>
       <div class="banner"><?= icon('clock', 16) ?>
-        <?= $left > 0 ? "Free trial — $left day" . ($left === 1 ? '' : 's') . ' left.' : 'Your free trial has ended.' ?>
-        <?php if (cfg('payment_link')): ?><a href="<?= e(cfg('payment_link')) ?>?client_reference_id=<?= e($t['slug']) ?>" target="_blank" rel="noopener"><b>Subscribe now →</b></a><?php endif; ?>
+        <?= $bs === 'trial' ? "Free trial: $left day" . ($left === 1 ? '' : 's') . ' left.' : 'Your free trial has ended.' ?>
+        <a href="<?= e(url('/admin/billing')) ?>"><b>Choose a plan →</b></a>
       </div>
+    <?php elseif ($t['subscription_status'] === 'past_due'): ?>
+      <div class="banner"><?= icon('card', 16) ?> Your last card payment failed. <a href="<?= e(url('/admin/billing')) ?>"><b>Update your card →</b></a></div>
     <?php endif; ?>
     <?php require APP_DIR . '/views/partials/flashes.php'; ?>
     <?= $content ?>

@@ -1,4 +1,4 @@
-<div class="topbar"><div><h1>Materials</h1><div class="muted">Items parents can pick up from the kiosk.</div></div></div>
+<div class="topbar"><div><h1>Pickup <?= e(strtolower(term('items'))) ?></h1><div class="muted">Items that can be picked up at the kiosk.</div></div></div>
 <div class="card" style="max-width:720px">
   <form method="post" class="inline-form" style="margin-bottom:18px">
     <?= csrf_field() ?>

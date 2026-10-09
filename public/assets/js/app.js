@@ -4,26 +4,25 @@
   document.querySelectorAll('form[data-confirm]').forEach((f) =>
     f.addEventListener('submit', (e) => { if (!confirm(f.dataset.confirm)) e.preventDefault(); }));
 
-  // Sign-up: suggest the portal address from the organization name and check it live
-  const org = document.getElementById('org_name');
-  const slug = document.getElementById('slug');
-  const hint = document.getElementById('slug-hint');
-  if (org && slug) {
-    let touched = slug.value !== '';
-    const clean = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+  // Sign-up: live preview of state prefix + optional city + short name, checked with the server
+  const box = document.getElementById('addr-preview');
+  if (box) {
+    const st = document.getElementById('state'), city = document.getElementById('city'), short = document.getElementById('short');
     let timer;
     const check = () => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
-        if (!slug.value) return;
-        const r = await fetch(slug.dataset.check + '?slug=' + encodeURIComponent(slug.value));
-        const d = await r.json();
-        hint.textContent = d.error ? d.error : '✓ ' + d.slug + ' is available';
-        hint.style.color = d.error ? 'var(--danger)' : 'var(--in)';
-      }, 300);
+        if (!st.value || short.value.length < 1) return;
+        const q = new URLSearchParams({ state: st.value === 'XX' ? '' : st.value, city: city.value, name: short.value });
+        const d = await (await fetch(box.dataset.check + '?' + q)).json();
+        box.className = 'addr-preview ' + (d.error ? 'bad' : 'ok');
+        box.lastElementChild.textContent = d.error ? d.error : d.url + ' is available';
+      }, 250);
     };
-    org.addEventListener('input', () => { if (!touched) { slug.value = clean(org.value); check(); } });
-    slug.addEventListener('input', () => { touched = true; slug.value = slug.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 30); check(); });
+    short.addEventListener('input', () => { short.value = short.value.toLowerCase().replace(/[^a-z0-9]/g, ''); check(); });
+    city.addEventListener('input', check);
+    st.addEventListener('change', check);
+    if (short.value) check();
   }
 
   // Default the time zone select to the browser's zone

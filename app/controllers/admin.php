@@ -612,7 +612,7 @@ function admin_password(): void
 function admin_attendance(): void
 {
     require_admin();
-    $type = input('type') === 'teacher' ? 'teacher' : 'student';
+    $type = in_array(input('type'), ['teacher', 'visitor'], true) ? (string) input('type') : 'student';
     $date = valid_date((string) input('date')) ? (string) input('date') : tenant_today();
     $status = in_array(input('status'), ['in', 'out', 'absent', 'present'], true) ? (string) input('status') : '';
     $q = mb_strtolower(trim((string) input('q')));
@@ -628,7 +628,7 @@ function admin_attendance(): void
 
     $export = (string) input('export');
     if (in_array($export, ['csv', 'pdf'], true)) {
-        audit('Downloaded attendance sheet', ucfirst($type) . 's ' . $date, true, strtoupper($export));
+        audit('Downloaded attendance sheet', term($type === 'teacher' ? 'b2' : ($type === 'visitor' ? 'v2' : 'a2')) . ' ' . $date, true, strtoupper($export));
         if ($export === 'pdf') {
             send_download("attendance-{$type}s-$date.pdf", 'application/pdf', pdf_attendance(tenant(), $type, $date, $rows, $count));
         }
@@ -689,4 +689,173 @@ function admin_audit(): void
     $total = (int) val("SELECT COUNT(*) FROM audit_log WHERE $where", $p);
     $logs = rows("SELECT * FROM audit_log WHERE $where ORDER BY id DESC LIMIT 100 OFFSET " . (($page - 1) * 100), $p);
     admin_view('audit', compact('f', 'logs', 'total', 'page'));
+}
+
+// ---------- Kiosk tiles & the words used in the app ----------
+function admin_tiles(): void
+{
+    require_admin();
+    admin_view('tiles', ['tiles' => kiosk_tiles(false), 'ind' => industry(tenant()['industry'] ?? 'school')]);
+}
+
+function admin_tile_save(): void
+{
+    require_admin();
+    $id = (int) input('id');
+    $data = [
+        'label'         => mb_substr(trim((string) input('label')), 0, 40),
+        'subtitle'      => mb_substr(trim((string) input('subtitle')), 0, 120) ?: null,
+        'icon'          => in_array(input('icon'), TILE_ICONS, true) ? (string) input('icon') : 'users',
+        'color'         => isset(TILE_COLORS[(string) input('color')]) ? (string) input('color') : 'violet',
+        'needs_contact' => input('needs_contact') === '1' ? 1 : 0,
+        'active'        => input('active', '1') === '1' ? 1 : 0,
+    ];
+    if ($data['label'] === '') {
+        flash('error', 'Each tile needs a name.');
+        redirect(url('/admin/tiles'));
+    }
+    if ($id) {
+        $before = row('SELECT * FROM kiosk_tiles WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
+        if (in_array($before['type'], ['staff', 'visitor'], true)) {
+            $data['needs_contact'] = 0;
+        }
+        update('kiosk_tiles', $data, 'id = ? AND tenant_id = ?', [$id, tid()]);
+        audit_note($data['label'] . " (#$id)", audit_diff($before, $data));
+        flash('success', 'Tile saved.');
+    } else {
+        $type = array_key_exists((string) input('type'), TILE_TYPES) ? (string) input('type') : 'members';
+        if (in_array($type, ['staff', 'visitor'], true)) {
+            $data['needs_contact'] = 0;
+        }
+        $id = insert('kiosk_tiles', $data + ['tenant_id' => tid(), 'type' => $type,
+            'sort_order' => (int) val('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM kiosk_tiles WHERE tenant_id = ?', [tid()])]);
+        audit_note($data['label'] . " (#$id)", 'New ' . TILE_TYPES[$type] . ' tile');
+        flash('success', 'Tile added to the kiosk.');
+    }
+    redirect(url('/admin/tiles'));
+}
+
+function admin_tile_move(int $id): void
+{
+    require_admin();
+    $tiles = kiosk_tiles(false);
+    $ids = array_map('intval', array_column($tiles, 'id'));
+    $i = array_search($id, $ids, true);
+    $j = $i === false ? false : $i + (input('dir') === 'up' ? -1 : 1);
+    if ($i !== false && isset($ids[$j])) {
+        [$ids[$i], $ids[$j]] = [$ids[$j], $ids[$i]];
+        foreach ($ids as $n => $tileId) {
+            q('UPDATE kiosk_tiles SET sort_order = ? WHERE id = ? AND tenant_id = ?', [$n, $tileId, tid()]);
+        }
+        audit_note($tiles[$i]['label'], 'Moved ' . (input('dir') === 'up' ? 'up' : 'down'));
+    }
+    redirect(url('/admin/tiles'));
+}
+
+function admin_tile_delete(int $id): void
+{
+    require_admin();
+    $tile = row('SELECT * FROM kiosk_tiles WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
+    audit_note($tile['label'] . " (#$id)");
+    q('DELETE FROM kiosk_tiles WHERE id = ? AND tenant_id = ?', [$id, tid()]);
+    flash('success', 'Tile removed. Past entries made with it are kept.');
+    redirect(url('/admin/tiles'));
+}
+
+function admin_tiles_reset(): void
+{
+    require_admin();
+    $industry = array_key_exists((string) input('industry'), industries()) ? (string) input('industry') : (tenant()['industry'] ?? 'school');
+    update('tenants', ['industry' => $industry, 'terms' => null], 'id = ?', [tid()]);
+    seed_tiles(tid(), $industry);
+    audit_note(industry($industry)['name'], 'Tiles and names reset to the industry defaults');
+    flash('success', 'Kiosk tiles and names now match: ' . industry($industry)['name'] . '.');
+    redirect(url('/admin/tiles'));
+}
+
+function admin_terms_save(): void
+{
+    require_admin();
+    $t = tenant();
+    $new = [];
+    foreach (['a1', 'a2', 'c1', 'c2', 'b1', 'b2', 'items'] as $k) {
+        $v = mb_substr(trim((string) input($k)), 0, 40);
+        if ($v !== '' && $v !== term($k)) {
+            $new[$k] = $v;
+        }
+    }
+    $old = json_decode((string) ($t['terms'] ?? ''), true) ?: [];
+    $merged = array_merge($old, $new);
+    update('tenants', ['terms' => $merged ? json_encode($merged) : null], 'id = ?', [tid()]);
+    audit_note('Names used in the app', $new ? implode('; ', array_map(fn($k, $v) => "$k → $v", array_keys($new), $new)) : 'No changes');
+    flash('success', 'Names saved.');
+    redirect(url('/admin/tiles'));
+}
+
+// ---------- Billing (subscription for this portal) ----------
+function admin_billing(): void
+{
+    require_admin();
+    $payments = rows('SELECT * FROM payments WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 50', [tid()]);
+    if (input('paid') === '1') {
+        flash('success', 'Thank you! Your payment is being confirmed by Stripe; this page updates within a minute.');
+        redirect(url('/admin/billing'));
+    }
+    admin_view('billing', ['t' => tenant(), 'plans' => plans(), 'payments' => $payments, 'state' => billing_state()]);
+}
+
+function admin_billing_stripe(): void
+{
+    require_admin();
+    $plan = (string) input('plan');
+    try {
+        if (!isset(plans()[$plan])) {
+            throw new RuntimeException('Please choose a plan.');
+        }
+        $url = stripe_checkout_url(tenant(), $plan);
+        audit('Started card checkout', plans()[$plan]['name'] . ' plan', true, 'Stripe Checkout');
+        redirect($url);
+    } catch (Throwable $e) {
+        audit('Started card checkout', $plan, false, $e->getMessage());
+        flash('error', $e->getMessage());
+        redirect(url('/admin/billing'));
+    }
+}
+
+function admin_billing_portal(): void
+{
+    require_admin();
+    try {
+        if (!tenant()['stripe_customer_id']) {
+            throw new RuntimeException('There is no card subscription to manage yet.');
+        }
+        $url = stripe_portal_url(tenant());
+        audit('Opened billing portal', 'Stripe', true);
+        redirect($url);
+    } catch (Throwable $e) {
+        audit('Opened billing portal', 'Stripe', false, $e->getMessage());
+        flash('error', $e->getMessage());
+        redirect(url('/admin/billing'));
+    }
+}
+
+function admin_billing_wave(): void
+{
+    require_admin();
+    $plan = (string) input('plan');
+    try {
+        if (!isset(plans()[$plan])) {
+            throw new RuntimeException('Please choose a plan.');
+        }
+        if (tenant()['wave_invoice_id']) {
+            throw new RuntimeException('An invoice is already waiting to be paid. Check your email, or see the payments below.');
+        }
+        wave_send_invoice(tenant(), $plan);
+        audit('Requested invoice', plans()[$plan]['name'] . ' plan', true, 'Wave invoice emailed to ' . owner_email(tenant()));
+        flash('success', 'Your invoice is on its way to ' . owner_email(tenant()) . '. Your portal activates as soon as it is paid.');
+    } catch (Throwable $e) {
+        audit('Requested invoice', $plan, false, $e->getMessage());
+        flash('error', $e->getMessage());
+    }
+    redirect(url('/admin/billing'));
 }

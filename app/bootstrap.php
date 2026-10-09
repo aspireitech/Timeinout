@@ -26,6 +26,8 @@ require APP_DIR . '/lib/crypto.php';
 require APP_DIR . '/lib/audit.php';
 require APP_DIR . '/lib/migrate.php';
 require APP_DIR . '/lib/pdf.php';
+require APP_DIR . '/lib/industries.php';
+require APP_DIR . '/lib/billing.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', cfg('debug') ? '1' : '0');

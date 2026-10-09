@@ -121,6 +121,31 @@ The demo lives at `abc.com/s/demo` (or `demo.abc.com` once subdomains are on). T
 
 The demo login page also has tap-to-fill buttons for both accounts. Visitors can change demo data, so reset it from `/super` before an important presentation.
 
+## Industries, kiosk tiles and visitors (Phase 2)
+
+- At sign-up a business picks one of **12 industries** (office, school/daycare, tutoring, clinic, construction, retail, restaurant, gym, warehouse, events, nonprofit, field services). That sets the **kiosk tiles** and the **words** used everywhere, for example *Employee / Visitor / Package Pickup* for an office or *Student / Teacher / Material Pickup* for a school.
+- **Admin → Kiosk tiles:** rename, recolor, change icon, reorder, hide, remove or **add** tiles. Tile types: sign in/out (main list), sign in/out (staff list), item pickup, visitor. You can also rename the words used in the app, or reset to an industry's defaults.
+- **Visitors** type their name, company and who they're visiting, and tap their name to sign out. They get their own tab on *Today's attendance*, in PDF and CSV too.
+- **Web address:** state prefix (fixed) + optional city + 3–10 letter name, for example `utsjkumon` or `utsandysjkumon`, previewed live at sign-up. "Sign in" on the homepage finds a space by its address.
+
+## Payments: Stripe and Wave (Phase 2)
+
+Enter the keys at **`/super` → Settings**. They're stored encrypted.
+
+**Stripe (card subscriptions)**
+1. In Stripe, create one **Product** with a monthly **Price** for each plan. Copy each price ID (`price_…`).
+2. Under Developers → API keys, copy the **secret key**.
+3. Under Developers → Webhooks, add an endpoint `https://YOURDOMAIN/webhooks/stripe` with the events `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` and `invoice.payment_failed`. Copy its **signing secret** (`whsec_…`).
+4. In Settings → Billing → Customer portal, turn the portal on so customers can change card, change plan or cancel.
+5. Paste everything into `/super` → Settings. Customers then see **Pay by card** under Admin → Billing.
+
+**Wave (invoices)**: needs a Wave plan with API access.
+1. In the Wave Developer Portal, create an app and generate a full-access token for your business. Copy your **business ID**.
+2. In Wave, create one product per plan (Sales → Products & services) and copy each product ID.
+3. Paste them into `/super` → Settings. Customers see **Pay by invoice**. Wave emails the invoice, and the hourly cron job unlocks the space when it's paid and raises the next invoice a week before renewal.
+
+**What happens when:** a 30-day trial, then a 7-day grace period, then the kiosk pauses and admins are sent to Billing. Data is never deleted. A cancelled card subscription behaves the same way. In `/super` → **Payments** you see revenue, monthly recurring revenue, every payment (CSV export), and can **record a payment** received by cheque or bank transfer.
+
 ## Security (Phase 1)
 
 | Protection | What it does |

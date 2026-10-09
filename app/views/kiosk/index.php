@@ -27,18 +27,14 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
       <h1 class="k-title"><?= e($t['welcome_title'] ?: 'Welcome!') ?></h1>
       <p class="k-sub"><?= e($t['welcome_text'] ?: 'Who are you?') ?></p>
       <div class="role-grid">
-        <button class="role-card student" data-mode="student">
-          <span class="ri"><?= icon('users', 34) ?></span>
-          <span><span class="rt">Student</span><span class="rd">Sign in or sign out with your parent or guardian</span></span>
-        </button>
-        <button class="role-card teacher" data-mode="teacher">
-          <span class="ri"><?= icon('teacher', 34) ?></span>
-          <span><span class="rt">Teacher / Staff</span><span class="rd">Start or end your day</span></span>
-        </button>
-        <button class="role-card material" data-mode="material">
-          <span class="ri"><?= icon('box', 34) ?></span>
-          <span><span class="rt">Material Pickup</span><span class="rd">Pick up homework, books or other items</span></span>
-        </button>
+        <?php foreach ($tiles as $tl): ?>
+          <button class="role-card" style="background:<?= e(tile_gradient($tl['color'])) ?>" data-tile="<?= (int) $tl['id'] ?>"
+                  data-type="<?= e($tl['type']) ?>" data-contact="<?= (int) $tl['needs_contact'] ?>" data-label="<?= e($tl['label']) ?>">
+            <span class="ri"><?= icon($tl['icon'], 34) ?></span>
+            <span><span class="rt"><?= e($tl['label']) ?></span><span class="rd"><?= e($tl['subtitle']) ?></span></span>
+          </button>
+        <?php endforeach; ?>
+        <?php if (!$tiles): ?><p class="k-hint">No buttons are set up yet. An admin can add them in Admin → Kiosk tiles.</p><?php endif; ?>
       </div>
     </section>
 
@@ -61,7 +57,7 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
       <div class="k-panel">
         <button class="k-back" data-back="search"><?= icon('back', 18) ?> Back</button>
         <div class="who" id="who-g"></div>
-        <h2 id="guardian-title">Who is dropping off or picking up?</h2>
+        <h2 id="guardian-title">Who is with them?</h2>
         <div class="pick-grid" id="guardians"></div>
       </div>
     </section>
@@ -84,7 +80,7 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
     <!-- Step 4b: material pickup -->
     <section data-step="material" class="hidden">
       <div class="k-panel">
-        <button class="k-back" data-back="guardian"><?= icon('back', 18) ?> Back</button>
+        <button class="k-back" id="mat-back"><?= icon('back', 18) ?> Back</button>
         <div class="who" id="who-m"></div>
         <h2>What are you picking up?</h2>
         <div class="mat-grid">
@@ -95,6 +91,29 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <div class="field"><label for="mat-other">Something else?</label><input type="text" id="mat-other" maxlength="120" placeholder="Optional — type the item"></div>
         <div class="field hidden time-field"><label>Time</label><input type="time" class="past-time"></div>
         <button class="btn btn-lg btn-block" id="mat-submit" style="background:linear-gradient(135deg,var(--material-a),var(--material-b));color:#fff"><?= icon('check') ?> Confirm pickup</button>
+        <div class="k-error hidden"></div>
+      </div>
+    </section>
+
+    <!-- Visitors: type your details, or tap your name to sign out -->
+    <section data-step="visitor" class="hidden">
+      <div class="k-panel">
+        <button class="k-back" data-back="role"><?= icon('back', 18) ?> Back</button>
+        <h2 id="visitor-title">Visitor</h2>
+        <div class="visitor-grid">
+          <div>
+            <h3>Arriving? Sign in</h3>
+            <div class="field"><label for="v-name">Your full name</label><input type="text" id="v-name" maxlength="120" autocomplete="off" autocapitalize="words"></div>
+            <div class="field"><label for="v-company">Company (optional)</label><input type="text" id="v-company" maxlength="120" autocomplete="off"></div>
+            <div class="field"><label for="v-host">Who are you visiting? (optional)</label><input type="text" id="v-host" maxlength="120" autocomplete="off"></div>
+            <div class="field hidden time-field"><label>Time</label><input type="time" class="past-time"></div>
+            <button class="btn btn-lg btn-block btn-accent" id="v-submit"><?= icon('in') ?> Sign in</button>
+          </div>
+          <div>
+            <h3>Leaving? Tap your name</h3>
+            <div class="pick-grid one" id="v-list"><div class="k-hint">No visitors are signed in.</div></div>
+          </div>
+        </div>
         <div class="k-error hidden"></div>
       </div>
     </section>

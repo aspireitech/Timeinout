@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 function setting(string $key, $default = null)
 {
@@ -44,6 +44,9 @@ function migrate(): void
         }
         if ($v < 2) {
             migration_2();
+        }
+        if ($v < 3) {
+            migration_3();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -107,6 +110,69 @@ function migration_2(): void
             if ($phone !== $r['phone'] || $email !== $r['email']) {
                 q("UPDATE $table SET phone = ?, email = ? WHERE id = ?", [$phone, $email, $r['id']]);
             }
+        }
+    }
+}
+
+/** Industries, kiosk tiles, visitors, state/city addresses, Stripe & Wave billing. */
+function migration_3(): void
+{
+    foreach ([
+        ['industry', "VARCHAR(30) NOT NULL DEFAULT 'school'"],
+        ['state', 'VARCHAR(4) NULL'],
+        ['city', 'VARCHAR(40) NULL'],
+        ['terms', 'TEXT NULL'],
+        ['billing_provider', 'VARCHAR(10) NULL'],
+        ['subscription_status', 'VARCHAR(20) NULL'],
+        ['current_period_end', 'DATETIME NULL'],
+        ['stripe_customer_id', 'VARCHAR(64) NULL'],
+        ['stripe_subscription_id', 'VARCHAR(64) NULL'],
+        ['wave_customer_id', 'VARCHAR(190) NULL'],
+        ['wave_invoice_id', 'VARCHAR(190) NULL'],
+    ] as [$col, $def]) {
+        if (!column_exists('tenants', $col)) {
+            q("ALTER TABLE tenants ADD COLUMN $col $def");
+        }
+    }
+    q("CREATE TABLE IF NOT EXISTS kiosk_tiles (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        tenant_id INT UNSIGNED NOT NULL,
+        type ENUM('members','staff','pickup','visitor') NOT NULL,
+        label VARCHAR(40) NOT NULL,
+        subtitle VARCHAR(120) NULL,
+        icon VARCHAR(20) NOT NULL DEFAULT 'users',
+        color VARCHAR(10) NOT NULL DEFAULT 'violet',
+        needs_contact TINYINT(1) NOT NULL DEFAULT 0,
+        active TINYINT(1) NOT NULL DEFAULT 1,
+        sort_order INT NOT NULL DEFAULT 0,
+        KEY ix_tiles_tenant (tenant_id, sort_order),
+        CONSTRAINT fk_tiles_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    q("CREATE TABLE IF NOT EXISTS payments (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        tenant_id INT UNSIGNED NULL,
+        provider ENUM('stripe','wave','manual') NOT NULL,
+        external_id VARCHAR(190) NULL,
+        amount_cents INT NOT NULL DEFAULT 0,
+        currency CHAR(3) NOT NULL DEFAULT 'USD',
+        status ENUM('paid','open','failed','refunded') NOT NULL,
+        description VARCHAR(255) NULL,
+        invoice_url VARCHAR(500) NULL,
+        period_start DATE NULL,
+        period_end DATE NULL,
+        paid_at DATETIME NULL,
+        created_at DATETIME NOT NULL,
+        UNIQUE KEY uq_payment (provider, external_id),
+        KEY ix_pay_tenant (tenant_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    q("ALTER TABLE attendance MODIFY person_type ENUM('student','teacher','visitor') NOT NULL");
+    if (!column_exists('attendance', 'tile_id')) {
+        q('ALTER TABLE attendance ADD COLUMN tile_id INT UNSIGNED NULL AFTER person_type');
+    }
+    // Existing portals were schools: give them the school tiles they already had
+    foreach (rows('SELECT id, industry FROM tenants') as $t) {
+        if (!val('SELECT 1 FROM kiosk_tiles WHERE tenant_id = ?', [$t['id']])) {
+            seed_tiles((int) $t['id'], $t['industry'] ?: 'school');
         }
     }
 }

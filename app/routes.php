@@ -23,7 +23,7 @@ function dispatch(string $path, array $routes): void
         if (!in_array($method, explode('|', $methods), true)) {
             continue;
         }
-        if ($method === 'POST') {
+        if ($method === 'POST' && !str_starts_with($handler, 'webhook_')) { // webhooks are verified by signature instead
             csrf_check();
             if (isset($route[3])) { // 4th item = audit label: log this change automatically
                 audit_request($route[3]);
@@ -46,6 +46,7 @@ function platform_routes(string $path): void
         ['GET',      '/',                    'platform_home'],
         ['GET|POST', '/signup',              'platform_signup'],
         ['GET',      '/check-address',       'platform_check_slug'],
+        ['GET|POST', '/login',               'platform_find_login'],
         ['GET|POST', '/super/login',         'super_login'],
         ['GET|POST', '/super/verify',        'super_verify'],
         ['GET',      '/super/logout',        'super_logout'],
@@ -54,12 +55,15 @@ function platform_routes(string $path): void
         ['POST',     '/super/demo',          'super_seed_demo',     'Rebuilt demo portal'],
         ['GET|POST', '/super/settings',      'super_settings'],
         ['GET',      '/super/audit',         'super_audit'],
+        ['GET|POST', '/super/payments',      'super_payments'],
+        ['POST',     '/webhooks/stripe',     'webhook_stripe'],
         ['GET',      '/cron',                'web_cron'],
     ]);
 }
 
 function tenant_routes(string $path): void
 {
+    billing_gate($path);
     // A 4th item names the change for the audit log; those posts are logged automatically.
     dispatch($path, [
         // Kiosk (the screen students, parents and teachers use)
@@ -70,6 +74,7 @@ function tenant_routes(string $path): void
         ['GET',      '/api/search',                'api_search'],
         ['GET',      '/api/guardians',             'api_guardians'],
         ['GET',      '/api/status',                'api_status'],
+        ['GET',      '/api/visitors',              'api_visitors'],
         ['POST',     '/api/record',                'api_record'],
         // Admin portal (owners and admins only)
         ['GET',      '/admin',                     'admin_dashboard'],
@@ -108,5 +113,15 @@ function tenant_routes(string $path): void
         ['POST',     '/admin/users/{id}/password', 'admin_user_password',   'Reset user password'],
         ['POST',     '/admin/password',            'admin_password',        'Changed own password'],
         ['GET',      '/admin/audit',               'admin_audit'],
+        ['GET',      '/admin/tiles',               'admin_tiles'],
+        ['POST',     '/admin/tiles',               'admin_tile_save',       'Changed kiosk tile'],
+        ['POST',     '/admin/tiles/{id}/move',     'admin_tile_move',       'Reordered kiosk tiles'],
+        ['POST',     '/admin/tiles/{id}/delete',   'admin_tile_delete',     'Deleted kiosk tile'],
+        ['POST',     '/admin/tiles/reset',         'admin_tiles_reset',     'Reset kiosk tiles to industry defaults'],
+        ['POST',     '/admin/terms',               'admin_terms_save',      'Changed names used in the app'],
+        ['GET',      '/admin/billing',             'admin_billing'],
+        ['POST',     '/admin/billing/stripe',      'admin_billing_stripe'],
+        ['POST',     '/admin/billing/portal',      'admin_billing_portal'],
+        ['POST',     '/admin/billing/wave',        'admin_billing_wave'],
     ]);
 }

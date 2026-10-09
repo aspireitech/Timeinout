@@ -113,16 +113,16 @@ function report_email_html(array $t, string $title, array $r, string $portalUrl)
         . '<div style="background:' . $c . ';color:#fff;padding:20px 24px"><div style="font-size:13px;opacity:.85">' . e($t['name']) . '</div>'
         . '<div style="font-size:22px;font-weight:bold">' . e($title) . '</div></div><div style="padding:18px">'
         . '<table width="100%" cellspacing="0" cellpadding="0"><tr>'
-        . $tile('Student sign-ins', $r['totals']['student_in'], '#6C5CE7')
-        . $tile('Student sign-outs', $r['totals']['student_out'], '#0984E3')
-        . $tile('Teacher sign-ins', $r['totals']['teacher_in'], '#00B894')
+        . $tile(term('a1', $t) . ' sign-ins', $r['totals']['student_in'], '#6C5CE7')
+        . $tile(term('a1', $t) . ' sign-outs', $r['totals']['student_out'], '#0984E3')
+        . $tile(term('b1', $t) . ' sign-ins', $r['totals']['teacher_in'], '#00B894')
         . $tile('Material pickups', $r['totals']['pickups'], '#E17055')
         . '</tr></table>'
-        . '<p style="margin:14px 6px">Unique students: <b>' . $r['unique_students'] . '</b> &nbsp;·&nbsp; Unique teachers: <b>' . $r['unique_teachers'] . '</b></p>';
+        . '<p style="margin:14px 6px">' . e(term('a2', $t)) . ': <b>' . $r['unique_students'] . '</b> &nbsp;·&nbsp; ' . e(term('b2', $t)) . ': <b>' . $r['unique_teachers'] . '</b></p>';
 
     if (count($r['by_day']) > 1) {
         $h .= '<h3 style="margin:18px 6px 6px">By day</h3><table width="100%" cellpadding="6" style="border-collapse:collapse;font-size:13px">'
-            . '<tr style="background:#f0f1f8"><th align="left">Day</th><th>Students in</th><th>Students out</th><th>Teachers in</th><th>Pickups</th></tr>';
+            . '<tr style="background:#f0f1f8"><th align="left">Day</th><th>' . e(term('a2', $t)) . ' in</th><th>' . e(term('a2', $t)) . ' out</th><th>' . e(term('b2', $t)) . ' in</th><th>Pickups</th></tr>';
         foreach ($r['by_day'] as $day => $v) {
             $h .= '<tr style="border-bottom:1px solid #eee"><td>' . e(date('D M j', strtotime($day))) . '</td><td align="center">' . $v['student_in']
                 . '</td><td align="center">' . $v['student_out'] . '</td><td align="center">' . $v['teacher_in'] . '</td><td align="center">' . $v['pickups'] . '</td></tr>';
@@ -130,7 +130,7 @@ function report_email_html(array $t, string $title, array $r, string $portalUrl)
         $h .= '</table>';
     }
     if ($r['teacher_minutes']) {
-        $h .= '<h3 style="margin:18px 6px 6px">Teacher hours</h3><table width="100%" cellpadding="6" style="font-size:13px">';
+        $h .= '<h3 style="margin:18px 6px 6px">' . e(term('b1', $t)) . ' hours</h3><table width="100%" cellpadding="6" style="font-size:13px">';
         foreach ($r['teacher_minutes'] as $name => $m) {
             $h .= '<tr style="border-bottom:1px solid #eee"><td>' . e($name) . '</td><td align="right">' . fmt_minutes($m) . '</td></tr>';
         }
@@ -165,7 +165,8 @@ function attendance_sheet(string $type, string $date): array
     foreach ($events as $ev) {
         $pid = (int) $ev['person_id'];
         if ($ev['kind'] === 'sign_in') {
-            $visits[] = ['person_id' => $pid, 'name' => $ev['person_name'], 'in_by' => $ev['guardian_name'], 'in' => $ev['event_time'], 'out_by' => null, 'out' => null];
+            $visits[] = ['person_id' => $pid, 'name' => $ev['person_name'], 'in_by' => $ev['guardian_name'], 'in' => $ev['event_time'], 'out_by' => null, 'out' => null,
+                'host' => preg_replace('/^Visiting: /', '', (string) $ev['note'])];
             $open[$pid] = count($visits) - 1;
         } elseif (isset($open[$pid])) {
             $visits[$open[$pid]]['out_by'] = $ev['guardian_name'];
@@ -176,12 +177,12 @@ function attendance_sheet(string $type, string $date): array
         }
     }
     $table = $type === 'teacher' ? 'teachers' : 'students';
-    $people = rows("SELECT id, first_name, last_name, " . ($type === 'student' ? 'grade' : 'NULL AS grade') . " FROM $table WHERE tenant_id = ? AND active = 1 ORDER BY first_name, last_name", [tid()]);
+    $people = $type === 'visitor' ? [] : rows("SELECT id, first_name, last_name, " . ($type === 'student' ? 'grade' : 'NULL AS grade') . " FROM $table WHERE tenant_id = ? AND active = 1 ORDER BY first_name, last_name", [tid()]);
     $grades = array_column($people, 'grade', 'id');
     $seen = [];
     foreach ($visits as &$v) {
         $seen[$v['person_id']] = true;
-        $v['grade'] = $grades[$v['person_id']] ?? null;
+        $v['grade'] = $type === 'visitor' ? ($v['host'] ?? null) : ($grades[$v['person_id']] ?? null); // visitors: who they visited
         $v['status'] = $v['out'] ? 'out' : 'in';
         $v['minutes'] = ($v['in'] && $v['out']) ? max(0, (int) round((strtotime($v['out']) - strtotime($v['in'])) / 60)) : null;
     }
@@ -227,9 +228,16 @@ function csv_string(array $rows): string
 function attendance_csv_rows(string $type, array $rows): array
 {
     $label = ['in' => 'Not checked out', 'out' => 'Checked out', 'absent' => 'Absent'];
+    if ($type === 'visitor') {
+        $out = [[term('v1'), 'Company', 'Visiting', 'Sign-in time', 'Sign-out time', 'Time on site', 'Status']];
+        foreach ($rows as $r) {
+            $out[] = [$r['name'], $r['in_by'], $r['grade'], fmt_time($r['in']), fmt_time($r['out']), $r['minutes'] !== null ? fmt_minutes($r['minutes']) : '', $r['status'] === 'out' ? 'Signed out' : 'Still on site'];
+        }
+        return $out;
+    }
     $out = $type === 'teacher'
-        ? [['Teacher', 'Check-in time', 'Check-out time', 'Hours', 'Status']]
-        : [['Student', 'Grade', 'Dropped off by', 'Check-in time', 'Picked up by', 'Check-out time', 'Time at school', 'Status']];
+        ? [[term('b1'), 'Check-in time', 'Check-out time', 'Hours', 'Status']]
+        : [[term('a1'), 'Grade / group', 'Came with', 'Check-in time', 'Left with', 'Check-out time', 'Time on site', 'Status']];
     foreach ($rows as $r) {
         $dur = $r['minutes'] !== null ? fmt_minutes($r['minutes']) : '';
         $out[] = $type === 'teacher'

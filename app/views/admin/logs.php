@@ -7,14 +7,14 @@
   <form class="inline-form" method="get" style="margin-bottom:14px">
     <div class="field"><label>From</label><input type="date" name="from" value="<?= e($f['from']) ?>"></div>
     <div class="field"><label>To</label><input type="date" name="to" value="<?= e($f['to']) ?>"></div>
-    <div class="field"><label>Who</label><select name="type"><option value="">Everyone</option><option value="student" <?= $f['type'] === 'student' ? 'selected' : '' ?>>Students</option><option value="teacher" <?= $f['type'] === 'teacher' ? 'selected' : '' ?>>Teachers</option></select></div>
+    <div class="field"><label>Who</label><select name="type"><option value="">Everyone</option><option value=\"student\" <?= $f['type'] === 'student' ? 'selected' : '' ?>><?= e(term('a2')) ?></option><option value=\"teacher\" <?= $f['type'] === 'teacher' ? 'selected' : '' ?>><?= e(term('b2')) ?></option><option value=\"visitor\" <?= $f['type'] === 'visitor' ? 'selected' : '' ?>><?= e(term('v2')) ?></option></select></div>
     <div class="field"><label>Action</label><select name="kind"><option value="">All</option><?php foreach (['sign_in', 'sign_out', 'material_pickup'] as $k): ?><option value="<?= $k ?>" <?= $f['kind'] === $k ? 'selected' : '' ?>><?= e(kind_label($k)) ?></option><?php endforeach; ?></select></div>
-    <div class="field"><label>Name</label><input type="search" name="q" value="<?= e($f['q']) ?>" placeholder="Student, teacher or guardian"></div>
+    <div class="field"><label>Name</label><input type="search" name="q" value="<?= e($f['q']) ?>" placeholder="Any name"></div>
     <button class="btn btn-primary">Filter</button>
   </form>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Date</th><th>Time</th><th>Name</th><th>Action</th><th>Guardian</th><th>Details</th><?php if (is_admin()): ?><th></th><?php endif; ?></tr>
+      <tr><th>Date</th><th>Time</th><th>Name</th><th>Action</th><th>With / company</th><th>Details</th><?php if (is_admin()): ?><th></th><?php endif; ?></tr>
       <?php foreach ($logs as $r): $cls = ['sign_in' => 'in', 'sign_out' => 'out', 'material_pickup' => 'pickup'][$r['kind']]; ?>
         <tr>
           <td class="nowrap"><?= e(date('D M j', strtotime($r['event_date']))) ?></td>

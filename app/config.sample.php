@@ -35,15 +35,13 @@ return [
     // New subscribers start on a free trial of this many days
     'trial_days' => 30,
 
-    // Optional: a Stripe (or PayPal, etc.) payment link shown after sign-up.
-    // When the subscriber pays, mark them "active" in /super.
-    'payment_link' => '',
+    // Stripe and Wave keys are entered in the provider console: /super → Settings.
 
     // Plans shown on the pricing page (display only)
     'plans' => [
-        'starter' => ['name' => 'Starter', 'price' => '$19/mo', 'limit' => 'Up to 150 students'],
-        'school'  => ['name' => 'School',  'price' => '$49/mo', 'limit' => 'Up to 1,000 students'],
-        'campus'  => ['name' => 'Campus',  'price' => '$99/mo', 'limit' => 'Unlimited students'],
+        'starter' => ['name' => 'Starter',    'price' => '$19/mo', 'amount' => 19, 'limit' => 'Up to 50 people'],
+        'school'  => ['name' => 'Business',   'price' => '$49/mo', 'amount' => 49, 'limit' => 'Up to 500 people'],
+        'campus'  => ['name' => 'Enterprise', 'price' => '$99/mo', 'amount' => 99, 'limit' => 'Unlimited people'],
     ],
 
     // Email for reports. 'mail' uses PHP mail(); 'smtp' talks to your mail server directly.

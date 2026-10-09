@@ -8,7 +8,7 @@ function kiosk_home(): void
         redirect(url('/login'));
     }
     $materials = rows('SELECT id, name FROM materials WHERE tenant_id = ? AND active = 1 ORDER BY sort_order, name', [tid()]);
-    view('kiosk/index', ['materials' => $materials, 'today' => tenant_today()], 'kiosk');
+    view('kiosk/index', ['materials' => $materials, 'today' => tenant_today(), 'tiles' => kiosk_tiles()], 'kiosk');
 }
 
 function login_page(): void
