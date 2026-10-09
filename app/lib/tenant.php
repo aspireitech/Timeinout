@@ -226,7 +226,7 @@ function seed_demo_people(int $tenantId): void
     foreach ($students as [$code, $fn, $ln, $grade, $gs]) {
         $sid = insert('students', ['tenant_id' => $tenantId, 'student_code' => $code, 'first_name' => $fn, 'last_name' => $ln, 'grade' => $grade]);
         foreach ($gs as [$gname, $rel, $phone]) {
-            insert('guardians', ['tenant_id' => $tenantId, 'student_id' => $sid, 'name' => $gname, 'relationship' => $rel, 'phone' => $phone]);
+            insert('guardians', ['tenant_id' => $tenantId, 'student_id' => $sid, 'name' => $gname, 'relationship' => $rel, 'phone' => encrypt_pii($phone)]);
         }
     }
     foreach ([['T001', 'Hannah', 'Lee'], ['T002', 'Robert', 'Miller'], ['T003', 'Aisha', 'Khan']] as [$code, $fn, $ln]) {

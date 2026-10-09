@@ -2,23 +2,57 @@
 // Sends HTML email via PHP mail() or a minimal built-in SMTP client
 // (STARTTLS / SSL + AUTH LOGIN), so no Composer packages are needed.
 
-function send_mail(array $to, string $subject, string $html): bool
+/** Email settings: the provider console (saved in the database) wins over config.php. */
+function mail_config(): array
 {
+    $m = cfg('mail', []);
+    try {
+        if (setting('mail_driver')) {
+            foreach (['driver', 'host', 'port', 'secure', 'user', 'from_email', 'from_name'] as $k) {
+                $m[$k] = setting('mail_' . $k, $m[$k] ?? '');
+            }
+            $m['pass'] = decrypt_pii(setting('mail_pass', '')) ?? '';
+        }
+    } catch (Throwable $e) {
+        // settings table not there yet: use config.php
+    }
+    return $m;
+}
+
+$GLOBALS['mail_error'] = null;
+
+/**
+ * Sends an HTML email, optionally with attachments: [[filename, mime type, bytes], ...].
+ * On failure the reason is left in $GLOBALS['mail_error'].
+ */
+function send_mail(array $to, string $subject, string $html, array $attachments = []): bool
+{
+    $GLOBALS['mail_error'] = null;
     $to = array_values(array_filter(array_map('trim', $to), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL)));
     if (!$to) {
+        $GLOBALS['mail_error'] = 'No valid recipient email address.';
         return false;
     }
-    $m = cfg('mail', []);
-    $from = $m['from_email'] ?? 'no-reply@' . cfg('base_domain');
-    $fromName = $m['from_name'] ?? cfg('app_name');
+    $m = mail_config();
+    $from = ($m['from_email'] ?? '') ?: 'no-reply@' . cfg('base_domain');
+    $fromName = ($m['from_name'] ?? '') ?: cfg('app_name');
     $encSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    $headers = [
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <$from>",
-    ];
-    $body = chunk_split(base64_encode($html));
+    $headers = ['MIME-Version: 1.0', 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <$from>"];
+
+    if ($attachments) {
+        $b = 'b' . bin2hex(random_bytes(12));
+        $headers[] = "Content-Type: multipart/mixed; boundary=\"$b\"";
+        $body = "--$b\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" . chunk_split(base64_encode($html));
+        foreach ($attachments as [$name, $mime, $data]) {
+            $safe = preg_replace('/[^A-Za-z0-9._-]/', '_', $name);
+            $body .= "--$b\r\nContent-Type: $mime; name=\"$safe\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename=\"$safe\"\r\n\r\n" . chunk_split(base64_encode($data));
+        }
+        $body .= "--$b--\r\n";
+    } else {
+        $headers[] = 'Content-Type: text/html; charset=UTF-8';
+        $headers[] = 'Content-Transfer-Encoding: base64';
+        $body = chunk_split(base64_encode($html));
+    }
 
     if (($m['driver'] ?? 'mail') === 'smtp') {
         try {
@@ -30,11 +64,16 @@ function send_mail(array $to, string $subject, string $html): bool
             ]), $body);
             return true;
         } catch (Throwable $ex) {
+            $GLOBALS['mail_error'] = 'SMTP: ' . $ex->getMessage();
             error_log('SMTP error: ' . $ex->getMessage());
             return false;
         }
     }
-    return mail(implode(', ', $to), $encSubject, $body, implode("\r\n", $headers));
+    $ok = @mail(implode(', ', $to), $encSubject, $body, implode("\r\n", $headers));
+    if (!$ok) {
+        $GLOBALS['mail_error'] = 'PHP mail() is not working on this server. Use SMTP in Provider settings.';
+    }
+    return $ok;
 }
 
 function smtp_send(array $c, string $from, array $to, array $headers, string $body): void

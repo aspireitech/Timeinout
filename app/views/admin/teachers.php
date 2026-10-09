@@ -31,7 +31,7 @@
         <tr>
           <td><div class="person"><span class="avatar teacher"><?= e(initials(full_name($t))) ?></span><a href="<?= e(url('/admin/teachers/' . $t['id'])) ?>"><b><?= e(full_name($t)) ?></b></a></div></td>
           <td><?= e($t['employee_code']) ?></td>
-          <td class="small"><?= e($t['email']) ?><br><?= e($t['phone']) ?></td>
+          <td class="small"><?= e(decrypt_pii($t['email'])) ?><br><?= e(decrypt_pii($t['phone'])) ?></td>
           <td><?= $t['active'] ? '<span class="badge in">Active</span>' : '<span class="badge gray">Inactive</span>' ?></td>
           <td class="right"><a class="btn btn-sm btn-ghost" href="<?= e(url('/admin/teachers/' . $t['id'])) ?>">Edit</a></td>
         </tr>

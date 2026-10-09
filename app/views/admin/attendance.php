@@ -15,7 +15,10 @@ $cls = ['in' => 'warn', 'out' => 'in', 'absent' => 'gray'];
     <h1><?= $isToday ? "Today's attendance" : 'Attendance' ?></h1>
     <div class="muted"><?= e(fmt_date($date)) ?></div>
   </div>
-  <a class="btn btn-ghost" href="<?= e($link(['export' => 'csv'])) ?>"><?= icon('download') ?> Download CSV</a>
+  <div class="row">
+    <a class="btn btn-ghost" href="<?= e($link(['export' => 'pdf'])) ?>"><?= icon('download') ?> PDF</a>
+    <a class="btn btn-ghost" href="<?= e($link(['export' => 'csv'])) ?>"><?= icon('download') ?> CSV</a>
+  </div>
 </div>
 
 <div class="card att-bar">

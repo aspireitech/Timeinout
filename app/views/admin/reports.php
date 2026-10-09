@@ -2,11 +2,17 @@
 <div class="topbar">
   <div><h1>Reports</h1><div class="muted"><?= e(ucfirst($period)) ?> · <?= e($label) ?></div></div>
   <div class="row">
-    <a class="btn btn-ghost" href="<?= e(url('/admin/reports?period=' . $period . '&date=' . $date . '&export=csv')) ?>"><?= icon('download') ?> CSV</a>
-    <?php if (is_admin()): ?>
-    <form method="post" action="<?= e(url('/admin/reports/send')) ?>"><?= csrf_field() ?><input type="hidden" name="period" value="<?= e($period) ?>"><input type="hidden" name="date" value="<?= e($date) ?>">
-      <button class="btn btn-primary"><?= icon('mail') ?> Email this report</button></form>
-    <?php endif; ?>
+    <a class="btn btn-ghost" href="<?= e(url('/admin/reports/download?format=pdf&period=' . $period . '&date=' . $date)) ?>"><?= icon('download') ?> PDF</a>
+    <a class="btn btn-ghost" href="<?= e(url('/admin/reports/download?format=csv&period=' . $period . '&date=' . $date)) ?>"><?= icon('download') ?> CSV</a>
+    <details class="send-menu">
+      <summary class="btn btn-primary"><?= icon('mail') ?> Email now</summary>
+      <div class="send-pop card">
+        <form method="post" action="<?= e(url('/admin/reports/send')) ?>"><?= csrf_field() ?><input type="hidden" name="period" value="<?= e($period) ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="to" value="list">
+          <button class="btn btn-block">To report recipients</button></form>
+        <form method="post" action="<?= e(url('/admin/reports/send')) ?>"><?= csrf_field() ?><input type="hidden" name="period" value="<?= e($period) ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="to" value="me">
+          <button class="btn btn-block btn-ghost">Only to me (<?= e(current_user()['email']) ?>)</button></form>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -77,22 +83,34 @@
   </div>
 </div>
 
-<?php if (is_admin()): ?>
+<?php $days = [1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday', 7 => 'Sunday'];
+      $attach = explode(',', (string) ($t['report_attach'] ?? 'pdf,csv')); $hour = (int) ($t['report_hour'] ?? 7); ?>
 <div class="card">
-  <h3><?= icon('mail') ?> Automatic email reports</h3>
-  <p class="muted small">Sent each morning for the previous day; weekly on Mondays; monthly on the 1st. Needs the cron job described in the README.</p>
+  <h3><?= icon('calendar') ?> Scheduled email reports</h3>
+  <p class="muted small">Sent automatically at the time you choose (school time). Daily covers the day before and attaches the attendance sheet; weekly covers the last full Monday–Sunday week; monthly goes out on the 1st for the previous month.</p>
   <form method="post" action="<?= e(url('/admin/reports/settings')) ?>">
     <?= csrf_field() ?>
-    <div class="field"><label>Send to (comma-separated emails)</label><input type="text" name="report_emails" value="<?= e(str_replace(',', ', ', (string) $t['report_emails'])) ?>" placeholder="owner@school.org, office@school.org"></div>
-    <div class="row" style="margin-bottom:14px">
-      <label class="check"><input type="checkbox" name="report_daily" value="1" <?= $t['report_daily'] ? 'checked' : '' ?>> Daily</label>
-      <label class="check"><input type="checkbox" name="report_weekly" value="1" <?= $t['report_weekly'] ? 'checked' : '' ?>> Weekly</label>
-      <label class="check"><input type="checkbox" name="report_monthly" value="1" <?= $t['report_monthly'] ? 'checked' : '' ?>> Monthly</label>
+    <div class="field"><label for="r-emails">Send to (comma-separated emails)</label><input type="text" id="r-emails" name="report_emails" value="<?= e(str_replace(',', ', ', (string) $t['report_emails'])) ?>" placeholder="owner@school.org, office@school.org"></div>
+    <div class="grid c3">
+      <div class="field"><label>Which reports</label>
+        <label class="check"><input type="checkbox" name="report_daily" value="1" <?= $t['report_daily'] ? 'checked' : '' ?>> Daily</label>
+        <label class="check"><input type="checkbox" name="report_weekly" value="1" <?= $t['report_weekly'] ? 'checked' : '' ?>> Weekly</label>
+        <label class="check"><input type="checkbox" name="report_monthly" value="1" <?= $t['report_monthly'] ? 'checked' : '' ?>> Monthly</label>
+      </div>
+      <div class="field"><label for="r-hour">Send time</label>
+        <select id="r-hour" name="report_hour"><?php for ($h = 0; $h < 24; $h++): ?><option value="<?= $h ?>" <?= $h === $hour ? 'selected' : '' ?>><?= date('g:00 A', mktime($h, 0)) ?></option><?php endfor; ?></select>
+        <label for="r-day" style="margin-top:10px">Weekly report day</label>
+        <select id="r-day" name="report_weekday"><?php foreach ($days as $n => $d): ?><option value="<?= $n ?>" <?= (int) ($t['report_weekday'] ?? 1) === $n ? 'selected' : '' ?>><?= $d ?></option><?php endforeach; ?></select>
+      </div>
+      <div class="field"><label>Attachments</label>
+        <label class="check"><input type="checkbox" name="attach[]" value="pdf" <?= in_array('pdf', $attach, true) ? 'checked' : '' ?>> PDF</label>
+        <label class="check"><input type="checkbox" name="attach[]" value="csv" <?= in_array('csv', $attach, true) ? 'checked' : '' ?>> CSV (Excel)</label>
+      </div>
     </div>
-    <button class="btn btn-primary">Save</button>
+    <button class="btn btn-primary">Save schedule</button>
   </form>
   <?php if ($sent): ?>
-    <div class="muted small" style="margin-top:14px">Recently sent: <?php foreach ($sent as $s): ?><span class="chip"><?= e($s['period'] . ' ' . $s['period_start']) ?></span><?php endforeach; ?></div>
+    <div class="muted small" style="margin-top:14px">Recently sent on schedule: <?php foreach ($sent as $x): ?><span class="chip"><?= e($x['period'] . ' ' . $x['period_start']) ?></span><?php endforeach; ?></div>
   <?php endif; ?>
+  <p class="muted small" style="margin:12px 0 0">Every send, download and change is recorded in the <a href="<?= e(url('/admin/audit?q=report')) ?>">Audit log</a>.</p>
 </div>
-<?php endif; ?>

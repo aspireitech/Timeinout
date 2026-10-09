@@ -25,7 +25,7 @@
     <?php foreach ($guardians as $g): ?>
       <div class="person" style="padding:8px 0;border-bottom:1px solid var(--line)">
         <span class="avatar material"><?= e(initials($g['name'])) ?></span>
-        <div style="flex:1"><b><?= e($g['name']) ?></b><div class="muted small"><?= e(implode(' · ', array_filter([$g['relationship'], $g['phone'], $g['email']]))) ?></div></div>
+        <div style="flex:1"><b><?= e($g['name']) ?></b><div class="muted small"><?= e(implode(' · ', array_filter([$g['relationship'], decrypt_pii($g['phone']), decrypt_pii($g['email'])]))) ?></div></div>
         <form method="post" action="<?= e(url('/admin/guardians/' . $g['id'] . '/delete')) ?>" data-confirm="Remove <?= e($g['name']) ?>?"><?= csrf_field() ?><button class="link-btn" title="Remove"><?= icon('trash', 18) ?></button></form>
       </div>
     <?php endforeach; ?>

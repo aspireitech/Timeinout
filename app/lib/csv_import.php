@@ -111,9 +111,9 @@ function import_students(int $tenantId, array $rows): array
             }
             $exists = val('SELECT id FROM guardians WHERE tenant_id = ? AND student_id = ? AND name = ?', [$tenantId, $sid, $gName]);
             if ($exists) {
-                update('guardians', ['relationship' => $rel ?: null, 'phone' => $phone ?: null, 'email' => $email ?: null], 'id = ?', [$exists]);
+                update('guardians', ['relationship' => $rel ?: null, 'phone' => encrypt_pii($phone), 'email' => encrypt_pii($email)], 'id = ?', [$exists]);
             } else {
-                insert('guardians', ['tenant_id' => $tenantId, 'student_id' => $sid, 'name' => $gName, 'relationship' => $rel ?: null, 'phone' => $phone ?: null, 'email' => $email ?: null]);
+                insert('guardians', ['tenant_id' => $tenantId, 'student_id' => $sid, 'name' => $gName, 'relationship' => $rel ?: null, 'phone' => encrypt_pii($phone), 'email' => encrypt_pii($email)]);
                 $stats['guardians_new']++;
             }
         }
@@ -136,7 +136,7 @@ function import_teachers(int $tenantId, array $rows): array
             $stats['skipped']++;
             continue;
         }
-        $data = ['first_name' => $first, 'last_name' => $last, 'email' => csv_pick($row, ['email']) ?: null, 'phone' => csv_pick($row, ['phone', 'mobile']) ?: null, 'active' => 1];
+        $data = ['first_name' => $first, 'last_name' => $last, 'email' => encrypt_pii(csv_pick($row, ['email'])), 'phone' => encrypt_pii(csv_pick($row, ['phone', 'mobile'])), 'active' => 1];
         $t = $code !== ''
             ? row('SELECT id FROM teachers WHERE tenant_id = ? AND employee_code = ?', [$tenantId, $code])
             : row('SELECT id FROM teachers WHERE tenant_id = ? AND first_name = ? AND last_name = ?', [$tenantId, $first, $last]);

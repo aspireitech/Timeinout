@@ -24,7 +24,7 @@ function on_site(string $type, string $date): array
 
 function admin_dashboard(): void
 {
-    require_login();
+    require_admin();
     $today = tenant_today();
     $counts = row(
         "SELECT SUM(person_type='student' AND kind='sign_in') AS s_in, SUM(person_type='student' AND kind='sign_out') AS s_out,
@@ -107,14 +107,17 @@ function admin_student_save(int $id = 0): void
         redirect(url($id ? "/admin/students/$id" : '/admin/students'));
     }
     if ($id) {
+        $before = row('SELECT * FROM students WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
         update('students', $data, 'id = ? AND tenant_id = ?', [$id, tid()]);
+        audit_note(full_name($data) . " (#$id)", audit_diff($before, $data));
         flash('success', 'Student saved.');
     } else {
         $id = insert('students', $data + ['tenant_id' => tid()]);
+        audit_note(full_name($data) . " (#$id)", 'Grade: ' . ($data['grade'] ?? '-'));
         foreach ([1, 2] as $i) { // quick-add up to two guardians with the student
             $gName = mb_substr((string) input("g{$i}_name"), 0, 120);
             if ($gName !== '') {
-                insert('guardians', ['tenant_id' => tid(), 'student_id' => $id, 'name' => $gName, 'relationship' => mb_substr((string) input("g{$i}_rel"), 0, 40) ?: null, 'phone' => mb_substr((string) input("g{$i}_phone"), 0, 40) ?: null]);
+                insert('guardians', ['tenant_id' => tid(), 'student_id' => $id, 'name' => $gName, 'relationship' => mb_substr((string) input("g{$i}_rel"), 0, 40) ?: null, 'phone' => encrypt_pii(mb_substr((string) input("g{$i}_phone"), 0, 40))]);
             }
         }
         flash('success', 'Student added.');
@@ -125,6 +128,8 @@ function admin_student_save(int $id = 0): void
 function admin_student_delete(int $id): void
 {
     require_admin();
+    $st = row('SELECT * FROM students WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
+    audit_note(full_name($st) . " (#$id)", 'With ' . val('SELECT COUNT(*) FROM guardians WHERE student_id = ?', [$id]) . ' guardian(s)');
     q('DELETE FROM students WHERE id = ? AND tenant_id = ?', [$id, tid()]);
     flash('success', 'Student deleted. Their past check-ins remain in the log.');
     redirect(url('/admin/students'));
@@ -141,9 +146,10 @@ function admin_guardian_add(int $id): void
         insert('guardians', [
             'tenant_id' => tid(), 'student_id' => $id, 'name' => $name,
             'relationship' => mb_substr((string) input('relationship'), 0, 40) ?: null,
-            'phone' => mb_substr((string) input('phone'), 0, 40) ?: null,
-            'email' => mb_substr((string) input('email'), 0, 190) ?: null,
+            'phone' => encrypt_pii(mb_substr((string) input('phone'), 0, 40)),
+            'email' => encrypt_pii(mb_substr((string) input('email'), 0, 190)),
         ]);
+        audit_note($name . ' (' . (input('relationship') ?: 'guardian') . ')', 'For ' . full_name(row('SELECT first_name, last_name FROM students WHERE id = ?', [$id])) . " (#$id)");
         flash('success', 'Guardian added.');
     }
     redirect(url("/admin/students/$id"));
@@ -153,6 +159,7 @@ function admin_guardian_delete(int $id): void
 {
     require_admin();
     $g = row('SELECT * FROM guardians WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
+    audit_note($g['name'] . ($g['relationship'] ? ' (' . $g['relationship'] . ')' : ''), 'From ' . full_name(row('SELECT first_name, last_name FROM students WHERE id = ?', [$g['student_id']]) ?? ['first_name' => '?', 'last_name' => '']));
     q('DELETE FROM guardians WHERE id = ?', [$id]);
     flash('success', 'Guardian removed.');
     redirect(url('/admin/students/' . $g['student_id']));
@@ -193,12 +200,20 @@ function admin_teacher_save(int $id = 0): void
         'phone'         => mb_substr((string) input('phone'), 0, 40) ?: null,
         'active'        => input('active', '1') === '1' ? 1 : 0,
     ];
+    audit_note(full_name($data) . ($id ? " (#$id)" : ''));
+    $plain = $data;
+    $data['email'] = encrypt_pii($data['email']);
+    $data['phone'] = encrypt_pii($data['phone']);
     if ($data['first_name'] === '') {
         flash('error', 'First name is required.');
     } elseif ($data['employee_code'] && val('SELECT id FROM teachers WHERE tenant_id = ? AND employee_code = ? AND id <> ?', [tid(), $data['employee_code'], $id])) {
         flash('error', 'Another teacher already uses that ID.');
     } elseif ($id) {
+        $before = row('SELECT * FROM teachers WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
+        $before['email'] = decrypt_pii($before['email']);
+        $before['phone'] = decrypt_pii($before['phone']);
         update('teachers', $data, 'id = ? AND tenant_id = ?', [$id, tid()]);
+        audit_note(null, audit_diff($before, $plain));
         flash('success', 'Teacher saved.');
     } else {
         insert('teachers', $data + ['tenant_id' => tid()]);
@@ -210,6 +225,8 @@ function admin_teacher_save(int $id = 0): void
 function admin_teacher_delete(int $id): void
 {
     require_admin();
+    $tc = row('SELECT * FROM teachers WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
+    audit_note(full_name($tc) . " (#$id)");
     q('DELETE FROM teachers WHERE id = ? AND tenant_id = ?', [$id, tid()]);
     flash('success', 'Teacher deleted. Their past check-ins remain in the log.');
     redirect(url('/admin/teachers'));
@@ -223,10 +240,13 @@ function admin_materials(): void
         $name = mb_substr((string) input('name'), 0, 120);
         if ($name !== '') {
             insert('materials', ['tenant_id' => tid(), 'name' => $name, 'sort_order' => (int) val('SELECT COALESCE(MAX(sort_order),0)+1 FROM materials WHERE tenant_id = ?', [tid()])]);
+            audit_note($name, 'Added item');
             flash('success', 'Item added.');
         }
         if ($toggle = (int) input('toggle')) {
             q('UPDATE materials SET active = 1 - active WHERE id = ? AND tenant_id = ?', [$toggle, tid()]);
+            $m = row('SELECT name, active FROM materials WHERE id = ? AND tenant_id = ?', [$toggle, tid()]);
+            audit_note($m['name'] ?? "#$toggle", ($m['active'] ?? 0) ? 'Shown on kiosk' : 'Hidden from kiosk');
         }
         redirect(url('/admin/materials'));
     }
@@ -237,6 +257,7 @@ function admin_materials(): void
 function admin_material_delete(int $id): void
 {
     require_admin();
+    audit_note((string) (val('SELECT name FROM materials WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? "#$id"));
     q('DELETE FROM materials WHERE id = ? AND tenant_id = ?', [$id, tid()]);
     flash('success', 'Item removed.');
     redirect(url('/admin/materials'));
@@ -253,6 +274,7 @@ function admin_import(): void
             flash('error', 'Please choose a CSV file under 5 MB.');
             redirect(url('/admin/import'));
         }
+        audit_note(ucfirst($type) . ' file: ' . basename((string) ($f['name'] ?? '')));
         $rows = csv_read($f['tmp_name']);
         if (!$rows) {
             flash('error', 'The file looks empty. The first row must be the column headers.');
@@ -265,6 +287,7 @@ function admin_import(): void
         foreach ($stats as $k => $v) {
             $parts[] = str_replace('_', ' ', $k) . ': ' . $v;
         }
+        audit_note(ucfirst($type) . ' file: ' . basename((string) $f['name']), implode(', ', $parts) . ' (' . count($rows) . ' rows)');
         flash('success', 'Import finished — ' . implode(', ', $parts) . '.');
         redirect(url($type === 'teachers' ? '/admin/teachers' : '/admin/students'));
     }
@@ -335,7 +358,7 @@ function log_filters(): array
 
 function admin_logs(): void
 {
-    require_login();
+    require_admin();
     [$f, $where, $p] = log_filters();
     $page = max(1, (int) input('page', '1'));
     $total = (int) val("SELECT COUNT(*) FROM attendance WHERE $where", $p);
@@ -345,7 +368,7 @@ function admin_logs(): void
 
 function admin_logs_export(): void
 {
-    require_login();
+    require_admin();
     [$f, $where, $p] = log_filters();
     $out = [['Date', 'Time', 'Type', 'Name', 'Action', 'Guardian', 'Materials', 'Note']];
     foreach (rows("SELECT * FROM attendance WHERE $where ORDER BY event_date, event_time, id", $p) as $r) {
@@ -357,54 +380,87 @@ function admin_logs_export(): void
 function admin_log_delete(int $id): void
 {
     require_admin();
+    $ev = row('SELECT * FROM attendance WHERE id = ? AND tenant_id = ?', [$id, tid()]) ?? not_found();
+    audit_note($ev['person_name'] . ' — ' . kind_label($ev['kind']), $ev['event_date'] . ' ' . fmt_time($ev['event_time']) . ($ev['guardian_name'] ? ' by ' . $ev['guardian_name'] : ''));
     q('DELETE FROM attendance WHERE id = ? AND tenant_id = ?', [$id, tid()]);
     flash('success', 'Entry deleted.');
-    redirect($_SERVER['HTTP_REFERER'] ?? url('/admin/logs'));
+    redirect(url('/admin/logs'));
 }
 
 // ---------- Reports ----------
-function admin_reports(): void
+function report_params(): array
 {
-    require_login();
     $period = in_array(input('period'), ['daily', 'weekly', 'monthly'], true) ? (string) input('period') : 'daily';
     $date = valid_date((string) input('date')) ? (string) input('date') : tenant_today();
+    return [$period, $date];
+}
+
+function admin_reports(): void
+{
+    require_admin();
+    [$period, $date] = report_params();
     [$from, $to, $label] = report_period($period, $date);
     $r = report_build(tid(), $from, $to);
-    if (input('export') === 'csv') {
-        $out = [['Date', 'Time', 'Type', 'Name', 'Action', 'Guardian', 'Materials']];
-        foreach ($r['events'] as $ev) {
-            $out[] = [$ev['event_date'], substr($ev['event_time'], 0, 5), ucfirst($ev['person_type']), $ev['person_name'], kind_label($ev['kind']), $ev['guardian_name'], $ev['materials']];
-        }
-        csv_download("report-$period-$from.csv", $out);
-    }
     $sent = rows('SELECT * FROM report_log WHERE tenant_id = ? ORDER BY sent_at DESC LIMIT 8', [tid()]);
     admin_view('reports', compact('period', 'date', 'from', 'to', 'label', 'r', 'sent'));
+}
+
+function send_download(string $filename, string $mime, string $data): void
+{
+    header('Content-Type: ' . $mime);
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Length: ' . strlen($data));
+    header('Cache-Control: private, no-store');
+    echo $data;
+    exit;
+}
+
+function admin_report_download(): void
+{
+    require_admin();
+    [$period, $date] = report_params();
+    [$from, $to, $label] = report_period($period, $date);
+    $r = report_build(tid(), $from, $to);
+    $pdf = input('format') === 'pdf';
+    audit('Downloaded ' . $period . ' report', $label, true, $pdf ? 'PDF' : 'CSV');
+    if ($pdf) {
+        send_download("$period-report-$from.pdf", 'application/pdf', pdf_report(tenant(), ucfirst($period) . ' report — ' . $label, $r));
+    }
+    send_download("$period-activity-$from.csv", 'text/csv; charset=utf-8', csv_string(report_csv_rows($r)));
 }
 
 function admin_report_settings(): void
 {
     require_admin();
+    $t = tenant();
     $emails = array_filter(array_map('trim', preg_split('/[,;\s]+/', (string) input('report_emails'))), fn($e) => filter_var($e, FILTER_VALIDATE_EMAIL));
-    update('tenants', [
+    $attach = array_values(array_intersect(['pdf', 'csv'], (array) ($_POST['attach'] ?? [])));
+    $data = [
         'report_emails'  => implode(',', $emails) ?: null,
         'report_daily'   => input('report_daily') === '1' ? 1 : 0,
         'report_weekly'  => input('report_weekly') === '1' ? 1 : 0,
         'report_monthly' => input('report_monthly') === '1' ? 1 : 0,
-    ], 'id = ?', [tid()]);
-    flash('success', 'Report email settings saved.');
+        'report_hour'    => max(0, min(23, (int) input('report_hour', '7'))),
+        'report_weekday' => max(1, min(7, (int) input('report_weekday', '1'))),
+        'report_attach'  => implode(',', $attach),
+    ];
+    update('tenants', $data, 'id = ?', [tid()]);
+    audit_note('Report schedule', audit_diff($t, $data));
+    flash('success', 'Report schedule saved.');
     redirect(url('/admin/reports'));
 }
 
 function admin_report_send(): void
 {
     require_admin();
-    $period = in_array(input('period'), ['daily', 'weekly', 'monthly'], true) ? (string) input('period') : 'daily';
-    $date = valid_date((string) input('date')) ? (string) input('date') : tenant_today();
-    [$from, $to, $label] = report_period($period, $date);
+    audit_skip(); // report_send() writes its own entry with recipients and attachments
+    [$period, $date] = report_params();
     $t = tenant();
-    $title = ucfirst($period) . ' report — ' . $label;
-    $ok = send_mail(explode(',', (string) $t['report_emails']), $t['name'] . ': ' . $title, report_email_html($t, $title, report_build(tid(), $from, $to), tenant_url($t, "/admin/reports?period=$period&date=$from")));
-    flash($ok ? 'success' : 'error', $ok ? 'Report emailed to ' . $t['report_emails'] . '.' : 'Email could not be sent. Check the report emails and the mail settings in app/config.php.');
+    if (input('to') === 'me') {
+        $t['report_emails'] = current_user()['email'];
+    }
+    [$ok, $err] = report_send($t, $period, $date, 'manual');
+    flash($ok ? 'success' : 'error', $ok ? 'Report emailed to ' . str_replace(',', ', ', (string) $t['report_emails']) . '.' : 'The report was not sent: ' . $err);
     redirect(url("/admin/reports?period=$period&date=$date"));
 }
 
@@ -456,6 +512,7 @@ function admin_settings(): void
             }
         }
         update('tenants', $data, 'id = ?', [tid()]);
+        audit_note('Branding & settings', audit_diff($t, $data));
         flash('success', 'Settings saved.');
         redirect(url('/admin/settings'));
     }
@@ -465,9 +522,21 @@ function admin_settings(): void
 // ---------- Users ----------
 function admin_users(): void
 {
-    require_login(); // staff see only the change-password form
-    $users = is_admin() ? rows('SELECT id, name, email, role, last_login_at FROM users WHERE tenant_id = ? ORDER BY role, name', [tid()]) : [];
+    require_admin();
+    $users = rows('SELECT id, name, email, role, last_login_at FROM users WHERE tenant_id = ? ORDER BY role, name', [tid()]);
     admin_view('users', compact('users'));
+}
+
+function password_problem(string $pass, string $role): ?string
+{
+    $min = in_array($role, ['owner', 'admin'], true) ? 10 : 8;
+    if (strlen($pass) < $min) {
+        return "Use at least $min characters" . ($min === 10 ? ' for admin passwords' : '') . '.';
+    }
+    if (!preg_match('/[A-Za-z]/', $pass) || !preg_match('/\d/', $pass)) {
+        return 'Use letters and at least one number.';
+    }
+    return null;
 }
 
 function admin_user_save(): void
@@ -476,8 +545,11 @@ function admin_user_save(): void
     $email = strtolower((string) input('email'));
     $role = in_array(input('role'), ['admin', 'staff'], true) ? (string) input('role') : 'staff';
     $pass = (string) ($_POST['password'] ?? '');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || input('name') === '' || strlen($pass) < 8) {
-        flash('error', 'Name, a valid email and a password of 8+ characters are required.');
+    audit_note($email . ' (' . $role . ')');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || input('name') === '') {
+        flash('error', 'Name and a valid email are required.');
+    } elseif ($p = password_problem($pass, $role)) {
+        flash('error', $p);
     } elseif (val('SELECT id FROM users WHERE tenant_id = ? AND email = ?', [tid(), $email])) {
         flash('error', 'A user with that email already exists.');
     } else {
@@ -491,6 +563,7 @@ function admin_user_delete(int $id): void
 {
     $me = require_admin();
     $u = row('SELECT * FROM users WHERE id = ? AND tenant_id = ?', [$id, tid()]);
+    audit_note($u ? $u['email'] . ' (' . $u['role'] . ')' : "#$id");
     if (!$u || $u['role'] === 'owner' || $u['id'] == $me['id']) {
         flash('error', 'That user cannot be removed.');
     } else {
@@ -500,15 +573,34 @@ function admin_user_delete(int $id): void
     redirect(url('/admin/users'));
 }
 
+/** Set a new password for a staff member or another admin (never the owner). */
+function admin_user_password(int $id): void
+{
+    $me = require_admin();
+    $u = row('SELECT * FROM users WHERE id = ? AND tenant_id = ?', [$id, tid()]);
+    audit_note($u ? $u['email'] . ' (' . $u['role'] . ')' : "#$id");
+    $pass = (string) ($_POST['password'] ?? '');
+    if (!$u || ($u['role'] === 'owner' && $u['id'] != $me['id'])) {
+        flash('error', "That user's password cannot be changed here.");
+    } elseif ($p = password_problem($pass, $u['role'])) {
+        flash('error', $p);
+    } else {
+        update('users', ['password_hash' => password_hash($pass, PASSWORD_DEFAULT)], 'id = ?', [$id]);
+        flash('success', 'New password set for ' . $u['name'] . '.');
+    }
+    redirect(url('/admin/users'));
+}
+
 function admin_password(): void
 {
-    $me = require_login();
+    $me = require_admin();
     $u = row('SELECT * FROM users WHERE id = ?', [$me['id']]);
     $new = (string) ($_POST['new_password'] ?? '');
+    audit_note($me['email']);
     if (!password_verify((string) ($_POST['current_password'] ?? ''), $u['password_hash'])) {
         flash('error', 'Current password is not correct.');
-    } elseif (strlen($new) < 8) {
-        flash('error', 'New password must be at least 8 characters.');
+    } elseif ($p = password_problem($new, $u['role'])) {
+        flash('error', $p);
     } else {
         update('users', ['password_hash' => password_hash($new, PASSWORD_DEFAULT)], 'id = ?', [$me['id']]);
         flash('success', 'Password changed.');
@@ -517,69 +609,15 @@ function admin_password(): void
 }
 
 // ---------- Daily attendance sheet ----------
-/**
- * One row per visit: who dropped off, when, who picked up, when, and the final status.
- * People with no sign-in that day are listed as absent.
- */
-function attendance_sheet(string $type, string $date): array
-{
-    $events = rows(
-        "SELECT * FROM attendance WHERE tenant_id = ? AND person_type = ? AND event_date = ? AND kind IN ('sign_in','sign_out')
-         ORDER BY event_time, id",
-        [tid(), $type, $date]
-    );
-    $visits = [];
-    $open = []; // person_id => index of their visit still waiting for a sign-out
-    foreach ($events as $ev) {
-        $pid = (int) $ev['person_id'];
-        if ($ev['kind'] === 'sign_in') {
-            $visits[] = ['person_id' => $pid, 'name' => $ev['person_name'], 'in_by' => $ev['guardian_name'], 'in' => $ev['event_time'], 'out_by' => null, 'out' => null];
-            $open[$pid] = count($visits) - 1;
-        } elseif (isset($open[$pid])) {
-            $visits[$open[$pid]]['out_by'] = $ev['guardian_name'];
-            $visits[$open[$pid]]['out'] = $ev['event_time'];
-            unset($open[$pid]);
-        } else { // a sign-out with no matching sign-in (e.g. sign-in entry was deleted)
-            $visits[] = ['person_id' => $pid, 'name' => $ev['person_name'], 'in_by' => null, 'in' => null, 'out_by' => $ev['guardian_name'], 'out' => $ev['event_time']];
-        }
-    }
-    $table = $type === 'teacher' ? 'teachers' : 'students';
-    $people = rows("SELECT id, first_name, last_name, " . ($type === 'student' ? 'grade' : 'NULL AS grade') . " FROM $table WHERE tenant_id = ? AND active = 1 ORDER BY first_name, last_name", [tid()]);
-    $grades = array_column($people, 'grade', 'id');
-    $seen = [];
-    foreach ($visits as &$v) {
-        $seen[$v['person_id']] = true;
-        $v['grade'] = $grades[$v['person_id']] ?? null;
-        $v['status'] = $v['out'] ? 'out' : 'in';
-        $v['minutes'] = ($v['in'] && $v['out']) ? max(0, (int) round((strtotime($v['out']) - strtotime($v['in'])) / 60)) : null;
-    }
-    unset($v);
-    foreach ($people as $p) {
-        if (!isset($seen[(int) $p['id']])) {
-            $visits[] = ['person_id' => (int) $p['id'], 'name' => full_name($p), 'grade' => $p['grade'], 'in_by' => null, 'in' => null, 'out_by' => null, 'out' => null, 'status' => 'absent', 'minutes' => null];
-        }
-    }
-    return $visits;
-}
-
 function admin_attendance(): void
 {
-    require_login();
+    require_admin();
     $type = input('type') === 'teacher' ? 'teacher' : 'student';
     $date = valid_date((string) input('date')) ? (string) input('date') : tenant_today();
     $status = in_array(input('status'), ['in', 'out', 'absent', 'present'], true) ? (string) input('status') : '';
     $q = mb_strtolower(trim((string) input('q')));
     $all = attendance_sheet($type, $date);
-
-    $count = ['present' => 0, 'in' => 0, 'out' => 0, 'absent' => 0];
-    $present = [];
-    foreach ($all as $r) {
-        $count[$r['status']]++;
-        if ($r['status'] !== 'absent') {
-            $present[$r['person_id']] = true;
-        }
-    }
-    $count['present'] = count($present); // people who came at least once
+    $count = attendance_counts($all);
 
     $rows = array_values(array_filter($all, function ($r) use ($status, $q) {
         if ($status === 'present' ? $r['status'] === 'absent' : ($status !== '' && $r['status'] !== $status)) {
@@ -588,19 +626,67 @@ function admin_attendance(): void
         return $q === '' || str_contains(mb_strtolower($r['name'] . ' ' . $r['in_by'] . ' ' . $r['out_by']), $q);
     }));
 
-    if (input('export') === 'csv') {
-        $who = $type === 'teacher' ? 'Teacher' : 'Student';
-        $out = $type === 'teacher'
-            ? [[$who, 'Check-in time', 'Check-out time', 'Hours', 'Status']]
-            : [[$who, 'Grade', 'Dropped off by', 'Check-in time', 'Picked up by', 'Check-out time', 'Time at school', 'Status']];
-        $label = ['in' => 'Not checked out', 'out' => 'Checked out', 'absent' => 'Absent'];
-        foreach ($rows as $r) {
-            $dur = $r['minutes'] !== null ? fmt_minutes($r['minutes']) : '';
-            $out[] = $type === 'teacher'
-                ? [$r['name'], fmt_time($r['in']), fmt_time($r['out']), $dur, $label[$r['status']]]
-                : [$r['name'], $r['grade'], $r['in_by'], fmt_time($r['in']), $r['out_by'], fmt_time($r['out']), $dur, $label[$r['status']]];
+    $export = (string) input('export');
+    if (in_array($export, ['csv', 'pdf'], true)) {
+        audit('Downloaded attendance sheet', ucfirst($type) . 's ' . $date, true, strtoupper($export));
+        if ($export === 'pdf') {
+            send_download("attendance-{$type}s-$date.pdf", 'application/pdf', pdf_attendance(tenant(), $type, $date, $rows, $count));
         }
-        csv_download("attendance-{$type}s-$date.csv", $out);
+        send_download("attendance-{$type}s-$date.csv", 'text/csv; charset=utf-8', csv_string(attendance_csv_rows($type, $rows)));
     }
     admin_view('attendance', compact('type', 'date', 'status', 'q', 'rows', 'count'));
+}
+
+// ---------- Audit log ----------
+function audit_filters(?int $tenantId): array
+{
+    $f = [
+        'from'   => valid_date((string) input('from')) ? (string) input('from') : (tenant() ? tenant_now() : new DateTime())->modify('-30 days')->format('Y-m-d'),
+        'to'     => valid_date((string) input('to')) ? (string) input('to') : (tenant() ? tenant_today() : gmdate('Y-m-d')),
+        'result' => in_array(input('result'), ['success', 'failed'], true) ? (string) input('result') : '',
+        'q'      => mb_substr(trim((string) input('q')), 0, 80),
+    ];
+    // Dates are picked in local time; the log is stored in UTC
+    $tz = new DateTimeZone(tenant() ? tenant_tz() : 'UTC');
+    $utc = fn(string $local) => (new DateTime($local, $tz))->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+    $where = 'created_at >= ? AND created_at < ?';
+    $p = [$utc($f['from'] . ' 00:00:00'), $utc((new DateTime($f['to']))->modify('+1 day')->format('Y-m-d') . ' 00:00:00')];
+    if ($tenantId !== null) {
+        $where .= ' AND tenant_id = ?';
+        $p[] = $tenantId;
+    }
+    if ($f['result']) {
+        $where .= ' AND result = ?';
+        $p[] = $f['result'];
+    }
+    if ($f['q'] !== '') {
+        $like = '%' . addcslashes($f['q'], '%_\\') . '%';
+        $where .= ' AND (action LIKE ? OR target LIKE ? OR details LIKE ? OR user_email LIKE ? OR user_name LIKE ?)';
+        array_push($p, $like, $like, $like, $like, $like);
+    }
+    return [$f, $where, $p];
+}
+
+function audit_csv_rows(array $rows, bool $withSchool = false): array
+{
+    $tz = tenant() ? tenant_tz() : 'UTC';
+    $out = [array_merge(["When ($tz)"], $withSchool ? ['School'] : [], ['User', 'Email', 'Action', 'Target', 'Details', 'Result', 'IP address'])];
+    foreach ($rows as $r) {
+        $out[] = array_merge([audit_time($r['created_at'], $tz)], $withSchool ? [$r['school'] ?? ''] : [], [$r['user_name'], $r['user_email'], $r['action'], $r['target'], $r['details'], $r['result'], $r['ip']]);
+    }
+    return $out;
+}
+
+function admin_audit(): void
+{
+    require_admin();
+    [$f, $where, $p] = audit_filters(tid());
+    if (input('export') === 'csv') {
+        send_download('audit-log-' . $f['from'] . '-to-' . $f['to'] . '.csv', 'text/csv; charset=utf-8',
+            csv_string(audit_csv_rows(rows("SELECT * FROM audit_log WHERE $where ORDER BY id DESC LIMIT 20000", $p))));
+    }
+    $page = max(1, (int) input('page', '1'));
+    $total = (int) val("SELECT COUNT(*) FROM audit_log WHERE $where", $p);
+    $logs = rows("SELECT * FROM audit_log WHERE $where ORDER BY id DESC LIMIT 100 OFFSET " . (($page - 1) * 100), $p);
+    admin_view('audit', compact('f', 'logs', 'total', 'page'));
 }

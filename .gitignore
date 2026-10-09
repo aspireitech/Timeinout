@@ -4,3 +4,4 @@ public/uploads/logos/*
 .DS_Store
 app/sessions/*
 !app/sessions/.htaccess
+app/keys/

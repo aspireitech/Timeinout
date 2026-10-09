@@ -5,8 +5,10 @@
     <?php else: ?><div class="logo-mark" style="margin:0 auto;width:60px;height:60px;font-size:1.4rem"><?= e(initials($t['name'])) ?></div><?php endif; ?>
   </div>
   <h2 style="text-align:center"><?= e($t['name']) ?></h2>
-  <p class="muted" style="text-align:center">Sign in to open the kiosk or the admin portal.</p>
+  <p class="muted" style="text-align:center">Admins sign in to manage the school. Staff sign in to open the kiosk.</p>
   <?php if ($welcome): ?><div class="flash success"><?= icon('check', 18) ?> Your portal is ready — log in with the password you just chose.</div><?php endif; ?>
+  <?php require APP_DIR . '/views/partials/flashes.php'; ?>
+  <?php if ($info): ?><div class="flash info"><?= icon('clock', 18) ?> <?= e($info) ?></div><?php endif; ?>
   <?php if ($error): ?><div class="flash error"><?= e($error) ?></div><?php endif; ?>
   <?php if ($t['slug'] === DEMO_SLUG): ?>
     <div class="demo-creds">

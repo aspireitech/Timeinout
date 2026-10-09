@@ -88,7 +88,7 @@ php /home/USER/timeinout/cron/send_reports.php
 
 Or, if your host has no cron, have a free web-cron service call `https://abc.com/cron?key=YOUR_CRON_KEY` every hour.
 
-Daily reports go out after 6 AM local time (set by `report_hour`) and cover yesterday. Weekly reports go out on Mondays and monthly reports on the 1st. A report is never sent twice. To test right away, run `php cron/send_reports.php --force` or use **Reports → Email this report**.
+Each school chooses its send time, weekly day and attachments (PDF and/or CSV) in **Reports → Scheduled email reports**. Daily reports cover yesterday and attach the attendance sheet. Weekly reports cover the last full week and monthly reports the previous month. Admins can also **Email now** or download **PDF/CSV** at any time. A report is never sent twice. To test right away, run `php cron/send_reports.php --force` or use **Reports → Email this report**.
 
 ### Nginx (VPS)
 
@@ -120,6 +120,21 @@ The demo lives at `abc.com/s/demo` (or `demo.abc.com` once subdomains are on). T
 | Front desk (staff) | `staff@demo.com` | `Staff@1234` |
 
 The demo login page also has tap-to-fill buttons for both accounts. Visitors can change demo data, so reset it from `/super` before an important presentation.
+
+## Security (Phase 1)
+
+| Protection | What it does |
+|---|---|
+| **Staff = kiosk only** | Staff logins open the kiosk and nothing else. They cannot open or change anything in the admin portal. |
+| **Email sign-in codes** | Owners and admins get a 6-digit code by email after their password (10-minute expiry, 5 tries). The demo school shows its code on screen. Toggle in `/super` → Email & security. |
+| **Audit log** | Every admin change (with before → after values), sign-in, sign-in code, report send, download and failure is recorded with user, time, IP and result. *Admin → Audit log* per school; `/super/audit` for all schools. CSV export. |
+| **Lockout** | 5 wrong passwords for an account (or 20 from one IP) blocks sign-in for 15 minutes. Stored in the database, so clearing cookies doesn't reset it. |
+| **Auto sign-out** | Admins after 30 minutes without activity; kiosk tablets after 12 hours. |
+| **Encryption** | Parent/guardian and teacher phone numbers and emails, and the SMTP password, are encrypted (AES-256-GCM). The key is created automatically in `app/keys/app.key` (blocked from the web). **Back this file up.** Without it, encrypted contact details can't be read. You can set `'app_key'` in `config.php` instead. |
+| **HTTPS & headers** | With `'force_https' => true`, every visit is redirected to https, with HSTS, a Content Security Policy and other security headers. |
+| **Passwords** | bcrypt hashing; admins need 10+ characters with letters and a number. |
+
+**After uploading the update:** the database upgrades itself on the first page view. Then go to `/super` → **Email & security**, enter your SMTP details and click **Send test email**. School admins can't sign in until email works, because they need the emailed code. If you need to, untick "School admins need an emailed code" until SMTP is set up.
 
 ## Who logs in where
 

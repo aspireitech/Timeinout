@@ -84,7 +84,7 @@ function seed_demo_tenant(): array
             $sid = insert('students', ['tenant_id' => $tid, 'student_code' => sprintf('BF%03d', $i + 1), 'first_name' => $fn, 'last_name' => $ln, 'grade' => $grade]);
             $gList = [];
             foreach ($gs as $gName => $rel) {
-                $gid = insert('guardians', ['tenant_id' => $tid, 'student_id' => $sid, 'name' => $gName, 'relationship' => $rel, 'phone' => sprintf('555-%04d', mt_rand(1000, 9999))]);
+                $gid = insert('guardians', ['tenant_id' => $tid, 'student_id' => $sid, 'name' => $gName, 'relationship' => $rel, 'phone' => encrypt_pii(sprintf('555-%04d', mt_rand(1000, 9999)))]);
                 $gList[] = [$gid, $gName];
             }
             $students[] = ['id' => $sid, 'name' => "$fn $ln", 'guardians' => $gList];
@@ -92,7 +92,7 @@ function seed_demo_tenant(): array
 
         $teachers = [];
         foreach ([['Hannah', 'Lee'], ['Robert', 'Miller'], ['Aisha', 'Khan'], ['Carlos', 'Mendes'], ['Emily', 'Foster'], ['David', 'Park'], ['Grace', 'Okoye'], ['Sarah', 'Bennett']] as $i => [$fn, $ln]) {
-            $id = insert('teachers', ['tenant_id' => $tid, 'employee_code' => sprintf('T%02d', $i + 1), 'first_name' => $fn, 'last_name' => $ln, 'email' => strtolower($fn) . '@brightfuture.example']);
+            $id = insert('teachers', ['tenant_id' => $tid, 'employee_code' => sprintf('T%02d', $i + 1), 'first_name' => $fn, 'last_name' => $ln, 'email' => encrypt_pii(strtolower($fn) . '@brightfuture.example')]);
             $teachers[] = ['id' => $id, 'name' => "$fn $ln"];
         }
 

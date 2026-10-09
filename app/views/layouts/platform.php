@@ -12,6 +12,8 @@
     <div class="row">
       <?php if (!empty($_SESSION['super'])): ?>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super') ?>">Subscribers</a>
+        <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/audit') ?>">Audit log</a>
+        <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/settings') ?>">Email &amp; security</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/logout') ?>">Log out</a>
       <?php else: ?>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/#pricing') ?>">Pricing</a>

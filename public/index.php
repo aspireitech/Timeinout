@@ -33,19 +33,30 @@ if ($path !== '/') {
 }
 $GLOBALS['base_path'] = $base;
 
+// Always use an encrypted connection once the site has SSL (force_https in config)
+if (cfg('force_https') && empty($_SERVER['HTTPS']) && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') !== 'https' && PHP_SAPI !== 'cli-server') {
+    header('Location: https://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+    exit;
+}
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'");
+if (is_https()) {
+    header('Strict-Transport-Security: max-age=31536000');
+}
 
 start_session();
 
 try {
+    migrate();
     $resolved = resolve_tenant($_SERVER['HTTP_HOST'] ?? '', $path);
-} catch (PDOException $ex) {
+} catch (Throwable $ex) {
     http_response_code(500);
     view('partials/error', [
         'code'    => 500,
-        'message' => 'Cannot connect to the database. Check app/config.php and that database/schema.sql was imported.'
+        'message' => ($ex instanceof PDOException ? 'Cannot connect to the database. Check app/config.php and that database/schema.sql was imported.' : 'Setup problem: ' . $ex->getMessage())
                    . (cfg('debug') ? ' (' . $ex->getMessage() . ')' : ''),
     ]);
 }

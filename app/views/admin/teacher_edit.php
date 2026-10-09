@@ -12,8 +12,8 @@
         <div class="field"><label>First name *</label><input type="text" name="first_name" value="<?= e($teacher['first_name']) ?>" required></div>
         <div class="field"><label>Last name</label><input type="text" name="last_name" value="<?= e($teacher['last_name']) ?>"></div>
         <div class="field"><label>Employee ID</label><input type="text" name="employee_code" value="<?= e($teacher['employee_code']) ?>"></div>
-        <div class="field"><label>Email</label><input type="email" name="email" value="<?= e($teacher['email']) ?>"></div>
-        <div class="field"><label>Phone</label><input type="text" name="phone" value="<?= e($teacher['phone']) ?>"></div>
+        <div class="field"><label>Email</label><input type="email" name="email" value="<?= e(decrypt_pii($teacher['email'])) ?>"></div>
+        <div class="field"><label>Phone</label><input type="text" name="phone" value="<?= e(decrypt_pii($teacher['phone'])) ?>"></div>
         <div class="field"><label>Status</label><select name="active"><option value="1">Active</option><option value="0" <?= $teacher['active'] ? '' : 'selected' ?>>Inactive</option></select></div>
       </div>
       <button class="btn btn-primary">Save</button>

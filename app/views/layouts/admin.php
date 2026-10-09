@@ -23,16 +23,15 @@ $nav = function (string $path, string $ico, string $label) use ($here) {
       <?= $nav('/admin/attendance', 'calendar', "Today's attendance") ?>
       <?= $nav('/admin/logs', 'list', 'Activity log') ?>
       <?= $nav('/admin/reports', 'chart', 'Reports') ?>
-      <?php if (is_admin()): ?>
-        <div class="nav-label">People</div>
-        <?= $nav('/admin/students', 'users', 'Students & guardians') ?>
-        <?= $nav('/admin/teachers', 'teacher', 'Teachers & staff') ?>
-        <?= $nav('/admin/materials', 'box', 'Materials') ?>
-        <?= $nav('/admin/import', 'upload', 'Import CSV') ?>
-        <div class="nav-label">Setup</div>
-        <?= $nav('/admin/settings', 'settings', 'Branding & settings') ?>
-      <?php endif; ?>
-      <?= $nav('/admin/users', 'shield', is_admin() ? 'Users' : 'My password') ?>
+      <div class="nav-label">People</div>
+      <?= $nav('/admin/students', 'users', 'Students & guardians') ?>
+      <?= $nav('/admin/teachers', 'teacher', 'Teachers & staff') ?>
+      <?= $nav('/admin/materials', 'box', 'Materials') ?>
+      <?= $nav('/admin/import', 'upload', 'Import CSV') ?>
+      <div class="nav-label">Setup</div>
+      <?= $nav('/admin/settings', 'settings', 'Branding & settings') ?>
+      <?= $nav('/admin/users', 'shield', 'Users') ?>
+      <?= $nav('/admin/audit', 'list', 'Audit log') ?>
       <a href="<?= e(url('/logout')) ?>"><?= icon('logout') ?><span class="t">Log out</span></a>
     </nav>
     <div class="foot">
