@@ -65,11 +65,15 @@ function platform_signup(): void
 function super_login(): void
 {
     $error = null;
+    if (input('nosession') === '1') {
+        $error = 'Login worked, but your browser did not keep the session. Open the site with https:// '
+               . '(or set force_https to false in app/config.php if the site has no SSL) and try again.';
+    }
     if (is_post()) {
-        if (super_check((string) input('email'), (string) ($_POST['password'] ?? ''))) {
-            redirect(base_path() . '/super');
+        $error = super_check((string) input('email'), (string) ($_POST['password'] ?? ''));
+        if ($error === null) {
+            redirect(base_path() . '/super?li=1');
         }
-        $error = 'Wrong email or password.';
     }
     view('platform/super_login', ['error' => $error], 'platform');
 }
@@ -124,5 +128,13 @@ function web_cron(): void
         exit('Forbidden');
     }
     header('Content-Type: text/plain');
+    if (input('task') === 'demo') { // https://yourdomain/cron?key=YOUR_CRON_KEY&task=demo
+        $r = seed_demo_tenant();
+        echo "Demo portal ready: {$r['students']} students, {$r['teachers']} teachers, {$r['events']} check-ins.\n";
+        foreach (DEMO_LOGINS as [, , $email, $pass]) {
+            echo "$email / $pass\n";
+        }
+        return;
+    }
     echo implode("\n", run_scheduled_reports()) ?: 'Nothing due.';
 }

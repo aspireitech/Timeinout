@@ -91,6 +91,9 @@ function csrf_check(): void
     $sent = $_POST['_csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     if (!is_string($sent) || !hash_equals(csrf_token(), $sent)) {
         http_response_code(419);
+        if (!isset($_COOKIE[session_name()])) {
+            exit('Your browser did not send the session cookie. Open the site with https:// (or set force_https to false in app/config.php if the site has no SSL), allow cookies, then try again.');
+        }
         exit('Your session expired. Please go back, refresh the page and try again.');
     }
 }

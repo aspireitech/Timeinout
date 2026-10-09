@@ -13,6 +13,16 @@ function start_session(): void
         'samesite' => 'Lax',
         'secure'   => is_https(),
     ]);
+    $dir = session_save_path();
+    if ($dir === '' || !is_dir($dir) || !is_writable($dir)) {
+        $own = APP_DIR . '/sessions';
+        if (!is_dir($own)) {
+            @mkdir($own, 0700, true);
+        }
+        if (is_writable($own)) {
+            session_save_path($own);
+        }
+    }
     session_start();
 }
 
@@ -98,26 +108,31 @@ function logout(): void
 }
 
 // ---------- Platform owner ----------
-function super_check(string $email, string $password): bool
+/** @return string|null  null on success, otherwise the reason it failed */
+function super_check(string $email, string $password): ?string
 {
     $sa = cfg('super_admin', []);
     if (too_many_attempts('super')) {
-        return false;
+        return 'Too many attempts. Wait 15 minutes, or close the browser and try again.';
     }
-    $stored = (string) ($sa['password'] ?? '');
+    $email = trim($email);
+    $password = trim($password);
+    $stored = trim((string) ($sa['password'] ?? ''));
     $passOk = str_starts_with($stored, '$2y$') ? password_verify($password, $stored) : ($stored !== '' && hash_equals($stored, $password));
-    $ok = $passOk && strcasecmp($email, (string) ($sa['email'] ?? '')) === 0;
+    $ok = $passOk && strcasecmp($email, trim((string) ($sa['email'] ?? ''))) === 0;
     note_attempt('super', $ok);
-    if ($ok) {
-        session_regenerate_id(true);
-        $_SESSION['super'] = true;
+    if (!$ok) {
+        return 'Wrong email or password. They must match super_admin in app/config.php.';
     }
-    return $ok;
+    session_regenerate_id(true);
+    $_SESSION['super'] = true;
+    return null;
 }
 
 function require_super(): void
 {
     if (empty($_SESSION['super'])) {
-        redirect(base_path() . '/super/login');
+        // Just logged in but the session is already gone: the browser isn't keeping the cookie
+        redirect(base_path() . '/super/login' . (isset($_GET['li']) ? '?nosession=1' : ''));
     }
 }
