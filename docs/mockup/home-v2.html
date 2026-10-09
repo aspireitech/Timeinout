@@ -1,0 +1,296 @@
+<title>TimeInOut Homepage Concept</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: marketing page — split hero (copy | animated time clock), industry icon grid, steps, flows, security band, pricing.
+   One committed light visual world (a product homepage), so colors are set explicitly rather than theme-switched. */
+:root {
+  --ink: #161B36;        /* headings, punch-clock body */
+  --muted: #5D6385;
+  --paper: #F5F6FB;      /* page ground, faint cool grey */
+  --card: #FFFFFF;
+  --line: #E4E6F1;
+  --brand: #5B4CE0;      /* TimeInOut violet, kept from the current site */
+  --in: #0FA97A;         /* clock-in green */
+  --out: #E8613C;        /* clock-out coral */
+  --amber: #F2A93B;      /* punch-card stamp */
+  --display: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--display); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; overflow-x: clip; }
+a { color: inherit; text-decoration: none; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: 20px; }
+h1, h2, h3 { margin: 0; line-height: 1.1; text-wrap: balance; letter-spacing: -.025em; }
+p { margin: 0; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 12px; font-weight: 700; font-size: 1rem; border: 1.5px solid transparent; transition: transform .15s, box-shadow .15s; cursor: pointer; }
+.btn:hover { transform: translateY(-2px); }
+.btn:focus-visible, a:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+.btn-primary { background: var(--ink); color: #fff; box-shadow: 0 10px 24px rgba(22,27,54,.22); }
+.btn-ghost { background: var(--card); border-color: var(--line); color: var(--ink); }
+.eyebrow { font-size: .74rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--brand); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.review { background: var(--ink); color: #fff; text-align: center; font-size: .82rem; padding: 8px 16px; }
+.review b { color: var(--amber); }
+
+/* Nav */
+nav.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; }
+.logo-mark { width: 38px; height: 38px; border-radius: 11px; background: var(--ink); display: grid; place-items: center; }
+.nav-links { display: flex; gap: 26px; font-weight: 600; font-size: .94rem; color: var(--muted); }
+.nav-links a:hover { color: var(--ink); }
+.nav-cta { display: flex; gap: 10px; align-items: center; }
+.nav-cta .btn { padding: 9px 16px; font-size: .9rem; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center; padding-block: 36px 70px; }
+.hero h1 { font-size: clamp(2.4rem, 5.2vw, 4rem); font-weight: 800; margin: 16px 0 18px; }
+.hero h1 .tick { display: inline-block; background: var(--amber); color: var(--ink); padding: 0 .18em; border-radius: .18em; transform: rotate(-2deg); }
+.lead { font-size: 1.15rem; color: var(--muted); max-width: 520px; }
+.hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 26px 0 18px; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: .9rem; color: var(--muted); font-weight: 600; }
+.checks span::before { content: "✓"; color: var(--in); font-weight: 800; margin-right: 6px; }
+
+/* Time clock scene */
+.scene { position: relative; min-height: 520px; }
+.halo { position: absolute; inset: 30px 10px 40px; border-radius: 40px; background:
+  radial-gradient(circle at 30% 30%, rgba(91,76,224,.18), transparent 60%),
+  radial-gradient(circle at 75% 70%, rgba(242,169,59,.22), transparent 55%),
+  repeating-linear-gradient(0deg, rgba(22,27,54,.045) 0 1px, transparent 1px 26px),
+  repeating-linear-gradient(90deg, rgba(22,27,54,.045) 0 1px, transparent 1px 26px); }
+.machine { position: absolute; left: 50%; top: 22px; width: 250px; transform: translateX(-50%); }
+.machine svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 24px 30px rgba(22,27,54,.25)); }
+.hand { transform-origin: 125px 105px; }
+.hand.min { animation: spin 12s linear infinite; }
+.hand.hr { animation: spin 144s linear infinite; }
+.hand.sec { animation: spin 2s steps(30) infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.card-slot { position: absolute; left: 50%; top: 294px; width: 150px; height: 190px; transform: translateX(-50%); overflow: hidden; }
+.punch { position: absolute; left: 6px; right: 6px; top: 0; height: 176px; background: #FFFDF6; border: 1.5px solid #E9DDBF; border-radius: 6px;
+  box-shadow: 0 8px 18px rgba(22,27,54,.12); padding: 10px 10px 8px; animation: punch 4s cubic-bezier(.6,0,.3,1) infinite; }
+.punch .rows { display: grid; gap: 7px; margin-top: 8px; }
+.punch .rows i { display: block; height: 1px; background: #EADFC4; }
+.punch .name { font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.stamp { position: absolute; left: 10px; right: 10px; bottom: 14px; text-align: center; font-family: var(--mono); font-weight: 700; font-size: 1.05rem; padding: 4px 0;
+  border: 2px solid currentColor; border-radius: 6px; transform: rotate(-4deg) scale(.6); opacity: 0; animation: stamp 4s ease infinite; }
+.stamp.in { color: var(--in); } .stamp.out { color: var(--out); }
+@keyframes punch { 0% { transform: translateY(-190px); } 18%, 70% { transform: translateY(0); } 88%, 100% { transform: translateY(-190px); } }
+@keyframes stamp { 0%, 26% { opacity: 0; transform: rotate(-4deg) scale(1.8); } 32% { opacity: 1; transform: rotate(-4deg) scale(1); } 70% { opacity: 1; transform: rotate(-4deg) scale(1); } 80%, 100% { opacity: 0; } }
+
+.float { position: absolute; display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 10px 14px 10px 10px;
+  box-shadow: 0 14px 34px rgba(22,27,54,.14); font-size: .82rem; line-height: 1.3; animation: bob 5s ease-in-out infinite; z-index: 3; }
+.float small { display: block; color: var(--muted); }
+.float .dot { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; flex-shrink: 0; }
+.f1 { left: 0; top: 70px; } .f2 { right: 0; top: 150px; animation-delay: -1.7s; } .f3 { left: 0; bottom: 70px; animation-delay: -3.4s; } .f4 { right: 2%; bottom: 96px; animation-delay: -2.4s; }
+@keyframes bob { 50% { transform: translateY(-10px); } }
+
+/* Sections */
+section.block { padding-block: 70px 0; }
+.head { text-align: center; display: grid; gap: 10px; justify-items: center; margin-bottom: 34px; }
+.head h2 { font-size: clamp(1.8rem, 3.6vw, 2.6rem); font-weight: 800; max-width: 760px; }
+.head p { color: var(--muted); max-width: 620px; }
+
+/* Industries */
+.industries { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.ind { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 12px 16px; display: grid; justify-items: center; gap: 10px; text-align: center;
+  transition: transform .2s, box-shadow .2s, border-color .2s; }
+.ind:hover { transform: translateY(-6px); box-shadow: 0 16px 30px rgba(22,27,54,.1); border-color: transparent; }
+.ind .ic { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; transition: transform .3s; }
+.ind:hover .ic { transform: rotate(-8deg) scale(1.08); }
+.ind b { font-size: .88rem; line-height: 1.25; }
+.ind small { font-size: .74rem; color: var(--muted); line-height: 1.3; }
+.ind svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Steps */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; counter-reset: s; }
+.step { background: var(--card); border-radius: 20px; padding: 26px; border: 1px solid var(--line); position: relative; display: grid; gap: 8px; align-content: start; }
+.step::before { counter-increment: s; content: "0" counter(s); font-family: var(--mono); font-weight: 700; font-size: .85rem; color: var(--brand); }
+.step p { color: var(--muted); }
+
+/* Flows */
+.flows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.flow { border-radius: 22px; padding: 28px 24px; color: #fff; display: grid; gap: 12px; align-content: start; }
+.flow p { opacity: .92; }
+.flow .chip { justify-self: start; background: rgba(255,255,255,.95); color: var(--ink); border-radius: 10px; padding: 7px 12px; font-size: .82rem; font-weight: 700; }
+.flow .chip .mono { color: var(--muted); font-weight: 500; }
+.fl1 { background: var(--ink); } .fl2 { background: var(--brand); } .fl3 { background: #0E8A66; }
+
+/* Security */
+.secure { margin-top: 70px; background: var(--ink); color: #fff; border-radius: 28px; padding: 44px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 34px; align-items: center; }
+.secure h2 { font-size: clamp(1.7rem, 3vw, 2.3rem); }
+.secure p { color: #C4C7E0; margin-top: 12px; }
+.sec-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sec-item { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 16px; display: grid; gap: 4px; font-size: .9rem; }
+.sec-item b { color: var(--amber); }
+.sec-item span { color: #C4C7E0; font-size: .84rem; }
+
+/* Pricing */
+.prices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.price { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 26px; display: grid; gap: 8px; align-content: start; }
+.price.pop { border: 2px solid var(--brand); box-shadow: 0 18px 40px rgba(91,76,224,.15); }
+.price .amt { font-size: 2.2rem; font-weight: 800; letter-spacing: -.03em; }
+.price .amt small { font-size: .95rem; color: var(--muted); font-weight: 600; }
+.price ul { list-style: none; padding: 0; margin: 6px 0 14px; display: grid; gap: 6px; color: var(--muted); font-size: .92rem; }
+.price li::before { content: "✓"; color: var(--in); font-weight: 800; margin-right: 8px; }
+.pay { text-align: center; color: var(--muted); font-size: .88rem; margin-top: 16px; }
+
+.final { margin-block: 80px 40px; text-align: center; display: grid; gap: 16px; justify-items: center; background: var(--amber); border-radius: 28px; padding: 54px 24px; }
+.final h2 { font-size: clamp(1.8rem, 3.6vw, 2.6rem); font-weight: 800; }
+footer { text-align: center; color: var(--muted); font-size: .85rem; padding-bottom: 40px; }
+
+@media (max-width: 960px) {
+  .hero, .secure { grid-template-columns: 1fr; }
+  .industries { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .steps, .flows, .prices { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+}
+@media (max-width: 520px) {
+  .industries { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sec-list { grid-template-columns: 1fr; }
+  .secure { padding: 28px 20px; }
+  .f3, .f4 { display: none; }
+  .scene { min-height: 500px; }
+  .nav-cta .btn-ghost { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .stamp { opacity: 1; transform: rotate(-4deg); } }
+</style>
+
+<div class="review">Homepage concept for review: <b>not live yet</b>. Industry-neutral version of the TimeInOut site.</div>
+
+<div class="wrap">
+  <nav class="top" aria-label="Main">
+    <a class="logo" href="#"><span class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A93B" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>TimeInOut</a>
+    <div class="nav-links"><a href="#industries">Industries</a><a href="#how">How it works</a><a href="#security">Security</a><a href="#pricing">Pricing</a></div>
+    <div class="nav-cta"><a class="btn btn-ghost" href="#">Sign in</a><a class="btn btn-primary" href="#">Start free trial</a></div>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <span class="eyebrow">Time &amp; attendance for any front door</span>
+      <h1>Know who's in, who's out, and <span class="tick">exactly when.</span></h1>
+      <p class="lead">A simple sign-in and sign-out kiosk for employees, members, students and visitors. Put a tablet at the door, and get live attendance, hours and reports in your inbox.</p>
+      <div class="hero-cta"><a class="btn btn-primary" href="#">Start free trial</a><a class="btn btn-ghost" href="#">Try the live demo</a></div>
+      <div class="checks"><span>Ready in 60 seconds</span><span>Any tablet or phone</span><span>No credit card</span></div>
+    </div>
+
+    <div class="scene" aria-hidden="true">
+      <div class="halo"></div>
+      <div class="machine">
+        <svg viewBox="0 0 250 300">
+          <rect x="20" y="10" width="210" height="280" rx="26" fill="#161B36"/>
+          <rect x="34" y="24" width="182" height="164" rx="18" fill="#232A52"/>
+          <circle cx="125" cy="105" r="66" fill="#FFFDF6"/>
+          <circle cx="125" cy="105" r="66" fill="none" stroke="#F2A93B" stroke-width="5"/>
+          <g stroke="#161B36" stroke-width="3" stroke-linecap="round">
+            <path d="M125 47v8M125 155v8M67 105h8M175 105h8"/>
+            <path d="M154 55l-3 5M175 76l-5 3M175 134l-5-3M154 155l-3-5M96 155l3-5M75 134l5-3M75 76l5 3M96 55l3 5" stroke-width="2"/>
+          </g>
+          <line class="hand hr" x1="125" y1="105" x2="125" y2="72" stroke="#161B36" stroke-width="6" stroke-linecap="round"/>
+          <line class="hand min" x1="125" y1="105" x2="125" y2="56" stroke="#161B36" stroke-width="4" stroke-linecap="round"/>
+          <line class="hand sec" x1="125" y1="112" x2="125" y2="52" stroke="#E8613C" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="125" cy="105" r="5" fill="#E8613C"/>
+          <rect x="62" y="266" width="126" height="12" rx="6" fill="#0B0F24"/>
+          <circle cx="70" cy="222" r="11" fill="#0FA97A"/><circle cx="180" cy="222" r="11" fill="#E8613C"/>
+          <text x="70" y="250" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#C4C7E0">IN</text>
+          <text x="180" y="250" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#C4C7E0">OUT</text>
+        </svg>
+      </div>
+      <div class="card-slot">
+        <div class="punch">
+          <div class="name" id="punch-name">Maria Gomez · Front desk</div>
+          <div class="rows"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="stamp in" id="punch-stamp">IN 08:02</div>
+        </div>
+      </div>
+      <div class="float f1"><span class="dot" style="background:var(--in)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span><span><b>Maria clocked in</b><small class="mono">08:02 · Warehouse A</small></span></div>
+      <div class="float f2"><span class="dot" style="background:var(--brand)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg></span><span><b>Visitor signed in</b><small class="mono">09:15 · J. Lee, contractor</small></span></div>
+      <div class="float f3"><span class="dot" style="background:var(--amber)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/></svg></span><span><b>Package picked up</b><small class="mono">11:40 · by Sam Ortiz</small></span></div>
+      <div class="float f4"><span class="dot" style="background:var(--ink)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7"/></svg></span><span><b>Weekly hours report</b><small class="mono">Mon 07:00 · emailed</small></span></div>
+    </div>
+  </section>
+
+  <section class="block" id="industries">
+    <div class="head">
+      <span class="eyebrow">Industries</span>
+      <h2>One check-in app for every kind of front door</h2>
+      <p>Rename the buttons to fit your world: employees, members, students, patients, volunteers or visitors.</p>
+    </div>
+    <div class="industries">
+      <div class="ind"><span class="ic" style="background:#EEEBFD;color:#5B4CE0"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2M11 21v-3h2v3"/></svg></span><b>Offices</b><small>Employee time clock</small></div>
+      <div class="ind"><span class="ic" style="background:#FFF1DC;color:#B66A00"><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5M22 9v6"/></svg></span><b>Schools &amp; daycare</b><small>Drop-off and pick-up</small></div>
+      <div class="ind"><span class="ic" style="background:#E3F7F0;color:#0E8A66"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/></svg></span><b>Clinics &amp; care homes</b><small>Staff and visitor log</small></div>
+      <div class="ind"><span class="ic" style="background:#FFE9E2;color:#C2421E"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 18v-3a7 7 0 0 1 14 0v3M10 8.5V12M14 8.5V12"/><path d="M12 8V6"/></svg></span><b>Construction</b><small>Crew on site</small></div>
+      <div class="ind"><span class="ic" style="background:#E6F1FD;color:#1A6FC4"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg></span><b>Retail</b><small>Shift start and end</small></div>
+      <div class="ind"><span class="ic" style="background:#FCEBF3;color:#B22B6B"><svg viewBox="0 0 24 24"><path d="M4 9h12v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2M7 4v2M11 4v2"/></svg></span><b>Restaurants &amp; cafés</b><small>Staff hours</small></div>
+      <div class="ind"><span class="ic" style="background:#EEEBFD;color:#5B4CE0"><svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg></span><b>Gyms &amp; studios</b><small>Member check-in</small></div>
+      <div class="ind"><span class="ic" style="background:#FFF1DC;color:#B66A00"><svg viewBox="0 0 24 24"><path d="M2 7h11v9H2zM13 10h4l4 3.5V16h-8"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span><b>Warehouses</b><small>Shift and gate log</small></div>
+      <div class="ind"><span class="ic" style="background:#E3F7F0;color:#0E8A66"><svg viewBox="0 0 24 24"><path d="M3 5h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4z"/><path d="M14 5v14" stroke-dasharray="2 2.5"/></svg></span><b>Events &amp; venues</b><small>Volunteer and guest sign-in</small></div>
+      <div class="ind"><span class="ic" style="background:#FFE9E2;color:#C2421E"><svg viewBox="0 0 24 24"><path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6z"/><path d="M12 6v14.5"/></svg></span><b>Tutoring centers</b><small>Sessions and pickups</small></div>
+      <div class="ind"><span class="ic" style="background:#E6F1FD;color:#1A6FC4"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><b>Nonprofits</b><small>Volunteer hours</small></div>
+      <div class="ind"><span class="ic" style="background:#FCEBF3;color:#B22B6B"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></span><b>Field services</b><small>Clock in at each site</small></div>
+    </div>
+  </section>
+
+  <section class="block" id="how">
+    <div class="head"><span class="eyebrow">How it works</span><h2>Up and running before the next shift</h2></div>
+    <div class="steps">
+      <div class="step"><h3>Create your space</h3><p>Pick your industry and your own address, like <span class="mono">utsjkumon.aspireitech.net</span>. It's ready in under a minute.</p></div>
+      <div class="step"><h3>Add your people</h3><p>Upload a spreadsheet of employees, members or students, with their contacts.</p></div>
+      <div class="step"><h3>Put a tablet at the door</h3><p>People tap their name to sign in or out. You get live attendance and emailed reports.</p></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="head"><span class="eyebrow">One kiosk, three jobs</span><h2>Built for everyone who walks through your door</h2></div>
+    <div class="flows">
+      <div class="flow fl1"><h3>Team &amp; members</h3><p>Type a few letters, tap your name, clock in. Hours are totalled for payroll.</p><span class="chip">Maria Gomez <span class="mono">· 38h 20m this week</span></span></div>
+      <div class="flow fl2"><h3>Visitors &amp; drop-offs</h3><p>Record who arrived, who they came with, and who left with whom.</p><span class="chip">J. Lee <span class="mono">· in 09:15 · out 11:02</span></span></div>
+      <div class="flow fl3"><h3>Pickups &amp; handovers</h3><p>Log packages, keys, equipment or materials, and who collected them.</p><span class="chip">Laptop #14 <span class="mono">· by Sam Ortiz</span></span></div>
+    </div>
+  </section>
+
+  <section class="secure" id="security">
+    <div><span class="eyebrow" style="color:var(--amber)">Security</span><h2>Your people's data, locked down</h2>
+      <p>Names, contacts and hours are personal. TimeInOut protects them like a bank protects logins.</p></div>
+    <div class="sec-list">
+      <div class="sec-item"><b>Emailed sign-in codes</b><span>Admins confirm every sign-in with a one-time code.</span></div>
+      <div class="sec-item"><b>Full audit log</b><span>Every change, sign-in and report: who, when and the result.</span></div>
+      <div class="sec-item"><b>Encrypted contacts</b><span>Phone numbers and emails encrypted with AES-256.</span></div>
+      <div class="sec-item"><b>Kiosk-only staff</b><span>Front-desk logins can't open settings or records.</span></div>
+    </div>
+  </section>
+
+  <section class="block" id="pricing">
+    <div class="head"><span class="eyebrow">Pricing</span><h2>Simple plans. Every feature included.</h2><p>Start with a 30-day free trial. Cancel anytime.</p></div>
+    <div class="prices">
+      <div class="price"><b>Starter</b><div class="amt">$19<small>/month</small></div><ul><li>Up to 50 people</li><li>1 location</li><li>Daily, weekly and monthly reports</li></ul><a class="btn btn-ghost" href="#">Choose Starter</a></div>
+      <div class="price pop"><b>Business</b><div class="amt">$49<small>/month</small></div><ul><li>Up to 500 people</li><li>Your logo and colors</li><li>PDF and CSV reports, audit log</li></ul><a class="btn btn-primary" href="#">Choose Business</a></div>
+      <div class="price"><b>Enterprise</b><div class="amt">$99<small>/month</small></div><ul><li>Unlimited people</li><li>Your own domain</li><li>Priority support</li></ul><a class="btn btn-ghost" href="#">Choose Enterprise</a></div>
+    </div>
+    <p class="pay">Pay by card with Stripe, or by invoice through Wave.</p>
+  </section>
+
+  <section class="final">
+    <h2>Your front door, on the clock.</h2>
+    <p>Create your space in a minute and put it on a tablet today.</p>
+    <a class="btn btn-primary" href="#">Start free trial</a>
+  </section>
+  <footer>© 2026 TimeInOut by Aspire iTech</footer>
+</div>
+
+<script>
+// Punch card: alternate clock-in and clock-out stamps for different people, in step with the card animation.
+(function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const people = [['Maria Gomez · Front desk', 'in', 'IN 08:02'], ['Maria Gomez · Front desk', 'out', 'OUT 17:05'],
+    ['Dev Patel · Warehouse A', 'in', 'IN 06:58'], ['Ava Chen · Studio 2', 'in', 'IN 09:30'], ['Dev Patel · Warehouse A', 'out', 'OUT 15:12']];
+  const name = document.getElementById('punch-name'), stamp = document.getElementById('punch-stamp');
+  let i = 0;
+  setInterval(() => {
+    i = (i + 1) % people.length;
+    const [n, cls, txt] = people[i];
+    name.textContent = n; stamp.textContent = txt; stamp.className = 'stamp ' + cls;
+  }, 4000);
+})();
+</script>
