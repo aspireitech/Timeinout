@@ -420,7 +420,7 @@ function admin_settings(): void
             'welcome_text'    => mb_substr((string) input('welcome_text'), 0, 500) ?: null,
             'primary_color'   => hex_color((string) input('primary_color'), $t['primary_color']),
             'accent_color'    => hex_color((string) input('accent_color'), $t['accent_color']),
-            'timezone'        => in_array(input('timezone'), DateTimeZone::listIdentifiers(), true) ? (string) input('timezone') : $t['timezone'],
+            'timezone'        => valid_tz((string) input('timezone')) ? (string) input('timezone') : '',
             'kiosk_public'    => input('kiosk_public') === '1' ? 1 : 0,
             'allow_past_days' => max(0, min(60, (int) input('allow_past_days'))),
         ];

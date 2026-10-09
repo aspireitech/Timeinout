@@ -58,15 +58,87 @@ function tid(): int
     return (int) $GLOBALS['tenant']['id'];
 }
 
-/** Today's date in the tenant's own timezone. */
+function valid_tz(?string $tz): bool
+{
+    // Accept every zone PHP knows, including older names browsers still send (e.g. Asia/Calcutta)
+    if ($tz === null || !preg_match('#^[A-Za-z]+(?:/[A-Za-z0-9_+\-]+){1,2}$|^UTC$|^[+-]\d{2}:\d{2}$#', $tz)) {
+        return false;
+    }
+    try {
+        new DateTimeZone($tz);
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/** The time zone this device reported: its zone name (old names translated), else its UTC offset. */
+function device_tz(): ?string
+{
+    $aliases = [
+        'Asia/Calcutta' => 'Asia/Kolkata', 'Asia/Saigon' => 'Asia/Ho_Chi_Minh', 'Asia/Katmandu' => 'Asia/Kathmandu',
+        'Asia/Rangoon' => 'Asia/Yangon', 'Asia/Dacca' => 'Asia/Dhaka', 'Europe/Kiev' => 'Europe/Kyiv',
+        'America/Buenos_Aires' => 'America/Argentina/Buenos_Aires', 'Pacific/Truk' => 'Pacific/Chuuk',
+        'Atlantic/Faeroe' => 'Atlantic/Faroe', 'America/Godthab' => 'America/Nuuk', 'US/Eastern' => 'America/New_York',
+        'US/Central' => 'America/Chicago', 'US/Mountain' => 'America/Denver', 'US/Pacific' => 'America/Los_Angeles',
+    ];
+    $name = (string) ($_COOKIE['tio_tz'] ?? '');
+    $name = $aliases[$name] ?? $name;
+    if (valid_tz($name)) {
+        return $name;
+    }
+    $mins = $_COOKIE['tio_tzo'] ?? null; // minutes east of UTC, e.g. 330 for India
+    if (is_string($mins) && preg_match('/^-?\d{1,4}$/', $mins) && abs((int) $mins) <= 14 * 60) {
+        $m = (int) $mins;
+        return sprintf('%s%02d:%02d', $m < 0 ? '-' : '+', intdiv(abs($m), 60), abs($m) % 60);
+    }
+    return null;
+}
+
+/**
+ * The time zone used for "now" and "today":
+ *  1. the school's chosen zone (Branding & settings), or, when set to Automatic,
+ *  2. the zone of the device making this request (cookie set by the browser), else
+ *  3. the zone last reported by one of the school's devices (used by the email cron), else UTC.
+ */
+function tenant_tz(): string
+{
+    $t = tenant();
+    if (valid_tz($t['timezone'] ?? '')) {
+        return $t['timezone'];
+    }
+    $device = device_tz();
+    if ($device !== null) {
+        remember_device_tz($device);
+        return $device;
+    }
+    return valid_tz($t['device_timezone'] ?? '') ? $t['device_timezone'] : 'UTC';
+}
+
+/** Store the device's zone so scheduled reports know the school's local day. */
+function remember_device_tz(string $tz): void
+{
+    $t = tenant();
+    if (!$t || ($t['device_timezone'] ?? null) === $tz) {
+        return;
+    }
+    try {
+        q('UPDATE tenants SET device_timezone = ? WHERE id = ?', [$tz, $t['id']]);
+    } catch (PDOException $e) { // installs from before this column existed: add it once
+        try {
+            q('ALTER TABLE tenants ADD COLUMN device_timezone VARCHAR(64) NULL AFTER timezone');
+            q('UPDATE tenants SET device_timezone = ? WHERE id = ?', [$tz, $t['id']]);
+        } catch (PDOException $e2) {
+            error_log('Could not save device time zone: ' . $e2->getMessage());
+        }
+    }
+    $GLOBALS['tenant']['device_timezone'] = $tz;
+}
+
+/** Current date and time for the school (see tenant_tz). */
 function tenant_now(): DateTime
 {
-    $tz = tenant()['timezone'] ?? 'UTC';
-    try {
-        return new DateTime('now', new DateTimeZone($tz));
-    } catch (Exception $e) {
-        return new DateTime('now', new DateTimeZone('UTC'));
-    }
+    return new DateTime('now', new DateTimeZone(tenant_tz()));
 }
 
 function tenant_today(): string

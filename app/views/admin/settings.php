@@ -24,7 +24,10 @@
     <div class="stack">
       <div class="card">
         <h3><?= icon('kiosk') ?> Kiosk</h3>
-        <div class="field"><label>Time zone</label><select name="timezone"><?php foreach (DateTimeZone::listIdentifiers() as $tz): ?><option <?= $t['timezone'] === $tz ? 'selected' : '' ?>><?= e($tz) ?></option><?php endforeach; ?></select></div>
+        <div class="field"><label>Time zone</label><select name="timezone">
+          <option value="" <?= valid_tz($t['timezone']) ? '' : 'selected' ?>>Automatic: use each device's own time zone</option>
+          <?php foreach (DateTimeZone::listIdentifiers() as $tz): ?><option <?= $t['timezone'] === $tz ? 'selected' : '' ?>><?= e($tz) ?></option><?php endforeach; ?></select>
+          <div class="hint">Automatic records the local time of the tablet or phone being used<?= valid_tz($t['timezone']) ? '' : ' (now: ' . e(tenant_tz()) . ')' ?>. Pick a zone to force one time zone for every device.</div></div>
         <div class="field"><label>Allow entries for past days</label>
           <select name="allow_past_days"><?php foreach ([0 => 'Today only', 1 => 'Up to 1 day back', 3 => 'Up to 3 days back', 7 => 'Up to 7 days back', 14 => 'Up to 14 days back', 30 => 'Up to 30 days back'] as $n => $l): ?><option value="<?= $n ?>" <?= (int) $t['allow_past_days'] === $n ? 'selected' : '' ?>><?= $l ?></option><?php endforeach; ?></select>
           <div class="hint">Controls the "Yesterday / Other day" buttons on the kiosk.</div></div>

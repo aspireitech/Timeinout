@@ -44,7 +44,8 @@
         </div>
         <div class="field">
           <label for="timezone">Time zone</label>
-          <select id="timezone" name="timezone" data-auto="1">
+          <select id="timezone" name="timezone">
+            <option value="">Automatic (each device's own time)</option>
             <?php foreach (DateTimeZone::listIdentifiers() as $tz): ?><option <?= $old['timezone'] === $tz ? 'selected' : '' ?>><?= e($tz) ?></option><?php endforeach; ?>
           </select>
         </div>

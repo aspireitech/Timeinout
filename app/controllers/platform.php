@@ -16,7 +16,7 @@ function platform_check_slug(): void
 function platform_signup(): void
 {
     $plans = cfg('plans', []);
-    $old = ['org_name' => '', 'slug' => '', 'admin_name' => '', 'email' => '', 'plan' => (string) input('plan', array_key_first($plans)), 'timezone' => 'America/New_York', 'demo' => '1'];
+    $old = ['org_name' => '', 'slug' => '', 'admin_name' => '', 'email' => '', 'plan' => (string) input('plan', array_key_first($plans)), 'timezone' => '', 'demo' => '1'];
     $errors = [];
 
     if (is_post()) {
@@ -48,8 +48,8 @@ function platform_signup(): void
         if (!isset($plans[$d['plan']])) {
             $d['plan'] = (string) array_key_first($plans);
         }
-        if (!in_array($d['timezone'], DateTimeZone::listIdentifiers(), true)) {
-            $d['timezone'] = 'UTC';
+        if (!valid_tz($d['timezone'])) {
+            $d['timezone'] = ''; // Automatic
         }
 
         if (!$errors) {

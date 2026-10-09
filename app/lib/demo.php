@@ -22,14 +22,16 @@ function seed_demo_tenant(): array
 {
     mt_srand(20261008);
     // Keep the time zone the presenter chose in Branding & settings when resetting
-    $tz = (string) (val('SELECT timezone FROM tenants WHERE slug = ?', [DEMO_SLUG]) ?: 'America/New_York');
+    $old = row('SELECT * FROM tenants WHERE slug = ?', [DEMO_SLUG]);
+    $setting = $old ? (string) $old['timezone'] : ''; // keep the presenter's choice; new demos are Automatic
+    $tz = valid_tz($setting) ? $setting : (device_tz() ?? ( (valid_tz($old['device_timezone'] ?? '') ? $old['device_timezone'] : 'America/New_York')));
     $pdo = db();
     $pdo->beginTransaction();
     try {
         q('DELETE FROM tenants WHERE slug = ?', [DEMO_SLUG]);
         $tid = insert('tenants', [
             'name' => 'Bright Future Academy', 'slug' => DEMO_SLUG, 'plan' => 'school', 'status' => 'active',
-            'primary_color' => '#6C5CE7', 'accent_color' => '#00B894', 'timezone' => $tz,
+            'primary_color' => '#6C5CE7', 'accent_color' => '#00B894', 'timezone' => $setting,
             'welcome_title' => 'Welcome to Bright Future Academy!',
             'welcome_text' => 'Tap below to sign in, sign out or pick up materials.',
             'allow_past_days' => 7, 'report_emails' => 'admin@demo.com',

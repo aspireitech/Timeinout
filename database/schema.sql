@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   accent_color    VARCHAR(7)   NOT NULL DEFAULT '#00B894',
   welcome_title   VARCHAR(150) NULL,
   welcome_text    VARCHAR(500) NULL,
-  timezone        VARCHAR(64)  NOT NULL DEFAULT 'America/New_York',
+  timezone        VARCHAR(64)  NOT NULL DEFAULT '',          -- '' = Automatic: use the device's time zone
+  device_timezone VARCHAR(64)  NULL,                         -- last zone reported by a device (for scheduled reports)
   -- kiosk
   kiosk_public    TINYINT(1)   NOT NULL DEFAULT 0,
   allow_past_days TINYINT UNSIGNED NOT NULL DEFAULT 7,
