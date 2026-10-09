@@ -21,7 +21,8 @@ function demo_tenant(): ?array
 function seed_demo_tenant(): array
 {
     mt_srand(20261008);
-    $tz = 'America/New_York';
+    // Keep the time zone the presenter chose in Branding & settings when resetting
+    $tz = (string) (val('SELECT timezone FROM tenants WHERE slug = ?', [DEMO_SLUG]) ?: 'America/New_York');
     $pdo = db();
     $pdo->beginTransaction();
     try {
