@@ -79,20 +79,28 @@
     const mine = ++seq;
     if (!q) { $('#results').innerHTML = ''; setHint('Start typing a first or last name.'); return; }
     const type = S.mode === 'teacher' ? 'teacher' : 'student';
-    const list = await getJSON(`/search?type=${type}&q=${encodeURIComponent(q)}`);
+    const list = await getJSON(`/search?type=${type}&q=${encodeURIComponent(q)}&date=${S.day}`);
     if (mine !== seq) return; // a newer search is already running
     $('#results').innerHTML = list.map((p, i) =>
       `<button class="pick" data-i="${i}"><span class="avatar ${type === 'teacher' ? 'teacher' : ''}">${esc(p.initials)}</span>` +
-      `<span><div class="nm">${esc(p.name)}</div>${p.grade ? `<div class="sb">${esc(p.grade)}</div>` : ''}</span></button>`).join('');
+      `<span><div class="nm">${esc(p.name)}</div>${p.grade ? `<div class="sb">${esc(p.grade)}</div>` : ''}</span>${badge(p.status)}</button>`).join('');
     setHint(list.length ? '' : 'No match. Try fewer letters, or ask the front desk.');
     $$('#results .pick').forEach((b) => b.addEventListener('click', () => pickPerson(list[+b.dataset.i])));
+  }
+
+  // "In since 8:02 AM" / "Out at 3:15 PM" for a search result or the selected person
+  function badge(st) {
+    if (!st) return '';
+    return st.state === 'in'
+      ? `<span class="st st-in">In since ${esc(st.time)}</span>`
+      : `<span class="st st-out">Out at ${esc(st.time)}</span>`;
   }
 
   function whoHTML() {
     const cls = S.mode === 'teacher' ? 'teacher' : '';
     let sub = S.person.grade || (S.mode === 'teacher' ? 'Teacher / Staff' : '');
     if (S.guardian) sub = (sub ? sub + ' · ' : '') + 'with ' + S.guardian.name + (S.guardian.relationship ? ` (${S.guardian.relationship})` : '');
-    return `<span class="avatar ${cls}">${esc(S.person.initials)}</span><div><div style="font-weight:800;font-size:1.15rem">${esc(S.person.name)}</div><div class="muted">${esc(sub)}</div></div>`;
+    return `<span class="avatar ${cls}">${esc(S.person.initials)}</span><div><div style="font-weight:800;font-size:1.15rem">${esc(S.person.name)}</div><div class="muted">${esc(sub)}</div></div>${badge(S.person.status)}`;
   }
 
   // ---- Step 3: only this student's guardians
@@ -127,15 +135,29 @@
   }
   async function loadStatus() {
     const note = $('#status-note');
-    note.classList.add('hidden');
-    $$('.action').forEach((a) => a.classList.remove('suggest', 'dim'));
+    const btnIn = $('.action.in'), btnOut = $('.action.out');
+    const inSub = S.mode === 'teacher' ? 'Start my day' : 'Arriving / drop-off';
+    const outSub = S.mode === 'teacher' ? 'End my day' : 'Leaving / pick-up';
+    note.className = 'status-note hidden';
+    [btnIn, btnOut].forEach((b) => { b.disabled = true; b.classList.remove('suggest'); }); // no taps until we know
     const type = S.mode === 'teacher' ? 'teacher' : 'student';
     const st = await getJSON(`/status?type=${type}&id=${S.person.id}&date=${S.day}`);
-    const suggest = st.state === 'in' ? 'sign_out' : 'sign_in';
-    $$('.action').forEach((a) => a.classList.add(a.dataset.action === suggest ? 'suggest' : 'dim'));
-    if (st.state !== 'none') {
-      note.textContent = `${st.state === 'in' ? 'Signed in' : 'Signed out'} at ${st.time}${st.guardian ? ' by ' + st.guardian : ''}.`;
-      note.classList.remove('hidden');
+    S.person.status = st.state === 'none' ? null : st;
+    $('#who-a').innerHTML = whoHTML();
+    const day = S.day === TODAY ? 'today' : 'that day';
+    const by = st.guardian ? ` by ${st.guardian}` : '';
+    if (st.state === 'in') {
+      note.textContent = `✓ Checked in at ${st.time}${by}. Waiting for sign-out.`;
+      note.className = 'status-note is-in';
+      btnOut.disabled = false; btnOut.classList.add('suggest');
+      $('#in-sub').textContent = `Already signed in at ${st.time}`;
+      $('#out-sub').textContent = outSub;
+    } else {
+      note.textContent = st.state === 'out' ? `Signed out at ${st.time}${by}. Tap Sign In if they are back.` : `Not signed in ${day} yet.`;
+      note.className = 'status-note ' + (st.state === 'out' ? 'is-out' : 'is-none');
+      btnIn.disabled = false; btnIn.classList.add('suggest');
+      $('#in-sub').textContent = inSub;
+      $('#out-sub').textContent = st.state === 'out' ? `Already signed out at ${st.time}` : `Not signed in ${day}`;
     }
   }
 
