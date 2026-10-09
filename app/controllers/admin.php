@@ -515,3 +515,92 @@ function admin_password(): void
     }
     redirect(url('/admin/users'));
 }
+
+// ---------- Daily attendance sheet ----------
+/**
+ * One row per visit: who dropped off, when, who picked up, when, and the final status.
+ * People with no sign-in that day are listed as absent.
+ */
+function attendance_sheet(string $type, string $date): array
+{
+    $events = rows(
+        "SELECT * FROM attendance WHERE tenant_id = ? AND person_type = ? AND event_date = ? AND kind IN ('sign_in','sign_out')
+         ORDER BY event_time, id",
+        [tid(), $type, $date]
+    );
+    $visits = [];
+    $open = []; // person_id => index of their visit still waiting for a sign-out
+    foreach ($events as $ev) {
+        $pid = (int) $ev['person_id'];
+        if ($ev['kind'] === 'sign_in') {
+            $visits[] = ['person_id' => $pid, 'name' => $ev['person_name'], 'in_by' => $ev['guardian_name'], 'in' => $ev['event_time'], 'out_by' => null, 'out' => null];
+            $open[$pid] = count($visits) - 1;
+        } elseif (isset($open[$pid])) {
+            $visits[$open[$pid]]['out_by'] = $ev['guardian_name'];
+            $visits[$open[$pid]]['out'] = $ev['event_time'];
+            unset($open[$pid]);
+        } else { // a sign-out with no matching sign-in (e.g. sign-in entry was deleted)
+            $visits[] = ['person_id' => $pid, 'name' => $ev['person_name'], 'in_by' => null, 'in' => null, 'out_by' => $ev['guardian_name'], 'out' => $ev['event_time']];
+        }
+    }
+    $table = $type === 'teacher' ? 'teachers' : 'students';
+    $people = rows("SELECT id, first_name, last_name, " . ($type === 'student' ? 'grade' : 'NULL AS grade') . " FROM $table WHERE tenant_id = ? AND active = 1 ORDER BY first_name, last_name", [tid()]);
+    $grades = array_column($people, 'grade', 'id');
+    $seen = [];
+    foreach ($visits as &$v) {
+        $seen[$v['person_id']] = true;
+        $v['grade'] = $grades[$v['person_id']] ?? null;
+        $v['status'] = $v['out'] ? 'out' : 'in';
+        $v['minutes'] = ($v['in'] && $v['out']) ? max(0, (int) round((strtotime($v['out']) - strtotime($v['in'])) / 60)) : null;
+    }
+    unset($v);
+    foreach ($people as $p) {
+        if (!isset($seen[(int) $p['id']])) {
+            $visits[] = ['person_id' => (int) $p['id'], 'name' => full_name($p), 'grade' => $p['grade'], 'in_by' => null, 'in' => null, 'out_by' => null, 'out' => null, 'status' => 'absent', 'minutes' => null];
+        }
+    }
+    return $visits;
+}
+
+function admin_attendance(): void
+{
+    require_login();
+    $type = input('type') === 'teacher' ? 'teacher' : 'student';
+    $date = valid_date((string) input('date')) ? (string) input('date') : tenant_today();
+    $status = in_array(input('status'), ['in', 'out', 'absent', 'present'], true) ? (string) input('status') : '';
+    $q = mb_strtolower(trim((string) input('q')));
+    $all = attendance_sheet($type, $date);
+
+    $count = ['present' => 0, 'in' => 0, 'out' => 0, 'absent' => 0];
+    $present = [];
+    foreach ($all as $r) {
+        $count[$r['status']]++;
+        if ($r['status'] !== 'absent') {
+            $present[$r['person_id']] = true;
+        }
+    }
+    $count['present'] = count($present); // people who came at least once
+
+    $rows = array_values(array_filter($all, function ($r) use ($status, $q) {
+        if ($status === 'present' ? $r['status'] === 'absent' : ($status !== '' && $r['status'] !== $status)) {
+            return false;
+        }
+        return $q === '' || str_contains(mb_strtolower($r['name'] . ' ' . $r['in_by'] . ' ' . $r['out_by']), $q);
+    }));
+
+    if (input('export') === 'csv') {
+        $who = $type === 'teacher' ? 'Teacher' : 'Student';
+        $out = $type === 'teacher'
+            ? [[$who, 'Check-in time', 'Check-out time', 'Hours', 'Status']]
+            : [[$who, 'Grade', 'Dropped off by', 'Check-in time', 'Picked up by', 'Check-out time', 'Time at school', 'Status']];
+        $label = ['in' => 'Not checked out', 'out' => 'Checked out', 'absent' => 'Absent'];
+        foreach ($rows as $r) {
+            $dur = $r['minutes'] !== null ? fmt_minutes($r['minutes']) : '';
+            $out[] = $type === 'teacher'
+                ? [$r['name'], fmt_time($r['in']), fmt_time($r['out']), $dur, $label[$r['status']]]
+                : [$r['name'], $r['grade'], $r['in_by'], fmt_time($r['in']), $r['out_by'], fmt_time($r['out']), $dur, $label[$r['status']]];
+        }
+        csv_download("attendance-{$type}s-$date.csv", $out);
+    }
+    admin_view('attendance', compact('type', 'date', 'status', 'q', 'rows', 'count'));
+}

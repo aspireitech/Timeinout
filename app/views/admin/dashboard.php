@@ -1,13 +1,13 @@
 <div class="topbar">
   <div><h1>Good <?= (int) tenant_now()->format('G') < 12 ? 'morning' : ((int) tenant_now()->format('G') < 17 ? 'afternoon' : 'evening') ?> 👋</h1>
     <div class="muted"><?= e(fmt_date($today)) ?> · <?= (int) $totals['students'] ?> students · <?= (int) $totals['teachers'] ?> teachers on file</div></div>
-  <a class="btn btn-primary" href="<?= e(url('/')) ?>"><?= icon('kiosk') ?> Open kiosk</a>
+  <div class="row"><a class="btn btn-ghost" href="<?= e(url('/admin/attendance')) ?>"><?= icon('calendar') ?> Today's attendance</a><a class="btn btn-primary" href="<?= e(url('/')) ?>"><?= icon('kiosk') ?> Open kiosk</a></div>
 </div>
 
 <div class="grid c4" style="margin-bottom:18px">
-  <div class="tile t1"><?= icon('users', 30) ?><div class="num"><?= count($students) ?></div><div class="lbl">Students on site now</div></div>
-  <div class="tile t2"><?= icon('out', 30) ?><div class="num"><?= $counts['s_out'] ?? 0 ?></div><div class="lbl">Student sign-outs today</div></div>
-  <div class="tile t3"><?= icon('teacher', 30) ?><div class="num"><?= count($teachers) ?></div><div class="lbl">Teachers on site now</div></div>
+  <a class="tile t1" href="<?= e(url('/admin/attendance?status=in')) ?>"><?= icon('users', 30) ?><div class="num"><?= count($students) ?></div><div class="lbl">Students on site now →</div></a>
+  <a class="tile t2" href="<?= e(url('/admin/attendance?status=out')) ?>"><?= icon('out', 30) ?><div class="num"><?= $counts['s_out'] ?? 0 ?></div><div class="lbl">Student sign-outs today →</div></a>
+  <a class="tile t3" href="<?= e(url('/admin/attendance?type=teacher&status=in')) ?>"><?= icon('teacher', 30) ?><div class="num"><?= count($teachers) ?></div><div class="lbl">Teachers on site now →</div></a>
   <div class="tile t4"><?= icon('box', 30) ?><div class="num"><?= $counts['pickups'] ?? 0 ?></div><div class="lbl">Material pickups today</div></div>
 </div>
 

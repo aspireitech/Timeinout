@@ -20,7 +20,8 @@ $nav = function (string $path, string $ico, string $label) use ($here) {
     <nav>
       <?= $nav('/admin', 'home', 'Dashboard') ?>
       <a href="<?= e(url('/')) ?>"><?= icon('kiosk') ?><span class="t">Open kiosk</span></a>
-      <?= $nav('/admin/logs', 'list', 'Attendance log') ?>
+      <?= $nav('/admin/attendance', 'calendar', "Today's attendance") ?>
+      <?= $nav('/admin/logs', 'list', 'Activity log') ?>
       <?= $nav('/admin/reports', 'chart', 'Reports') ?>
       <?php if (is_admin()): ?>
         <div class="nav-label">People</div>

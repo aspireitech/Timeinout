@@ -81,6 +81,7 @@ function tenant_routes(string $path): void
         ['GET|POST', '/admin/import',              'admin_import'],
         ['GET',      '/admin/import/sample-students.csv', 'admin_sample_students'],
         ['GET',      '/admin/import/sample-teachers.csv', 'admin_sample_teachers'],
+        ['GET',      '/admin/attendance',          'admin_attendance'],
         ['GET',      '/admin/logs',                'admin_logs'],
         ['GET',      '/admin/logs/export',         'admin_logs_export'],
         ['POST',     '/admin/logs/{id}/delete',    'admin_log_delete'],

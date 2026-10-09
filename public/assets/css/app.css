@@ -264,3 +264,23 @@ table.table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 .demo-fill { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1.5px dashed var(--line); background: #fff; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: .85rem; color: var(--ink); cursor: pointer; text-align: left; }
 .demo-fill:hover { border-color: var(--brand); }
 .demo-fill code { font-size: .82rem; }
+
+/* Daily attendance sheet */
+.att-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px; margin-bottom: 16px; }
+.att-tabs { display: flex; gap: 6px; background: var(--soft); padding: 4px; border-radius: 12px; }
+.att-tabs a { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 9px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.att-tabs a.on { background: #fff; color: var(--ink); box-shadow: var(--shadow); }
+.att-date { display: flex; gap: 6px; align-items: center; }
+.att-date input[type=date] { width: auto; padding: 7px 10px; }
+.att-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.att-sum .sum { display: grid; gap: 2px; padding: 14px 16px; border-radius: 14px; background: #fff; box-shadow: var(--shadow); border: 2px solid transparent; color: var(--ink); text-decoration: none; }
+.att-sum .sum b { font-size: 1.8rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.att-sum .sum span { font-size: .85rem; color: var(--muted); font-weight: 600; }
+.att-sum .sum:hover { box-shadow: var(--shadow-lg); }
+.att-sum .s-all b { color: var(--brand); } .att-sum .s-out b { color: #0767B5; } .att-sum .s-in b { color: #B26B00; } .att-sum .s-abs b { color: var(--muted); }
+.att-sum .s-all.on { border-color: var(--brand); } .att-sum .s-out.on { border-color: #0984E3; } .att-sum .s-in.on { border-color: #F5A623; } .att-sum .s-abs.on { border-color: var(--muted); }
+.att-table tr.is-absent td { color: var(--muted); }
+.tnum { font-variant-numeric: tabular-nums; }
+a.tile { display: block; text-decoration: none !important; transition: transform .15s; }
+a.tile:hover { transform: translateY(-3px); }
+@media (max-width: 700px) { .att-sum { grid-template-columns: 1fr 1fr; } }
