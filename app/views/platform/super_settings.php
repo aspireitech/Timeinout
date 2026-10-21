@@ -51,6 +51,9 @@
     <form method="post" class="inline-form">
       <?= csrf_field() ?><input type="hidden" name="action" value="test">
       <div class="field"><label for="s-test">Send to</label><input type="email" id="s-test" name="test_to" value="<?= e(cfg('super_admin')['email'] ?? '') ?>"></div>
+      <div class="field"><label for="s-sender">Send from</label><select id="s-sender" name="sender">
+        <option value="contact"><?= e(mail_config('contact')['from_email'] ?? '') ?> (sign-in codes, notices)</option>
+        <option value="reports"><?= e(mail_config('reports')['from_email'] ?? '') ?> (reports)</option></select></div>
       <button class="btn btn-accent">Send test email</button>
     </form>
   </div>

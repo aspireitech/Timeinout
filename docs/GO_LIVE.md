@@ -64,18 +64,57 @@ one for a subdomain behind Cloudflare, create a free **Cloudflare Origin Certifi
    - `force_https` → `true`
    - `super_admin` → `aspireitechsolutions@gmail.com` and a strong password (use the
      hash: `php -r "echo password_hash('…', PASSWORD_DEFAULT), PHP_EOL;"`)
-   - `mail` → create `no-reply@clockinoutapp.com` in hPanel → Emails; SMTP host
-     `smtp.hostinger.com`, port `465`, secure `ssl`, user = that address
-   - `lead_email` → `contact@clockinoutapp.com` (create this mailbox too)
+   - `mail` → SMTP host `smtp.hostinger.com`, port `465`, secure `ssl`
+   - `mail_senders` → the passwords of the two mailboxes (section 3a)
+   - `contact_email`, `lead_email`, `report_bcc` → `contact@clockinoutapp.com`
    - `cron_key` → a long random string
 4. **Subdomains**: hPanel → Domains → Subdomains. If your plan allows a wildcard,
    create `*` pointing to the same folder as the main site. Otherwise create each
    customer's subdomain (e.g. `utsjkumon`) with the **same folder as the main site**
    (custom folder → the main site's folder / `public`).
-5. **Cron**: hPanel → Advanced → Cron Jobs → every hour:
-   `php /home/USER/domains/clockinoutapp.com/cron/send_reports.php`
+5. **Cron jobs** (hPanel → Advanced → Cron Jobs):
+   - every hour: `php /home/USER/domains/clockinoutapp.com/cron/send_reports.php`
+   - every day (e.g. 02:00): `php /home/USER/domains/clockinoutapp.com/cron/backup.php`
 6. **Test**: open `https://clockinoutapp.com`, then `/super/login`, sign in, and in
    `/super → Settings` use **Send a test email**.
+
+### 3a. Email: which mailbox sends what
+
+| Mailbox | Sends | Receives |
+|---|---|---|
+| `contact@clockinoutapp.com` | Sign-in codes (provider and customer admins), account notices, test emails | Leads, “Suspicious activity reported”, a BCC of every report, replies to reports |
+| `reports@clockinoutapp.com` | Daily, weekly, monthly and on-demand reports (Reply-To: contact@) | — |
+
+Each mailbox logs in to SMTP with its own password, set in `app/config.php`:
+
+```php
+'mail_senders' => [
+    'contact' => ['from_email' => 'contact@clockinoutapp.com', 'from_name' => 'ClockInOut',
+                  'user' => 'contact@clockinoutapp.com', 'pass' => 'CONTACT-MAILBOX-PASSWORD'],
+    'reports' => ['from_email' => 'reports@clockinoutapp.com', 'from_name' => 'ClockInOut Reports',
+                  'user' => 'reports@clockinoutapp.com', 'pass' => 'REPORTS-MAILBOX-PASSWORD'],
+],
+```
+
+Check both in `/super → Settings → Send a test email` (choose “Send from”). To land in
+inboxes rather than spam, make sure the domain's **SPF, DKIM and DMARC** records exist
+(hPanel → Emails → shows the records; add them in Cloudflare DNS, **DNS only**, grey cloud).
+
+Every sign-in code email ends with: *“Did not request this code? … report it to us”*.
+The link opens a page with one button; pressing it emails contact@ with the subject
+**Suspicious activity reported — <account>**, the portal, the IP and the time of the attempt.
+(Opening the link alone does nothing, so email virus scanners cannot file false reports.)
+
+### 3b. Reports
+
+- Each portal sends **daily** (the previous day), **weekly** (last Monday–Sunday, sent on
+  Monday) and **monthly** (last month, sent on the 1st) reports at **7:00 the customer's
+  local time** by default. The customer can change the hour, weekday and recipients in
+  **Admin → Reports**. Set the portal's time zone when creating it.
+- **On demand**: Admin → Reports → **Custom range**, any dates up to **6 months**:
+  view, PDF, CSV, or email it.
+- All reports come from reports@ with a hidden copy to contact@ (`report_bcc`; set it to
+  `false` to stop the copies — with many customers that is a lot of mail).
 
 ---
 
@@ -137,7 +176,9 @@ one for a subdomain behind Cloudflare, create a free **Cloudflare Origin Certifi
    - Database: **Own database** → the name, user and password from step 1, host `localhost`
 4. Click **Create portal**. The next screen shows the portal link and a **temporary
    password — shown only once**. Send the link and the password separately.
-5. The owner signs in at `https://utsjkumon.clockinoutapp.com/login`, enters the code
+5. Optional: import their people in **Admin → Import** (Excel `.xlsx` or CSV, first row =
+   column headers; the sample files show the columns).
+6. The owner signs in at `https://utsjkumon.clockinoutapp.com/login`, enters the code
    emailed to them, then changes the password under **Admin → Users → Change my password**.
 
 **Forgot password?** `/super → Subscribers → Reset owner password` gives the owner a
@@ -183,12 +224,49 @@ with **its own database** and its own `app/config.php`:
 
 ---
 
-## 8. Before the first customer goes live
+## 8. Backups and restoring
+
+### What must be backed up
+
+| Item | Why | How |
+|---|---|---|
+| **Main database** | Customer list, which database each customer uses, settings, payments, leads | `cron/backup.php` (daily) |
+| **Each customer's database** | All their people, check-ins and check-outs, history, logins | `cron/backup.php` (daily) |
+| `app/config.php` | Domain, database logins, mailbox passwords | Password manager (copy the file's contents) |
+| **`app/keys/app.key`** | Unlocks every encrypted value: **the customers' database passwords**, the mailbox/SMTP and Stripe keys, guardians' and staff phone numbers and emails | Password manager |
+| `public/uploads/` | Customer logos | Download occasionally |
+| Code | Same for every customer | GitHub (`main`) |
+
+`cron/backup.php` writes `backups/<date>/main_….sql.gz`, one `<portal>_<database>.sql.gz`
+per customer and `MANIFEST.txt`, and keeps 14 days. **Copy that folder off the server**
+(e.g. download it weekly, or Hostinger's own daily backups on Business/Cloud plans).
+
+### Restore on the same or a new host
+
+1. Upload the code (GitHub `main` or the zip) and put back `app/config.php` and `app/keys/app.key`.
+2. Create the main database and each customer database **with the same names, users and
+   passwords** as before, and import each `.sql.gz` from the backup (phpMyAdmin → Import
+   accepts `.gz`). If a name has to change (new host prefix), update that customer's row
+   in `tenants` (`db_name`, `db_user`) — and use the same password, because it is stored
+   encrypted with `app.key`.
+3. Point Cloudflare's `@` and `*` records at the new server IP.
+4. Every portal reconnects to its own database by itself: the main database says which
+   database belongs to which address, and `app.key` unlocks its password.
+
+Restoring **only the code** brings the site back with no customers. Restoring **only a
+database** without `app.key` leaves portals unable to open their databases.
+
+---
+
+## 9. Before the first customer goes live
 
 - [ ] Cloudflare: nameservers switched, `@` `*` `www` records proxied, SSL **Full (strict)**
-- [ ] `app/config.php`: `base_domain`, `tenant_url_mode = subdomain`, `force_https = true`, `super_admin`, `mail`, `lead_email`, `cron_key`
-- [ ] `/super → Settings → Send a test email` arrives (check spam)
+- [ ] `app/config.php`: `base_domain`, `tenant_url_mode = subdomain`, `force_https = true`, `super_admin`, `mail`, `mail_senders` (both passwords), `cron_key`
+- [ ] `/super → Settings → Send a test email` from **both** contact@ and reports@ arrives (check spam); SPF/DKIM/DMARC added
+- [ ] Both cron jobs added (reports hourly, backup daily); run the backup once by hand
 - [ ] `app/keys/app.key` copied into your password manager
 - [ ] Hourly cron job added
 - [ ] Throw-away test portal created, kiosk check-in tried, owner sign-in with code tried — then suspend it
 - [ ] `/demo` form sent once, email arrived at contact@, lead visible in `/super → Leads`
+- [ ] Customer's people imported (Admin → Import, Excel .xlsx or CSV) and checked
+- [ ] One test check-in and check-out on the kiosk tablet, then deleted from Admin → Logs

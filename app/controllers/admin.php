@@ -271,11 +271,16 @@ function admin_import(): void
         $type = input('type') === 'teachers' ? 'teachers' : 'students';
         $f = $_FILES['file'] ?? null;
         if (!$f || $f['error'] !== UPLOAD_ERR_OK || $f['size'] > 5 * 1024 * 1024) {
-            flash('error', 'Please choose a CSV file under 5 MB.');
+            flash('error', 'Please choose a CSV or Excel (.xlsx) file under 5 MB.');
             redirect(url('/admin/import'));
         }
         audit_note(ucfirst($type) . ' file: ' . basename((string) ($f['name'] ?? '')));
-        $rows = csv_read($f['tmp_name']);
+        try {
+            $rows = sheet_read($f['tmp_name'], (string) ($f['name'] ?? ''));
+        } catch (RuntimeException $e) {
+            flash('error', $e->getMessage());
+            redirect(url('/admin/import'));
+        }
         if (!$rows) {
             flash('error', 'The file looks empty. The first row must be the column headers.');
             redirect(url('/admin/import'));
@@ -388,21 +393,26 @@ function admin_log_delete(int $id): void
 }
 
 // ---------- Reports ----------
+/** @return array{0:string,1:string,2:?string} period, date (start), end date for custom ranges */
 function report_params(): array
 {
-    $period = in_array(input('period'), ['daily', 'weekly', 'monthly'], true) ? (string) input('period') : 'daily';
+    $period = in_array(input('period'), ['daily', 'weekly', 'monthly', 'custom'], true) ? (string) input('period') : 'daily';
     $date = valid_date((string) input('date')) ? (string) input('date') : tenant_today();
-    return [$period, $date];
+    $end = $period === 'custom' ? (valid_date((string) input('to')) ? (string) input('to') : $date) : null;
+    if ($period === 'custom') {
+        [$date, $end] = report_period('custom', $date, $end); // ordered and capped at 6 months
+    }
+    return [$period, $date, $end];
 }
 
 function admin_reports(): void
 {
     require_admin();
-    [$period, $date] = report_params();
-    [$from, $to, $label] = report_period($period, $date);
+    [$period, $date, $end] = report_params();
+    [$from, $to, $label] = report_period($period, $date, $end);
     $r = report_build(tid(), $from, $to);
     $sent = rows('SELECT * FROM report_log WHERE tenant_id = ? ORDER BY sent_at DESC LIMIT 8', [tid()]);
-    admin_view('reports', compact('period', 'date', 'from', 'to', 'label', 'r', 'sent'));
+    admin_view('reports', compact('period', 'date', 'end', 'from', 'to', 'label', 'r', 'sent'));
 }
 
 function send_download(string $filename, string $mime, string $data): void
@@ -418,13 +428,13 @@ function send_download(string $filename, string $mime, string $data): void
 function admin_report_download(): void
 {
     require_admin();
-    [$period, $date] = report_params();
-    [$from, $to, $label] = report_period($period, $date);
+    [$period, $date, $end] = report_params();
+    [$from, $to, $label] = report_period($period, $date, $end);
     $r = report_build(tid(), $from, $to);
     $pdf = input('format') === 'pdf';
     audit('Downloaded ' . $period . ' report', $label, true, $pdf ? 'PDF' : 'CSV');
     if ($pdf) {
-        send_download("$period-report-$from.pdf", 'application/pdf', pdf_report(tenant(), ucfirst($period) . ' report — ' . $label, $r));
+        send_download("$period-report-$from.pdf", 'application/pdf', pdf_report(tenant(), ($period === 'custom' ? 'Report' : ucfirst($period) . ' report') . ' — ' . $label, $r));
     }
     send_download("$period-activity-$from.csv", 'text/csv; charset=utf-8', csv_string(report_csv_rows($r)));
 }
@@ -454,14 +464,14 @@ function admin_report_send(): void
 {
     require_admin();
     audit_skip(); // report_send() writes its own entry with recipients and attachments
-    [$period, $date] = report_params();
+    [$period, $date, $end] = report_params();
     $t = tenant();
-    if (input('to') === 'me') {
+    if (input('send_to') === 'me') {
         $t['report_emails'] = current_user()['email'];
     }
-    [$ok, $err] = report_send($t, $period, $date, 'manual');
+    [$ok, $err] = report_send($t, $period, $date, 'manual', $end);
     flash($ok ? 'success' : 'error', $ok ? 'Report emailed to ' . str_replace(',', ', ', (string) $t['report_emails']) . '.' : 'The report was not sent: ' . $err);
-    redirect(url("/admin/reports?period=$period&date=$date"));
+    redirect(url("/admin/reports?period=$period&date=$date" . ($end ? "&to=$end" : '')));
 }
 
 // ---------- Branding & settings ----------

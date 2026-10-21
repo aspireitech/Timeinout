@@ -210,9 +210,11 @@ function super_settings(): void
     if (is_post()) {
         if (input('action') === 'test') {
             $to = trim((string) input('test_to')) ?: (cfg('super_admin')['email'] ?? '');
-            $ok = send_mail([$to], cfg('app_name') . ' test email', '<p>Your email settings work. Reports and sign-in codes can be delivered.</p>');
-            audit('Sent test email', $to, $ok, $ok ? 'Delivered to the mail server' : $GLOBALS['mail_error']);
-            flash($ok ? 'success' : 'error', $ok ? "Test email sent to $to. Check the inbox (and spam folder)." : 'Test failed: ' . $GLOBALS['mail_error']);
+            $sender = input('sender') === 'reports' ? 'reports' : 'contact';
+            $from = mail_config($sender)['from_email'] ?? $sender;
+            $ok = send_mail([$to], cfg('app_name') . ' test email from ' . $from, '<p>Your email settings work. This message came from <b>' . e($from) . '</b>.</p>', [], $sender);
+            audit('Sent test email', $to, $ok, ($ok ? 'Delivered to the mail server' : $GLOBALS['mail_error']) . ' (from ' . $from . ')');
+            flash($ok ? 'success' : 'error', $ok ? "Test email sent from $from to $to. Check the inbox (and spam folder)." : "Test from $from failed: " . $GLOBALS['mail_error']);
             redirect(base_path() . '/super/settings');
         }
         $before = ['driver' => $m['driver'] ?? '', 'host' => $m['host'] ?? '', 'port' => $m['port'] ?? '', 'secure' => $m['secure'] ?? '', 'user' => $m['user'] ?? '',
@@ -620,4 +622,36 @@ function super_lead_update(int $id): void
         flash('success', 'Lead updated.');
     }
     redirect(base_path() . '/super/leads' . (input('back') !== '' ? '?status=' . urlencode((string) input('back')) : ''));
+}
+
+// ---------- Suspicious sign-in reports (link in every sign-in code email) ----------
+function platform_report_activity(): void
+{
+    $token = (string) input('t');
+    $d = suspicious_token($token);
+    $done = false;
+    // Opening the link only shows a button: email scanners that open links do not file reports.
+    if ($d && is_post()) {
+        $key = 'reported_' . substr(hash('sha256', $token), 0, 16);
+        if (empty($_SESSION[$key])) {
+            $rows = ['Account' => $d['e'], 'Portal' => $d['p'], 'Sign-in attempt from IP' => $d['ip'],
+                'Browser of the attempt' => $d['ua'] ?: '—', 'Code sent at' => gmdate('M j, Y H:i', (int) $d['t']) . ' UTC',
+                'Reported at' => gmdate('M j, Y H:i') . ' UTC', 'Reported from IP' => client_ip()];
+            $tr = '';
+            foreach ($rows as $k => $v) {
+                $tr .= '<tr><td style="padding:8px 12px;color:#6b7090;font-size:13px;border-bottom:1px solid #eee">' . e($k) . '</td><td style="padding:8px 12px;font-weight:600;border-bottom:1px solid #eee">' . e($v) . '</td></tr>';
+            }
+            $html = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:20px;color:#1f2340">'
+                . '<div style="background:#c0262d;color:#fff;border-radius:14px;padding:16px 18px"><b style="font-size:18px">Suspicious activity reported</b><br>'
+                . 'Someone received a sign-in code they say they did not request.</div>'
+                . '<table style="width:100%;border-collapse:collapse;margin-top:14px">' . $tr . '</table>'
+                . '<p style="font-size:13px;color:#6b7090">Suggested: contact the account owner, reset their password (provider console → Subscribers → Reset owner password), and check the audit log for this IP.</p></div>';
+            $ok = send_mail([contact_email()], 'Suspicious activity reported — ' . $d['e'], $html);
+            audit('Suspicious activity reported', $d['e'], $ok, 'Portal ' . $d['p'] . ', attempt from ' . $d['ip'] . ($ok ? '' : '; email failed: ' . ($GLOBALS['mail_error'] ?? '')),
+                ['email' => $d['e'], 'name' => 'Account holder']);
+            $_SESSION[$key] = true;
+        }
+        $done = true;
+    }
+    view('platform/report_activity', ['d' => $d, 'token' => $token, 'done' => $done], 'platform');
 }

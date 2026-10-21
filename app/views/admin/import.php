@@ -1,4 +1,4 @@
-<div class="topbar"><div><h1>Import from a spreadsheet</h1><div class="muted">Save your Excel or Google Sheet as <b>CSV</b>, then upload it here. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
+<div class="topbar"><div><h1>Import from a spreadsheet</h1><div class="muted">Upload an Excel file (<b>.xlsx</b>) or a <b>CSV</b>. The first sheet is used and its first row must be the column headers. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
 <div class="grid c2">
   <div class="card">
     <h3><span class="avatar" style="width:34px;height:34px"><?= icon('users', 18) ?></span> <?= e(term('a2')) ?><?= uses_contacts() ? ' &amp; ' . e(strtolower(term('c2'))) : '' ?></h3>
@@ -9,7 +9,7 @@
     </table></div>
     <form method="post" enctype="multipart/form-data">
       <?= csrf_field() ?><input type="hidden" name="type" value="students">
-      <div class="field"><input type="file" name="file" accept=".csv,text/csv" required></div>
+      <div class="field"><input type="file" name="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></div>
       <div class="row"><button class="btn btn-primary"><?= icon('upload', 16) ?> Upload students</button>
         <a class="btn btn-ghost" href="<?= e(url('/admin/import/sample-students.csv')) ?>"><?= icon('download', 16) ?> Sample file</a></div>
     </form>
@@ -23,7 +23,7 @@
     </table></div>
     <form method="post" enctype="multipart/form-data">
       <?= csrf_field() ?><input type="hidden" name="type" value="teachers">
-      <div class="field"><input type="file" name="file" accept=".csv,text/csv" required></div>
+      <div class="field"><input type="file" name="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></div>
       <div class="row"><button class="btn btn-accent"><?= icon('upload', 16) ?> Upload teachers</button>
         <a class="btn btn-ghost" href="<?= e(url('/admin/import/sample-teachers.csv')) ?>"><?= icon('download', 16) ?> Sample file</a></div>
     </form>

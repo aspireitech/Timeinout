@@ -46,6 +46,7 @@ function platform_routes(string $path): void
         ['GET',      '/',                    'platform_home'],
         ['GET|POST', '/signup',              'platform_signup'],
         ['GET|POST', '/demo',                'platform_demo'],
+        ['GET|POST', '/report-activity',     'platform_report_activity'],
         ['GET',      '/check-address',       'platform_check_slug'],
         ['GET|POST', '/login',               'platform_find_login'],
         ['GET|POST', '/super/login',         'super_login'],

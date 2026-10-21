@@ -70,21 +70,30 @@ return [
         'campus'  => ['name' => 'Enterprise', 'price' => '$99/mo', 'amount' => 99, 'limit' => 'Unlimited people'],
     ],
 
-    // Email. 'smtp' is recommended (Hostinger: smtp.hostinger.com, port 465, secure 'ssl').
-    // These can also be set in /super → Settings, which wins over this file.
+    // Email server. 'smtp' is recommended (Hostinger: smtp.hostinger.com, port 465, secure 'ssl').
+    // Server settings can also be changed in /super → Settings, which wins over this file.
     'mail' => [
-        'driver'     => 'smtp',
-        'from_email' => 'no-reply@clockinoutapp.com',
-        'from_name'  => 'ClockInOut',
+        'driver'     => 'smtp',          // 'mail' or 'smtp'
         'host'       => 'smtp.hostinger.com',
         'port'       => 465,
         'secure'     => 'ssl',           // 'tls', 'ssl' or ''
-        'user'       => 'no-reply@clockinoutapp.com',
-        'pass'       => '',
+        'from_name'  => 'ClockInOut',
     ],
 
-    // Reports are emailed when the cron job runs at or after this hour (customer's timezone).
-    'report_hour' => 6,
+    // The two mailboxes mail is sent from. Each signs in to SMTP with its own password.
+    //   contact  sign-in codes, account notices, leads, suspicious-activity reports
+    //   reports  daily / weekly / monthly / on-demand reports (replies go to contact)
+    'mail_senders' => [
+        'contact' => ['from_email' => 'contact@clockinoutapp.com', 'from_name' => 'ClockInOut',
+                      'user' => 'contact@clockinoutapp.com', 'pass' => ''],
+        'reports' => ['from_email' => 'reports@clockinoutapp.com', 'from_name' => 'ClockInOut Reports',
+                      'user' => 'reports@clockinoutapp.com', 'pass' => ''],
+    ],
+
+    // Receives leads, suspicious-activity reports and a hidden copy (BCC) of every report.
+    'contact_email' => 'contact@clockinoutapp.com',
+    // BCC on every emailed report; set to false to stop the copies.
+    'report_bcc' => 'contact@clockinoutapp.com',
 
     // Secret for the web cron URL https://clockinoutapp.com/cron?key=... (for hosts without cron jobs)
     'cron_key' => 'replace-with-a-long-random-string',

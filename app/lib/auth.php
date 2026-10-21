@@ -142,7 +142,11 @@ function otp_start(string $scope, array $who): bool
         . '<h2 style="margin:0 0 8px">Your sign-in code</h2>'
         . '<p>Use this code to finish signing in to <b>' . e($place) . '</b>:</p>'
         . '<p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f0f1f8;border-radius:12px;padding:14px;text-align:center">' . $code . '</p>'
-        . '<p style="color:#6b7090;font-size:13px">It expires in 10 minutes. If you did not try to sign in, change your password and tell your administrator.</p></div>';
+        . '<p style="color:#6b7090;font-size:13px">It expires in 10 minutes. Never share this code: ' . e(cfg('app_name')) . ' staff will never ask for it.</p>'
+        . '<div style="margin-top:18px;border:1px solid #f3c7c9;background:#fff5f5;border-radius:14px;padding:14px 16px;font-size:13px;color:#7a2a2e">'
+        . '<b>Did not request this code?</b> Someone may know your password. Do not use the code, change your password, and '
+        . '<a href="' . e(suspicious_link($who, $place)) . '" style="color:#c0262d;font-weight:bold">report it to us</a>'
+        . ' (or email ' . e(contact_email()) . ').</div></div>';
     // The demo school's admin mailbox does not exist, so the code is shown on screen instead.
     $demo = (tenant()['slug'] ?? '') === DEMO_SLUG;
     $ok = $demo || send_mail([$who['email']], 'Your sign-in code: ' . $code, $html);
@@ -358,4 +362,27 @@ function require_super(): void
         redirect(base_path() . '/super/login' . (isset($_GET['li']) ? '?nosession=1' : ''));
     }
     $_SESSION['super_seen'] = time();
+}
+
+// ---------- "I did not request this code" reports ----------
+/** Signed link in every sign-in code email; opening it lets the person report the attempt. */
+function suspicious_link(array $who, string $place): string
+{
+    $payload = rtrim(strtr(base64_encode(json_encode([
+        'e' => $who['email'], 'p' => $place, 'ip' => client_ip(), 't' => time(),
+        'ua' => mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 160),
+    ])), '+/', '-_'), '=');
+    $sig = substr(hash_hmac('sha256', $payload, app_key()), 0, 32);
+    return scheme() . '://' . cfg('base_domain') . '/report-activity?t=' . $payload . '.' . $sig;
+}
+
+/** Decodes a report link; null when it was altered or is older than 30 days. */
+function suspicious_token(string $token): ?array
+{
+    [$payload, $sig] = array_pad(explode('.', $token, 2), 2, '');
+    if ($payload === '' || !hash_equals(substr(hash_hmac('sha256', $payload, app_key()), 0, 32), $sig)) {
+        return null;
+    }
+    $d = json_decode((string) base64_decode(strtr($payload, '-_', '+/')), true);
+    return is_array($d) && time() - (int) ($d['t'] ?? 0) < 30 * 86400 ? $d : null;
 }
