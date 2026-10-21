@@ -33,4 +33,28 @@
       if (mine && [...tz.options].some((o) => o.value === mine)) tz.value = mine;
     } catch (e) { /* keep default */ }
   }
+
+  // Provider "New portal": suggest the customer database name and user from the address
+  const dbn = document.getElementById('p-dbn'), dbu = document.getElementById('p-dbu'), slug = document.getElementById('p-slug');
+  if (dbn && dbu && slug) {
+    const hint = document.getElementById('p-dbu-hint'), hintText = hint ? hint.textContent : '';
+    const suggest = () => dbn.dataset.dbPrefix + slug.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    [dbn, dbu].forEach((el) => {
+      el.dataset.auto = el.value === '' || el.value === suggest() ? '1' : '';
+      el.addEventListener('input', () => { el.dataset.auto = ''; check(); }); // typed by hand: stop filling it in
+    });
+    const check = () => {
+      if (!hint) return;
+      const long = dbu.value.length > 32;
+      hint.textContent = long ? `This user name is ${dbu.value.length} characters; MySQL allows at most 32. Shorten it (in hPanel and here).` : hintText;
+      hint.style.color = long ? 'var(--danger)' : '';
+    };
+    slug.addEventListener('input', () => {
+      const v = slug.value.trim() ? suggest() : '';
+      if (dbn.dataset.auto) dbn.value = v;
+      if (dbu.dataset.auto) dbu.value = v;
+      check();
+    });
+    check();
+  }
 })();

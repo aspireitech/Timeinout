@@ -10,8 +10,8 @@ return [
     // Customers created in /super → New portal can each get their own database as well.
     'db' => [
         'host' => 'localhost',
-        'name' => 'u123456789_clockinout',
-        'user' => 'u123456789_clockinout',
+        'name' => 'u123456789_cio_main',
+        'user' => 'u123456789_cio_main',
         'pass' => 'db_password',
         'port' => 3306,
     ],
@@ -49,6 +49,10 @@ return [
         'client_secret'  => '',
         'allowed_emails' => [],          // extra Google accounts allowed besides super_admin email
     ],
+
+    // Start of the suggested customer database name in /super → New portal. Leave null to use
+    // your hosting prefix from the main database name + 'cio_' (e.g. u123456789_cio_utsjkumon).
+    'portal_db_prefix' => null,
 
     // Demo requests from /demo are emailed here and saved under /super → Leads
     'lead_email' => 'contact@clockinoutapp.com',

@@ -51,8 +51,10 @@
         <span><b>Own database</b> (recommended): this customer's data is stored only in its own database.<br>
         <span class="muted small">First create a new, empty MySQL database and user in your hosting panel (Hostinger: Websites → Databases → MySQL Databases), then enter them here.</span></span></label>
       <div class="grid c2" style="margin-top:8px">
-        <div class="field"><label for="p-dbn">Database name</label><input type="text" id="p-dbn" name="db_name" value="<?= e($old['db_name']) ?>" placeholder="u123456789_utsjkumon"></div>
-        <div class="field"><label for="p-dbu">Database user</label><input type="text" id="p-dbu" name="db_user" value="<?= e($old['db_user']) ?>" placeholder="u123456789_utsjkumon"></div>
+        <div class="field"><label for="p-dbn">Database name</label><input type="text" id="p-dbn" name="db_name" value="<?= e($old['db_name']) ?>" placeholder="<?= e($dbPrefix) ?>utsjkumon" data-db-prefix="<?= e($dbPrefix) ?>" maxlength="64">
+          <div class="hint">Filled in from the address. In hPanel type the part after your account prefix (e.g. <code>cio_utsjkumon</code>).</div></div>
+        <div class="field"><label for="p-dbu">Database user</label><input type="text" id="p-dbu" name="db_user" value="<?= e($old['db_user']) ?>" placeholder="<?= e($dbPrefix) ?>utsjkumon" maxlength="64">
+          <div class="hint" id="p-dbu-hint">Usually the same as the database name. At most 32 characters.</div></div>
       </div>
       <div class="grid c2">
         <div class="field"><label for="p-dbp">Database password</label><input type="password" id="p-dbp" name="db_pass" autocomplete="new-password"><div class="hint">Stored encrypted.</div></div>

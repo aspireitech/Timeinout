@@ -464,7 +464,19 @@ function super_portal_new(): void
         $old = array_merge($old, $d, $d['db'] ?? [], ['db_mode' => $mode, 'demo' => $d['demo'] ? '1' : '', 'db_host' => $d['db']['host'] ?? 'localhost',
             'db_port' => (string) ($d['db']['port'] ?? '3306'), 'db_name' => $d['db']['name'] ?? '', 'db_user' => $d['db']['user'] ?? '']);
     }
-    view('platform/super_portal_new', ['plans' => $plans, 'old' => $old, 'errors' => $errors], 'platform');
+    view('platform/super_portal_new', ['plans' => $plans, 'old' => $old, 'errors' => $errors, 'dbPrefix' => portal_db_prefix()], 'platform');
+}
+
+/**
+ * Suggested start of a customer database name: the hosting account prefix of the main database
+ * (Hostinger: "u123456789_") + "cio_". Override with 'portal_db_prefix' in app/config.php.
+ */
+function portal_db_prefix(): string
+{
+    if (is_string(cfg('portal_db_prefix'))) {
+        return cfg('portal_db_prefix');
+    }
+    return (preg_match('/^(u\d+_)/', (string) (cfg('db')['name'] ?? ''), $m) ? $m[1] : '') . 'cio_';
 }
 
 /** Shown once after a portal is made: the owner's first password is not stored anywhere readable. */

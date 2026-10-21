@@ -56,7 +56,7 @@ one for a subdomain behind Cloudflare, create a free **Cloudflare Origin Certifi
    - If the document root must stay `public_html`, upload everything into it; the root
      `.htaccess` sends requests to `public/` and blocks `app/`, `database/`, `cron/`.
 2. **Main database (fresh start)**: hPanel → Websites → Databases → MySQL Databases → create
-   `u…_clockinout` + user. phpMyAdmin → Import → `database/schema.sql`. That is the whole
+   `cio_main` + user (becomes `u123456789_cio_main`). phpMyAdmin → Import → `database/schema.sql`. That is the whole
    empty database; the newest tables and columns are added automatically on the first page load.
 3. **Config**: copy `app/config.sample.php` to `app/config.php` and set:
    - `db` → the database from step 2
@@ -163,9 +163,9 @@ The link opens a page with one button; pressing it emails contact@ with the subj
 
 ## 5. Create a customer portal (example: utsjkumon.clockinoutapp.com)
 
-1. **hPanel → Databases → MySQL Databases** → create a new database and user, e.g.
-   database `u123456789_utsjkumon`, user `u123456789_utsjkumon`, a strong password.
-   Leave it empty (do not import anything).
+1. **hPanel → Databases → MySQL Databases** → create a new database and user. Type
+   `cio_utsjkumon` for both (hPanel adds your prefix: `u123456789_cio_utsjkumon`) and a strong
+   password. Leave it empty (do not import anything). User names can be at most 32 characters.
 2. **hPanel → Domains → Subdomains** → create `utsjkumon` pointing to the main site's
    folder (skip if you have a wildcard `*`).
 3. **`/super → New portal`**:
@@ -174,7 +174,9 @@ The link opens a page with one button; pressing it emails contact@ with the subj
    - Owner name + owner email (their login)
    - Plan, **Start as: Active** (you bill them yourself for now)
    - Leave **Add sample people** unticked
-   - Database: **Own database** → the name, user and password from step 1, host `localhost`
+   - Database: **Own database**. The name and user fill in by themselves as
+     `u123456789_cio_<address>` while you type the address (the prefix comes from your main
+     database name); check they match hPanel, then enter the password. Host `localhost`.
 4. Click **Create portal**. The next screen shows the portal link and a **temporary
    password — shown only once**. Send the link and the password separately.
 5. Optional: import their people in **Admin → Import** (Excel `.xlsx` or CSV, first row =
