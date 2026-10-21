@@ -124,7 +124,7 @@ function stripe_request(string $method, string $path, array $params = []): array
 
 function owner_email(array $t): ?string
 {
-    return val("SELECT email FROM users WHERE tenant_id = ? AND role = 'owner' ORDER BY id LIMIT 1", [$t['id']]);
+    return tenant_owner($t)['email'] ?? null; // read from the portal's own database when it has one
 }
 
 /** Stripe Checkout page for a plan. Returns the URL to send the admin to. */

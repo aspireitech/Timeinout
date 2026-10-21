@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 function setting(string $key, $default = null)
 {
@@ -47,6 +47,9 @@ function migrate(): void
         }
         if ($v < 3) {
             migration_3();
+        }
+        if ($v < 4) {
+            migration_4();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -175,4 +178,37 @@ function migration_3(): void
             seed_tiles((int) $t['id'], $t['industry'] ?: 'school');
         }
     }
+}
+
+/** Dedicated databases per portal, and demo-request leads. */
+function migration_4(): void
+{
+    foreach ([
+        ['db_host', 'VARCHAR(190) NULL'],
+        ['db_port', 'SMALLINT UNSIGNED NULL'],
+        ['db_name', 'VARCHAR(64) NULL'],
+        ['db_user', 'VARCHAR(64) NULL'],
+        ['db_pass', 'VARCHAR(512) NULL'],
+    ] as [$col, $def]) {
+        if (!column_exists('tenants', $col)) {
+            q("ALTER TABLE tenants ADD COLUMN $col $def");
+        }
+    }
+    q("CREATE TABLE IF NOT EXISTS leads (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(120) NOT NULL,
+        email VARCHAR(190) NOT NULL,
+        company VARCHAR(160) NULL,
+        phone VARCHAR(40) NULL,
+        industry VARCHAR(30) NULL,
+        employees VARCHAR(10) NULL,
+        message TEXT NULL,
+        status ENUM('new','contacted','qualified','won','lost') NOT NULL DEFAULT 'new',
+        notes TEXT NULL,
+        ip VARCHAR(45) NULL,
+        emailed TINYINT(1) NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL,
+        KEY ix_leads_time (created_at),
+        KEY ix_leads_status (status, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }

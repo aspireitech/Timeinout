@@ -5,7 +5,7 @@
       <form method="post" action="<?= e(base_path() . '/super/demo') ?>" data-confirm="Build the demo portal? Any existing demo data is replaced.">
         <?= csrf_field() ?><button class="btn btn-accent btn-sm"><?= icon('users', 16) ?> <?= demo_tenant() ? 'Reset demo portal' : 'Load demo portal' ?></button>
       </form>
-      <a class="btn btn-primary btn-sm" href="<?= e(base_path() . '/signup') ?>"><?= icon('plus', 16) ?> New portal</a>
+      <a class="btn btn-primary btn-sm" href="<?= e(base_path() . '/super/portals/new') ?>"><?= icon('plus', 16) ?> New portal</a>
     </div>
   </div>
   <div class="table-wrap">
@@ -13,7 +13,9 @@
     <tr><th>Organization</th><th>Owner</th><th>People</th><th>Activity 30d</th><th>Billing</th><th>Plan &amp; status</th></tr>
     <?php foreach ($tenants as $t): ?>
       <tr>
-        <td><b><?= e($t['name']) ?></b><br><a class="small" href="<?= e(tenant_url($t, '/admin')) ?>" target="_blank"><?= e($t['slug'] . '.' . cfg('base_domain')) ?></a>
+        <td><b><?= e($t['name']) ?></b><br><a class="small" href="<?= e(tenant_url($t, '/admin')) ?>" target="_blank"><?= e(preg_replace('#^https?://#', '', tenant_url($t, ''))) ?></a>
+          <br><span class="badge <?= tenant_db_config($t) ? 'in' : 'student' ?>"><?= tenant_db_config($t) ? 'Own DB · ' . e($t['db_name']) : 'Shared DB' ?></span>
+          <?php if (!empty($t['db_error'])): ?><br><span class="badge danger" title="<?= e($t['db_error']) ?>">database not reachable</span><?php endif; ?>
           <?php if ($t['custom_domain']): ?><br><span class="small muted"><?= e($t['custom_domain']) ?></span><?php endif; ?></td>
         <td class="small"><?= e($t['owner_email']) ?></td>
         <td class="small"><?= (int) $t['students'] ?> students<br><?= (int) $t['teachers'] ?> teachers</td>
@@ -30,6 +32,9 @@
             <select name="plan" style="width:auto"><?php foreach (cfg('plans') as $k => $p): ?><option value="<?= e($k) ?>" <?= $t['plan'] === $k ? 'selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select>
             <select name="status" style="width:auto"><?php foreach (['trial', 'active', 'suspended', 'cancelled'] as $s): ?><option <?= $t['status'] === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select>
             <button class="btn btn-sm">Save</button>
+          </form>
+          <form method="post" action="<?= e(base_path() . '/super/tenants/' . $t['id'] . '/password') ?>" style="margin-top:6px" data-confirm="Give the owner of <?= e($t['name']) ?> a new temporary password? Their old password stops working.">
+            <?= csrf_field() ?><button class="btn btn-ghost btn-sm"><?= icon('shield', 14) ?> Reset owner password</button>
           </form>
         </td>
       </tr>

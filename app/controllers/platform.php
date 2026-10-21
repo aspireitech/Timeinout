@@ -114,7 +114,7 @@ function super_login(): void
             redirect(base_path() . '/super/verify');
         }
     }
-    view('platform/super_login', ['error' => $error], 'platform');
+    view('platform/super_login', ['error' => $error, 'google' => google_ready()], 'platform');
 }
 
 function super_verify(): void
@@ -159,6 +159,23 @@ function super_tenants(): void
             (SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.tenant_id = t.id AND p.status = "paid") AS paid_total
          FROM tenants t ORDER BY t.created_at DESC'
     );
+    // Portals with their own database: read their numbers from there
+    foreach ($tenants as &$t) {
+        if (!tenant_db_config($t)) {
+            continue;
+        }
+        try {
+            with_tenant_db($t, function () use (&$t) {
+                $t['students'] = val('SELECT COUNT(*) FROM students WHERE tenant_id = ?', [$t['id']]);
+                $t['teachers'] = val('SELECT COUNT(*) FROM teachers WHERE tenant_id = ?', [$t['id']]);
+                $t['events30'] = val('SELECT COUNT(*) FROM attendance WHERE tenant_id = ? AND event_date >= CURDATE() - INTERVAL 30 DAY', [$t['id']]);
+                $t['owner_email'] = val("SELECT email FROM users WHERE tenant_id = ? AND role = 'owner' ORDER BY id LIMIT 1", [$t['id']]);
+            });
+        } catch (Throwable $e) {
+            $t['db_error'] = $e->getMessage();
+        }
+    }
+    unset($t);
     view('platform/super_tenants', ['tenants' => $tenants], 'platform');
 }
 
@@ -199,7 +216,7 @@ function super_settings(): void
             redirect(base_path() . '/super/settings');
         }
         $before = ['driver' => $m['driver'] ?? '', 'host' => $m['host'] ?? '', 'port' => $m['port'] ?? '', 'secure' => $m['secure'] ?? '', 'user' => $m['user'] ?? '',
-            'from_email' => $m['from_email'] ?? '', 'from_name' => $m['from_name'] ?? '', 'admin_otp' => setting('admin_otp', '1'), 'super_otp' => setting('super_otp', '0')];
+            'from_email' => $m['from_email'] ?? '', 'from_name' => $m['from_name'] ?? '', 'admin_otp' => setting('admin_otp', '1')];
         $new = [
             'driver'     => input('driver') === 'mail' ? 'mail' : 'smtp',
             'host'       => mb_substr((string) input('host'), 0, 190),
@@ -209,7 +226,6 @@ function super_settings(): void
             'from_email' => filter_var(input('from_email'), FILTER_VALIDATE_EMAIL) ? (string) input('from_email') : ($m['from_email'] ?? ''),
             'from_name'  => mb_substr((string) input('from_name'), 0, 120),
             'admin_otp'  => input('admin_otp') === '1' ? '1' : '0',
-            'super_otp'  => input('super_otp') === '1' ? '1' : '0',
         ];
         foreach (['driver', 'host', 'port', 'secure', 'user', 'from_email', 'from_name'] as $k) {
             setting_set('mail_' . $k, $new[$k]);
@@ -231,7 +247,6 @@ function super_settings(): void
             setting_set('wave_product_' . $pk, mb_substr(trim((string) input('wave_product_' . $pk)), 0, 190));
         }
         setting_set('admin_otp', $new['admin_otp']);
-        setting_set('super_otp', $new['super_otp']);
         audit_note('Email, security & payment settings', audit_diff($before, $new) . ($passChanged ? '; a password or API key was changed' : ''));
         flash('success', 'Settings saved. Use "Send test email" to check them.');
         redirect(base_path() . '/super/settings');
@@ -357,4 +372,252 @@ function super_payments(): void
         $stats['mrr'] += $plans[$x['plan']]['amount'] ?? 0;
     }
     view('platform/super_payments', ['payments' => $payments, 'stats' => $stats, 'tenants' => rows('SELECT id, name FROM tenants ORDER BY name'), 'tenant' => $tenant], 'platform');
+}
+
+// ---------- Sign in with Google (provider console) ----------
+function super_google_start(): void
+{
+    if (!google_ready()) {
+        flash('error', 'Sign in with Google is not set up yet. Use your email and password.');
+        redirect(base_path() . '/super/login');
+    }
+    redirect(google_auth_url());
+}
+
+function super_google_callback(): void
+{
+    try {
+        $r = google_callback($_GET);
+    } catch (Throwable $e) {
+        audit('Provider sign-in (Google)', null, false, $e->getMessage());
+        $r = 'Google sign-in did not work (' . $e->getMessage() . ').';
+    }
+    if ($r === 'otp') {
+        redirect(base_path() . '/super/verify');
+    }
+    if ($r === 'done') {
+        redirect(base_path() . '/super?li=1');
+    }
+    flash('error', $r . ' You can sign in with your email and password instead.');
+    redirect(base_path() . '/super/login');
+}
+
+// ---------- Create a portal for a customer (provider console) ----------
+function super_portal_new(): void
+{
+    require_super();
+    $plans = plans();
+    $old = ['org_name' => '', 'slug' => '', 'industry' => 'school', 'state' => '', 'city' => '', 'admin_name' => '', 'email' => '',
+        'plan' => (string) array_key_first($plans), 'status' => 'active', 'trial_days' => (string) cfg('trial_days', 7), 'timezone' => '',
+        'db_mode' => 'dedicated', 'db_host' => 'localhost', 'db_port' => '3306', 'db_name' => '', 'db_user' => '', 'demo' => ''];
+    $errors = [];
+    if (is_post()) {
+        $d = [
+            'org_name'   => mb_substr(trim((string) input('org_name')), 0, 120),
+            'slug'       => strtolower(trim((string) input('slug'))),
+            'industry'   => array_key_exists((string) input('industry'), industries()) ? (string) input('industry') : 'office',
+            'state'      => isset(US_STATES[strtoupper((string) input('state'))]) ? strtoupper((string) input('state')) : '',
+            'city'       => mb_substr(trim((string) input('city')), 0, 40),
+            'admin_name' => mb_substr(trim((string) input('admin_name')), 0, 120),
+            'email'      => strtolower(trim((string) input('email'))),
+            'plan'       => isset($plans[(string) input('plan')]) ? (string) input('plan') : (string) array_key_first($plans),
+            'status'     => input('status') === 'trial' ? 'trial' : 'active',
+            'trial_days' => max(1, min(365, (int) input('trial_days', '7'))),
+            'timezone'   => valid_tz((string) input('timezone')) ? (string) input('timezone') : '',
+            'demo'       => input('demo') === '1',
+            'password'   => temp_password(),
+        ];
+        $mode = input('db_mode') === 'shared' ? 'shared' : 'dedicated';
+        if ($d['org_name'] === '') {
+            $errors['org_name'] = 'Enter the business name.';
+        }
+        if ($p = slug_problem($d['slug'])) {
+            $errors['slug'] = $p;
+        }
+        if ($d['admin_name'] === '') {
+            $errors['admin_name'] = 'Enter the owner\'s name.';
+        }
+        if (!filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Enter a valid email.';
+        }
+        if ($mode === 'dedicated') {
+            $d['db'] = ['host' => trim((string) input('db_host')) ?: 'localhost', 'port' => (int) input('db_port', '3306') ?: 3306,
+                        'name' => trim((string) input('db_name')), 'user' => trim((string) input('db_user')), 'pass' => (string) ($_POST['db_pass'] ?? '')];
+            if (!$errors && ($p = tenant_db_problem($d['db']))) {
+                $errors['db'] = $p;
+            }
+        }
+        if (!$errors) {
+            try {
+                $t = provision_tenant($d);
+                audit('Portal created by provider', $t['name'] . ' (' . $t['slug'] . ')', true,
+                    industry($d['industry'])['name'] . ', ' . $d['plan'] . ' plan, ' . $d['status'] . ', owner ' . $d['email'] . ', ' . ($mode === 'dedicated' ? 'own database ' . $d['db']['name'] : 'shared database'));
+                $_SESSION['new_portal'] = ['id' => (int) $t['id'], 'email' => $d['email'], 'password' => $d['password']];
+                redirect(base_path() . '/super/portals/created');
+            } catch (Throwable $e) {
+                audit('Portal created by provider', $d['slug'], false, $e->getMessage());
+                $errors['db'] = 'The portal could not be created: ' . $e->getMessage();
+            }
+        }
+        $old = array_merge($old, $d, $d['db'] ?? [], ['db_mode' => $mode, 'demo' => $d['demo'] ? '1' : '', 'db_host' => $d['db']['host'] ?? 'localhost',
+            'db_port' => (string) ($d['db']['port'] ?? '3306'), 'db_name' => $d['db']['name'] ?? '', 'db_user' => $d['db']['user'] ?? '']);
+    }
+    view('platform/super_portal_new', ['plans' => $plans, 'old' => $old, 'errors' => $errors], 'platform');
+}
+
+/** Shown once after a portal is made: the owner's first password is not stored anywhere readable. */
+function super_portal_created(): void
+{
+    require_super();
+    $n = $_SESSION['new_portal'] ?? null;
+    unset($_SESSION['new_portal']);
+    $t = $n ? row('SELECT * FROM tenants WHERE id = ?', [$n['id']]) : null;
+    if (!$t) {
+        redirect(base_path() . '/super');
+    }
+    view('platform/super_portal_created', ['t' => $t, 'email' => $n['email'], 'password' => $n['password'], 'reset' => !empty($n['reset'])], 'platform');
+}
+
+/** Gives a portal's owner a new temporary password (shown once) and signs out nobody else. */
+function super_owner_password(int $id): void
+{
+    require_super();
+    $t = row('SELECT * FROM tenants WHERE id = ?', [$id]);
+    $owner = $t ? tenant_owner($t) : null;
+    if (!$owner) {
+        flash('error', 'That portal has no owner login.');
+        redirect(base_path() . '/super');
+    }
+    $pass = temp_password();
+    with_tenant_db($t, fn() => update('users', ['password_hash' => password_hash($pass, PASSWORD_DEFAULT)], 'id = ?', [$owner['id']]));
+    audit_note($t['name'] . ' (' . $t['slug'] . ')', 'New temporary password for owner ' . $owner['email']);
+    $_SESSION['new_portal'] = ['id' => (int) $t['id'], 'email' => $owner['email'], 'password' => $pass, 'reset' => true];
+    redirect(base_path() . '/super/portals/created');
+}
+
+function temp_password(): string
+{
+    $words = ['Maple', 'River', 'Cedar', 'Coral', 'Amber', 'Delta', 'Falcon', 'Harbor', 'Juniper', 'Meadow', 'Orbit', 'Summit'];
+    return $words[random_int(0, count($words) - 1)] . '-' . random_int(1000, 9999) . '-' . $words[random_int(0, count($words) - 1)];
+}
+
+// ---------- Demo requests (leads) ----------
+const EMPLOYEE_RANGES = ['1-25' => '1–25', '26-100' => '26–100', '101-500' => '101–500', '500+' => '500+'];
+
+function platform_demo(): void
+{
+    $old = ['name' => '', 'email' => '', 'company' => '', 'phone' => '', 'industry' => '', 'employees' => '', 'message' => ''];
+    $errors = [];
+    $sent = false;
+    if (is_post()) {
+        $d = [
+            'name'      => mb_substr(trim((string) input('name')), 0, 120),
+            'email'     => strtolower(mb_substr(trim((string) input('email')), 0, 190)),
+            'company'   => mb_substr(trim((string) input('company')), 0, 160),
+            'phone'     => mb_substr(preg_replace('/[^0-9+().\- ]/', '', (string) input('phone')), 0, 40),
+            'industry'  => (string) input('industry'),
+            'employees' => (string) input('employees'),
+            'message'   => mb_substr(trim((string) input('message')), 0, 3000),
+        ];
+        if ($d['name'] === '') {
+            $errors['name'] = 'Please enter your name.';
+        }
+        if (!filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Please enter a valid email.';
+        }
+        if ($d['company'] === '') {
+            $errors['company'] = 'Please enter your organization.';
+        }
+        if (strlen(preg_replace('/\D/', '', $d['phone'])) < 7) {
+            $errors['phone'] = 'Please enter a phone number.';
+        }
+        if (!array_key_exists($d['industry'], industries())) {
+            $errors['industry'] = 'Please choose your industry.';
+        }
+        if (!isset(EMPLOYEE_RANGES[$d['employees']])) {
+            $errors['employees'] = 'Please choose how many people.';
+        }
+        $bot = (string) input('website') !== ''; // hidden field: only bots fill it in
+        if (!$errors && (int) val('SELECT COUNT(*) FROM leads WHERE ip = ? AND created_at > ?', [client_ip(), gmdate('Y-m-d H:i:s', time() - 3600)]) >= 5) {
+            $errors['form'] = 'Too many requests from your network. Please try again later or email us.';
+        }
+        if (!$errors) {
+            if (!$bot) {
+                $id = insert('leads', $d + ['status' => 'new', 'ip' => client_ip(), 'created_at' => gmdate('Y-m-d H:i:s')]);
+                $ok = lead_notify($d);
+                update('leads', ['emailed' => $ok ? 1 : 0], 'id = ?', [$id]);
+                audit('Demo request', $d['company'] . ' — ' . $d['name'], true, $ok ? 'Emailed to ' . lead_inbox() : 'Saved; email failed: ' . ($GLOBALS['mail_error'] ?? ''),
+                    ['email' => $d['email'], 'name' => $d['name']]);
+            }
+            $sent = true;
+        }
+        $old = $d;
+    }
+    view('platform/demo', ['old' => $old, 'errors' => $errors, 'sent' => $sent, 'demo' => $sent ? demo_tenant() : null], 'platform');
+}
+
+function lead_inbox(): string
+{
+    return (string) (cfg('lead_email') ?: 'contact@' . cfg('base_domain'));
+}
+
+/** Sends the lead to the sales inbox as a formatted HTML email. */
+function lead_notify(array $d): bool
+{
+    $rows = [
+        'Name' => $d['name'], 'Email' => '<a href="mailto:' . e($d['email']) . '">' . e($d['email']) . '</a>', 'Organization' => e($d['company']),
+        'Phone' => '<a href="tel:' . e(preg_replace('/[^0-9+]/', '', $d['phone'])) . '">' . e($d['phone']) . '</a>',
+        'Industry' => e(industry($d['industry'])['name']), 'People' => e(EMPLOYEE_RANGES[$d['employees']] ?? $d['employees']),
+    ];
+    $rows['Name'] = e($rows['Name']);
+    $tr = '';
+    foreach ($rows as $k => $v) {
+        $tr .= '<tr><td style="padding:10px 14px;color:#6b7090;font-size:13px;width:130px;border-bottom:1px solid #eceef6">' . $k . '</td>'
+             . '<td style="padding:10px 14px;font-size:15px;font-weight:600;color:#161b36;border-bottom:1px solid #eceef6">' . $v . '</td></tr>';
+    }
+    $msg = $d['message'] !== '' ? '<div style="margin-top:18px;background:#f4f2ff;border-radius:18px;padding:16px 18px;color:#161b36;font-size:15px;line-height:1.5">'
+        . '<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5B4CE0;margin-bottom:6px">Message</div>'
+        . nl2br(e($d['message'])) . '</div>' : '';
+    $html = '<div style="background:#f3f4fa;padding:28px 12px;font-family:Arial,Helvetica,sans-serif">'
+        . '<div style="max-width:560px;margin:auto;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 8px 30px rgba(22,27,54,.08)">'
+        . '<div style="background:#5B4CE0;color:#fff;padding:22px 24px"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.8">New lead</div>'
+        . '<div style="font-size:22px;font-weight:700;margin-top:4px">' . e($d['company']) . '</div>'
+        . '<div style="display:inline-block;margin-top:10px;background:rgba(255,255,255,.18);border-radius:999px;padding:5px 12px;font-size:13px">'
+        . e(industry($d['industry'])['name']) . ' · ' . e(EMPLOYEE_RANGES[$d['employees']] ?? '') . ' people</div></div>'
+        . '<div style="padding:18px 22px"><table style="width:100%;border-collapse:collapse">' . $tr . '</table>' . $msg
+        . '<p style="margin:20px 0 4px;color:#6b7090;font-size:12px">Requested ' . gmdate('M j, Y H:i') . ' UTC · see all leads in the provider console.</p></div></div></div>';
+    return send_mail([lead_inbox()], 'Leads: ' . $d['company'] . ' — ' . $d['name'] . ' (' . (EMPLOYEE_RANGES[$d['employees']] ?? '') . ')', $html);
+}
+
+function super_leads(): void
+{
+    require_super();
+    $status = (string) input('status');
+    $where = isset(LEAD_STATUSES[$status]) ? 'WHERE status = ?' : '';
+    $leads = rows("SELECT * FROM leads $where ORDER BY created_at DESC LIMIT 1000", $where ? [$status] : []);
+    if (input('export') === 'csv') {
+        $out = [['Date (UTC)', 'Name', 'Email', 'Organization', 'Phone', 'Industry', 'People', 'Status', 'Message', 'Notes']];
+        foreach ($leads as $l) {
+            $out[] = [$l['created_at'], $l['name'], $l['email'], $l['company'], $l['phone'], industry((string) $l['industry'])['name'], $l['employees'], $l['status'], $l['message'], $l['notes']];
+        }
+        send_download('leads.csv', 'text/csv; charset=utf-8', csv_string($out));
+    }
+    $counts = array_column(rows('SELECT status, COUNT(*) AS n FROM leads GROUP BY status'), 'n', 'status');
+    view('platform/super_leads', compact('leads', 'status', 'counts'), 'platform');
+}
+
+const LEAD_STATUSES = ['new' => 'New', 'contacted' => 'Contacted', 'qualified' => 'Qualified', 'won' => 'Won', 'lost' => 'Lost'];
+
+function super_lead_update(int $id): void
+{
+    require_super();
+    $l = row('SELECT * FROM leads WHERE id = ?', [$id]);
+    if ($l) {
+        $new = ['status' => isset(LEAD_STATUSES[(string) input('status')]) ? (string) input('status') : $l['status'],
+                'notes' => mb_substr(trim((string) input('notes')), 0, 3000) ?: null];
+        audit_note($l['company'] . ' — ' . $l['name'], audit_diff($l, $new));
+        update('leads', $new, 'id = ?', [$id]);
+        flash('success', 'Lead updated.');
+    }
+    redirect(base_path() . '/super/leads' . (input('back') !== '' ? '?status=' . urlencode((string) input('back')) : ''));
 }

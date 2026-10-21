@@ -1,8 +1,8 @@
 <?php // Homepage (approved concept: docs/mockup/home-v2.html). Uses its own layout: layouts/home.php ?>
 <div class="wrap">
   <nav class="top" aria-label="Main">
-    <a class="logo" href="<?= e(base_path()) ?>/"><span class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A93B" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>TimeInOut</a>
-    <div class="nav-links"><a href="#industries">Industries</a><a href="#how">How it works</a><?php if ($demo): ?><a href="#demo">Live demo</a><?php endif; ?><a href="#security">Security</a><a href="#pricing">Pricing</a></div>
+    <a class="logo" href="<?= e(base_path()) ?>/"><span class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A93B" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span><?= e(cfg('app_name')) ?></a>
+    <div class="nav-links"><a href="#industries">Industries</a><a href="#how">How it works</a><a href="#demo">Live demo</a><a href="#security">Security</a><a href="#pricing">Pricing</a></div>
     <div class="nav-cta"><a class="btn btn-ghost" href="<?= e(base_path()) ?>/login">Sign in</a><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a></div>
   </nav>
 
@@ -11,7 +11,7 @@
       <span class="eyebrow">Time &amp; attendance for any front door</span>
       <h1>Know who's in, who's out, and <span class="tick">exactly when.</span></h1>
       <p class="lead">A simple sign-in and sign-out kiosk for employees, members, students and visitors. Put a tablet at the door, and get live attendance, hours and reports in your inbox.</p>
-      <div class="hero-cta"><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a><?php if ($demo): ?><a class="btn btn-ghost" href="#demo">Try the live demo</a><?php else: ?><a class="btn btn-ghost" href="#how">See how it works</a><?php endif; ?></div>
+      <div class="hero-cta"><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a><a class="btn btn-ghost" href="<?= e(base_path()) ?>/demo">Book a live demo</a></div>
       <div class="checks"><span>Ready in 60 seconds</span><span>Any tablet or phone</span><span>No credit card</span></div>
     </div>
 
@@ -91,23 +91,19 @@
     </div>
   </section>
 
-  <?php if ($demo): ?>
   <section class="demo-band" id="demo">
     <div><span class="eyebrow" style="color:#FDE7B5">Live demo</span><h2>Try a real example, right now</h2>
-      <p>Bright Future Academy is loaded with people, contacts, visitors and six weeks of history. Sign in, open the kiosk and clock someone in yourself.</p>
-      <a class="btn btn-primary" href="<?= e(tenant_url($demo, '/login')) ?>">Open the demo</a></div>
+      <p>A sample portal loaded with people, contacts, visitors and six weeks of history. Tell us a little about your team and open it instantly: sign in, open the kiosk and clock someone in yourself.</p>
+      <a class="btn btn-primary" href="<?= e(base_path()) ?>/demo">Get demo access</a></div>
     <div class="creds">
-      <?php foreach (DEMO_LOGINS as [$role, , $dEmail, $dPass]): ?>
-        <div class="cred"><b><?= $role === 'owner' ? 'Admin login (shows the sign-in code on screen)' : 'Front desk login (kiosk only)' ?></b>
-          <div><span>Email</span><code><?= e($dEmail) ?></code></div><div><span>Password</span><code><?= e($dPass) ?></code></div></div>
-      <?php endforeach; ?>
+      <div class="cred"><b>What you'll see</b><div><span>Kiosk</span><code>clock in &amp; out in seconds</code></div><div><span>Admin</span><code>people, reports, audit log</code></div></div>
+      <div class="cred"><b>Takes 30 seconds</b><div><span>Form</span><code>name, email, team size</code></div><div><span>Access</span><code>instant</code></div></div>
     </div>
   </section>
-  <?php endif; ?>
 
   <section class="secure" id="security">
     <div><span class="eyebrow" style="color:var(--amber)">Security</span><h2>Your people's data, locked down</h2>
-      <p>Names, contacts and hours are personal. TimeInOut protects them like a bank protects logins.</p></div>
+      <p>Names, contacts and hours are personal. <?= e(cfg('app_name')) ?> protects them like a bank protects logins.</p></div>
     <div class="sec-list">
       <div class="sec-item"><b>Emailed sign-in codes</b><span>Admins confirm every sign-in with a one-time code.</span></div>
       <div class="sec-item"><b>Full audit log</b><span>Every change, sign-in and report: who, when and the result.</span></div>

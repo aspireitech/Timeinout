@@ -41,8 +41,8 @@
       <h3 style="margin-top:10px"><?= icon('shield') ?> Sign-in security</h3>
       <label class="check"><input type="checkbox" name="admin_otp" value="1" <?= setting('admin_otp', '1') === '1' ? 'checked' : '' ?>>
         <span><b>School admins need an emailed code</b> to sign in (recommended)<br><span class="muted small">Turn off only if email delivery is not working yet, otherwise admins cannot sign in.</span></span></label>
-      <label class="check" style="margin-top:10px"><input type="checkbox" name="super_otp" value="1" <?= setting('super_otp', '0') === '1' ? 'checked' : '' ?>>
-        <span><b>Provider console needs an emailed code</b> too<br><span class="muted small">Send a test email first. The code goes to the super_admin email in config.php.</span></span></label>
+      <div class="flash info" style="margin-top:10px"><?= icon('shield', 18) ?> <span><b>Provider console:</b> every sign-in, with a password or with Google, is confirmed by a code emailed to <?= e(cfg('super_admin')['email'] ?? '') ?>.
+        <?= google_ready() ? 'Sign in with Google is on.' : 'Sign in with Google is off: add google_oauth to app/config.php to turn it on.' ?></span></div>
       <div style="margin-top:16px"><button class="btn btn-primary">Save settings</button></div>
     </form>
   </div>

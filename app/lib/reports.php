@@ -309,6 +309,13 @@ function run_scheduled_reports(bool $force = false): array
     $tenants = rows("SELECT * FROM tenants WHERE status IN ('trial','active') AND report_emails IS NOT NULL AND report_emails <> ''");
     foreach ($tenants as $t) {
         $GLOBALS['tenant'] = $t;
+        try {
+            tenant_db_migrate($t);
+            use_tenant_db($t); // portals with their own database are read from there
+        } catch (Throwable $e) {
+            $log[] = $t['slug'] . ': database not reachable: ' . $e->getMessage();
+            continue;
+        }
         $now = tenant_now();
         if (!$force && (int) $now->format('G') < (int) ($t['report_hour'] ?? 7)) {
             continue;
@@ -335,5 +342,6 @@ function run_scheduled_reports(bool $force = false): array
         }
     }
     unset($GLOBALS['tenant']);
+    use_tenant_db(null);
     return $log;
 }

@@ -7,7 +7,7 @@
 //   3. custom    https://checkin.xyzschool.org/... (tenants.custom_domain)
 // Anything else (abc.com, www.abc.com, localhost) is the marketing/platform site.
 
-const RESERVED_SLUGS = ['www', 'admin', 'api', 'app', 'mail', 'ftp', 'cpanel', 'webmail', 'super', 's', 'static', 'assets', 'support', 'help', 'billing', 'demo', 'demo-admin'];
+const RESERVED_SLUGS = ['www', 'dev', 'staging', 'test', 'contact', 'leads', 'admin', 'api', 'app', 'mail', 'ftp', 'cpanel', 'webmail', 'super', 's', 'static', 'assets', 'support', 'help', 'billing', 'demo', 'demo-admin'];
 
 /**
  * @return array|null|false  tenant row, null for the platform site, false for an unknown tenant
@@ -173,48 +173,94 @@ function slug_problem(string $slug): ?string
 }
 
 /**
- * Create a new subscriber portal: tenant row, owner login, default
- * materials, and (optionally) demo people so they can try it immediately.
+ * Create a new subscriber portal: tenant row, owner login, default materials and
+ * kiosk tiles, and (optionally) demo people so they can try it immediately.
+ * $d['status'] / $d['trial_days'] override the trial; $d['db'] (host, port, name,
+ * user, pass) puts the portal's data in its own, empty database.
  */
 function provision_tenant(array $d): array
 {
-    $pdo = db();
-    $pdo->beginTransaction();
+    $dbc = $d['db'] ?? null;
+    $data = [
+        'name'          => $d['org_name'],
+        'slug'          => $d['slug'],
+        'plan'          => $d['plan'],
+        'status'        => $d['status'] ?? 'trial',
+        'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+' . (int) ($d['trial_days'] ?? cfg('trial_days', 7)) . ' days')),
+        'timezone'      => $d['timezone'],
+        'welcome_title' => 'Welcome to ' . $d['org_name'],
+        'welcome_text'  => 'Tap a button below to sign in or out.',
+        'report_emails' => $d['email'],
+        'industry'      => $d['industry'],
+        'state'         => $d['state'] ?: null,
+        'city'          => $d['city'] ?: null,
+    ];
+    if ($dbc) {
+        $data += ['db_host' => $dbc['host'] ?: 'localhost', 'db_port' => (int) ($dbc['port'] ?: 3306), 'db_name' => $dbc['name'],
+                  'db_user' => $dbc['user'], 'db_pass' => encrypt_pii($dbc['pass'])];
+    }
+    $tenantId = insert('tenants', $data);
+    $t = row('SELECT * FROM tenants WHERE id = ?', [$tenantId]);
     try {
-        $tenantId = insert('tenants', [
-            'name'          => $d['org_name'],
-            'slug'          => $d['slug'],
-            'plan'          => $d['plan'],
-            'status'        => 'trial',
-            'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+' . (int) cfg('trial_days', 30) . ' days')),
-            'timezone'      => $d['timezone'],
-            'welcome_title' => 'Welcome to ' . $d['org_name'],
-            'welcome_text'  => 'Tap a button below to sign in or out.',
-            'report_emails' => $d['email'],
-            'industry'      => $d['industry'],
-            'state'         => $d['state'] ?: null,
-            'city'          => $d['city'] ?: null,
-        ]);
-        seed_tiles($tenantId, $d['industry']);
-        insert('users', [
-            'tenant_id'     => $tenantId,
-            'name'          => $d['admin_name'],
-            'email'         => strtolower($d['email']),
-            'password_hash' => password_hash($d['password'], PASSWORD_DEFAULT),
-            'role'          => 'owner',
-        ]);
-        foreach (industry($d['industry'])['items'] as $i => $m) {
-            insert('materials', ['tenant_id' => $tenantId, 'name' => $m, 'sort_order' => $i]);
+        if ($dbc) {
+            tenant_db_install($t);
         }
-        if (!empty($d['demo'])) {
-            seed_demo_people($tenantId, $d['industry']);
-        }
-        $pdo->commit();
+        with_tenant_db($t, function () use ($tenantId, $d) {
+            $pdo = db();
+            $pdo->beginTransaction();
+            try {
+                seed_tiles($tenantId, $d['industry']);
+                insert('users', [
+                    'tenant_id'     => $tenantId,
+                    'name'          => $d['admin_name'],
+                    'email'         => strtolower($d['email']),
+                    'password_hash' => password_hash($d['password'], PASSWORD_DEFAULT),
+                    'role'          => 'owner',
+                ]);
+                foreach (industry($d['industry'])['items'] as $i => $m) {
+                    insert('materials', ['tenant_id' => $tenantId, 'name' => $m, 'sort_order' => $i]);
+                }
+                if (!empty($d['demo'])) {
+                    seed_demo_people($tenantId, $d['industry']);
+                }
+                $pdo->commit();
+            } catch (Throwable $ex) {
+                $pdo->rollBack();
+                throw $ex;
+            }
+        });
     } catch (Throwable $ex) {
-        $pdo->rollBack();
+        q('DELETE FROM tenants WHERE id = ?', [$tenantId]); // nothing half-made is left behind
         throw $ex;
     }
-    return row('SELECT * FROM tenants WHERE id = ?', [$tenantId]);
+    return $t;
+}
+
+/** Checks a dedicated database before a portal is put in it. Returns the problem, or null when it can be used. */
+function tenant_db_problem(array $c): ?string
+{
+    if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', $c['name']) || $c['user'] === '') {
+        return 'Enter the database name (letters, numbers and _ only) and its user.';
+    }
+    if (val('SELECT id FROM tenants WHERE db_name = ? AND COALESCE(db_host, \'localhost\') = ?', [$c['name'], $c['host'] ?: 'localhost'])
+        || ($c['name'] === (cfg('db')['name'] ?? '') && ($c['host'] ?: 'localhost') === (cfg('db')['host'] ?? 'localhost'))) {
+        return 'That database is already in use. Each portal needs its own, new database.';
+    }
+    try {
+        $pdo = pdo_connect($c);
+    } catch (Throwable $e) {
+        return 'Could not connect to that database: ' . $e->getMessage();
+    }
+    if ((int) $pdo->query('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()')->fetchColumn() > 0) {
+        return 'That database is not empty. Create a new, empty database for this portal.';
+    }
+    return null;
+}
+
+/** The owner login of a portal, read from the portal's own database. */
+function tenant_owner(array $t): ?array
+{
+    return with_tenant_db($t, fn() => row("SELECT * FROM users WHERE tenant_id = ? AND role = 'owner' ORDER BY id LIMIT 1", [$t['id']]));
 }
 
 function seed_demo_people(int $tenantId, string $industry = 'school'): void

@@ -1,4 +1,6 @@
-# TimeInOut — student, teacher & material-pickup check-in (SaaS)
+# ClockInOut — clock-in / clock-out, visitor and pickup check-in (SaaS)
+
+> **Going live on clockinoutapp.com?** Start with [docs/GO_LIVE.md](docs/GO_LIVE.md): Cloudflare, Hostinger, the `/super` console, Google sign-in, creating a customer portal with its own database, and the dev → live routine.
 
 A simple, colorful, multi-tenant web app in plain **PHP + MySQL**. Schools, daycares and after-school programs sign up, get their own portal (`theirname.abc.com`) right away, and use it on any tablet or phone to:
 
