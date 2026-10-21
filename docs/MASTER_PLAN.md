@@ -1,4 +1,4 @@
-# TimeInOut — Master Plan
+# ClockInOut — Master Plan
 
 ## 1. What we are building
 

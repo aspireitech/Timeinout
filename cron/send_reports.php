@@ -1,7 +1,7 @@
 <?php
 // Emails daily / weekly / monthly reports to each subscriber.
 // cPanel → Cron Jobs, run every hour:
-//   php /home/USER/timeinout/cron/send_reports.php
+//   php /home/USER/clockinout/cron/send_reports.php
 // Add --force to ignore the report_hour check (useful for testing).
 if (PHP_SAPI !== 'cli') {
     exit('Run from the command line, or use the /cron?key=... URL instead.');
