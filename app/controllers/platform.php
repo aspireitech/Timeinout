@@ -13,7 +13,7 @@ function platform_find_login(): void
     $error = null;
     if (is_post()) {
         $slug = preg_replace('#^https?://|/.*$|\..*$#', '', strtolower(trim((string) input('space'))));
-        $slug = preg_replace('/[^a-z0-9]/', '', $slug);
+        $slug = preg_replace('/[^a-z0-9-]/', '', $slug);
         $t = $slug !== '' ? tenant_by_slug($slug) : null;
         if ($t) {
             redirect(tenant_url($t, '/login'));
