@@ -1,4 +1,5 @@
-<div class="card" style="margin-bottom:60px">
+<?php $deleted = array_values(array_filter($tenants, fn($x) => !empty($x['deleted_at']))); $tenants = array_values(array_filter($tenants, fn($x) => empty($x['deleted_at']))); ?>
+<div class="card" style="margin-bottom:20px">
   <div class="card-head">
     <h2><?= icon('globe') ?> Subscribers (<?= count($tenants) ?>)</h2>
     <div class="row">
@@ -36,6 +37,9 @@
           <form method="post" action="<?= e(base_path() . '/super/tenants/' . $t['id'] . '/password') ?>" style="margin-top:6px" data-confirm="Give the owner of <?= e($t['name']) ?> a new temporary password? Their old password stops working.">
             <?= csrf_field() ?><button class="btn btn-ghost btn-sm"><?= icon('shield', 14) ?> Reset owner password</button>
           </form>
+          <form method="get" action="<?= e(base_path() . '/super/tenants/' . $t['id'] . '/delete') ?>" style="margin-top:6px" data-confirm="Are you going to delete <?= e($t['name']) ?>? You will be asked to type its address and your password next.">
+            <button class="btn btn-danger btn-sm"><?= icon('shield', 14) ?> Delete portal</button>
+          </form>
         </td>
       </tr>
     <?php endforeach; ?>
@@ -43,3 +47,25 @@
   </table>
   </div>
 </div>
+<?php if ($deleted): ?>
+<div class="card" style="margin-bottom:60px">
+  <h2><?= icon('shield') ?> Deleted portals (<?= count($deleted) ?>)</h2>
+  <p class="muted small">Closed and kept for <?= DELETE_GRACE_DAYS ?> days, then removed automatically by the hourly job.</p>
+  <div class="table-wrap"><table class="table">
+    <tr><th>Organization</th><th>Deleted</th><th>Removed for good</th><th></th></tr>
+    <?php foreach ($deleted as $t): $purge = strtotime($t['deleted_at'] . ' UTC') + DELETE_GRACE_DAYS * 86400; ?>
+      <tr>
+        <td><b><?= e($t['name']) ?></b><br><span class="small muted"><?= e($t['slug']) ?> · <?= tenant_db_config($t) ? 'Own DB ' . e($t['db_name']) : 'Shared DB' ?></span></td>
+        <td class="small"><?= e(date('M j, Y', strtotime($t['deleted_at'] . ' UTC'))) ?></td>
+        <td class="small"><?= e(date('M j, Y', $purge)) ?><br><span class="muted">in <?= max(0, (int) ceil(($purge - time()) / 86400)) ?> days</span></td>
+        <td class="row">
+          <form method="post" action="<?= e(base_path() . '/super/tenants/' . $t['id'] . '/restore') ?>" data-confirm="Restore <?= e($t['name']) ?> and open it again?">
+            <?= csrf_field() ?><button class="btn btn-accent btn-sm">Restore</button></form>
+          <form method="get" action="<?= e(base_path() . '/super/tenants/' . $t['id'] . '/delete') ?>" data-confirm="Permanently remove <?= e($t['name']) ?> now? You will be asked to type its address and your password next.">
+            <button class="btn btn-danger btn-sm">Remove permanently now</button></form>
+        </td>
+      </tr>
+    <?php endforeach; ?>
+  </table></div>
+</div>
+<?php endif; ?>

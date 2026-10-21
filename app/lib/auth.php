@@ -217,8 +217,7 @@ function super_check(string $email, string $password): ?string
         audit('Provider sign-in blocked', $email, false, 'Too many failed attempts', $who);
         return 'Too many failed attempts. Please wait 15 minutes and try again.';
     }
-    $stored = trim((string) ($sa['password'] ?? ''));
-    $passOk = str_starts_with($stored, '$2y$') ? password_verify($password, $stored) : ($stored !== '' && hash_equals($stored, $password));
+    $passOk = super_password_ok($password);
     $ok = $passOk && strcasecmp($email, trim((string) ($sa['email'] ?? ''))) === 0;
     login_attempt('super', $email, $ok);
     if (!$ok) {
@@ -240,6 +239,14 @@ function super_second_factor(array $who): ?string
     }
     super_complete($who['email']);
     return null;
+}
+
+/** Checks the provider password from app/config.php (plain text or a password_hash value). */
+function super_password_ok(string $password): bool
+{
+    $stored = trim((string) (cfg('super_admin')['password'] ?? ''));
+    $password = trim($password);
+    return str_starts_with($stored, '$2y$') ? password_verify($password, $stored) : ($stored !== '' && hash_equals($stored, $password));
 }
 
 /** Emails allowed to open /super: the super_admin email plus any listed in google_oauth.allowed_emails. */

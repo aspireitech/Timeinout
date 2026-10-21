@@ -70,6 +70,10 @@ if ($resolved === false) {
 if ($resolved === null) {
     platform_routes($path);
 } else {
+    if (!empty($resolved['deleted_at'])) {
+        http_response_code(410);
+        view('partials/error', ['code' => 410, 'message' => 'This portal has been closed. Please contact your service provider.']);
+    }
     $GLOBALS['tenant'] = $resolved;
     // A portal with its own database: every query from here on runs there
     if (tenant_db_config($resolved)) {

@@ -295,7 +295,7 @@ function web_cron(): void
         }
         return;
     }
-    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync())) ?: 'Nothing due.';
+    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants())) ?: 'Nothing due.';
 }
 
 // ---------- Payments ----------
@@ -654,4 +654,77 @@ function platform_report_activity(): void
         $done = true;
     }
     view('platform/report_activity', ['d' => $d, 'token' => $token, 'done' => $done], 'platform');
+}
+
+// ---------- Delete / restore a portal ----------
+/**
+ * Two-step delete: the list asks "are you sure?", then this page needs the portal's address typed
+ * exactly, the provider password and a tick, and the button asks once more.
+ * First delete closes the portal and keeps its data for DELETE_GRACE_DAYS (restorable);
+ * deleting an already-deleted portal removes it permanently.
+ */
+function super_tenant_delete(int $id): void
+{
+    require_super();
+    $t = row('SELECT * FROM tenants WHERE id = ?', [$id]);
+    if (!$t) {
+        redirect(base_path() . '/super');
+    }
+    $permanent = !empty($t['deleted_at']);
+    $error = null;
+    if (is_post()) {
+        $who = ['email' => cfg('super_admin')['email'] ?? '', 'name' => 'Service provider', 'provider' => true];
+        if (login_blocked('super-confirm', $who['email'])) {
+            $error = 'Too many wrong passwords. Wait 15 minutes and try again.';
+        } elseif (strtolower(trim((string) input('confirm_slug'))) !== $t['slug']) {
+            $error = 'The address you typed does not match "' . $t['slug'] . '".';
+        } elseif (!super_password_ok((string) ($_POST['password'] ?? ''))) {
+            login_attempt('super-confirm', $who['email'], false);
+            audit($permanent ? 'Portal removed permanently' : 'Portal deleted', $t['name'] . ' (' . $t['slug'] . ')', false, 'Wrong provider password');
+            $error = 'That password is not right.';
+        } elseif (input('understand') !== '1') {
+            $error = 'Tick the box to confirm you understand.';
+        } else {
+            login_attempt('super-confirm', $who['email'], true);
+            audit_skip();
+            try {
+                if ($permanent) {
+                    $note = tenant_purge($t);
+                    audit('Portal removed permanently', $t['name'] . ' (' . $t['slug'] . ')', true, $note);
+                    flash('success', $t['name'] . ' was removed permanently. ' . ucfirst($note) . '.');
+                } else {
+                    tenant_soft_delete($t);
+                    audit('Portal deleted', $t['name'] . ' (' . $t['slug'] . ')', true, 'Closed now; data kept ' . DELETE_GRACE_DAYS . ' days, restorable until then');
+                    flash('success', $t['name'] . ' is deleted and closed. Its data is kept for ' . DELETE_GRACE_DAYS . ' days: you can restore it under "Deleted portals" until then.');
+                }
+            } catch (Throwable $e) {
+                audit($permanent ? 'Portal removed permanently' : 'Portal deleted', $t['name'] . ' (' . $t['slug'] . ')', false, $e->getMessage());
+                flash('error', 'Delete failed: ' . $e->getMessage());
+            }
+            redirect(base_path() . '/super');
+        }
+    }
+    $stats = ['people' => '?', 'events' => '?', 'users' => '?'];
+    try {
+        $stats = with_tenant_db($t, fn() => [
+            'people' => (int) val('SELECT COUNT(*) FROM students WHERE tenant_id = ?', [$t['id']]) + (int) val('SELECT COUNT(*) FROM teachers WHERE tenant_id = ?', [$t['id']]),
+            'events' => (int) val('SELECT COUNT(*) FROM attendance WHERE tenant_id = ?', [$t['id']]),
+            'users'  => (int) val('SELECT COUNT(*) FROM users WHERE tenant_id = ?', [$t['id']]),
+        ]);
+    } catch (Throwable $e) {
+        // database not reachable: deleting still works for the record in the main database
+    }
+    view('platform/super_tenant_delete', compact('t', 'permanent', 'error', 'stats'), 'platform');
+}
+
+function super_tenant_restore(int $id): void
+{
+    require_super();
+    $t = row('SELECT * FROM tenants WHERE id = ? AND deleted_at IS NOT NULL', [$id]);
+    if ($t) {
+        tenant_restore($t);
+        audit_note($t['name'] . ' (' . $t['slug'] . ')', 'Restored; the portal is open again');
+        flash('success', $t['name'] . ' is restored and open again.');
+    }
+    redirect(base_path() . '/super');
 }

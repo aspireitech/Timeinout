@@ -55,8 +55,9 @@ one for a subdomain behind Cloudflare, create a free **Cloudflare Origin Certifi
      document root at `public/`.
    - If the document root must stay `public_html`, upload everything into it; the root
      `.htaccess` sends requests to `public/` and blocks `app/`, `database/`, `cron/`.
-2. **Main database**: hPanel → Websites → Databases → MySQL Databases → create
-   `u…_clockinout` + user. phpMyAdmin → Import → `database/schema.sql`.
+2. **Main database (fresh start)**: hPanel → Websites → Databases → MySQL Databases → create
+   `u…_clockinout` + user. phpMyAdmin → Import → `database/schema.sql`. That is the whole
+   empty database; the newest tables and columns are added automatically on the first page load.
 3. **Config**: copy `app/config.sample.php` to `app/config.php` and set:
    - `db` → the database from step 2
    - `base_domain` → `clockinoutapp.com`
@@ -184,6 +185,19 @@ The link opens a page with one button; pressing it emails contact@ with the subj
 **Forgot password?** `/super → Subscribers → Reset owner password` gives the owner a
 new temporary password (shown once). Owners can reset their staff's passwords
 themselves in **Admin → Users**.
+
+**Delete a portal**: `/super → Subscribers → Delete portal`.
+1. A pop-up asks “Are you going to delete …?”.
+2. The next page asks you to **type the portal's address** (e.g. `utsjkumon`), enter **your
+   super admin password** and tick “I understand”.
+3. A last pop-up asks once more, then the portal is deleted.
+
+A deleted portal **closes immediately** (its address shows “This portal has been closed”) but
+its data is **kept for 30 days** under *Deleted portals*, where you can **Restore** it. After
+30 days the hourly job removes it for good, or use **Remove permanently now** (same checks).
+Permanent removal erases the portal's people, check-ins, logins and logs; for a portal with its
+own database a last copy is saved to `backups/deleted/` first, and you then delete the empty
+database in hPanel. Payments stay in your records. Every step is in the audit log.
 
 What “Own database” does: the portal's people, attendance, logins, reports log and
 audit log are stored only in its database. The main database keeps only the portal's

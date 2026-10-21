@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 function setting(string $key, $default = null)
 {
@@ -50,6 +50,9 @@ function migrate(): void
         }
         if ($v < 4) {
             migration_4();
+        }
+        if ($v < 5) {
+            migration_5();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -211,4 +214,12 @@ function migration_4(): void
         KEY ix_leads_time (created_at),
         KEY ix_leads_status (status, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Deleted portals: closed at once, data kept for DELETE_GRACE_DAYS, then removed. */
+function migration_5(): void
+{
+    if (!column_exists('tenants', 'deleted_at')) {
+        q('ALTER TABLE tenants ADD COLUMN deleted_at DATETIME NULL');
+    }
 }

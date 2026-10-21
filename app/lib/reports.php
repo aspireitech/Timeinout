@@ -321,7 +321,7 @@ function run_scheduled_reports(bool $force = false): array
 {
     $log = [];
     $GLOBALS['audit_system'] = true; // entries show as "Scheduled job"
-    $tenants = rows("SELECT * FROM tenants WHERE status IN ('trial','active') AND report_emails IS NOT NULL AND report_emails <> ''");
+    $tenants = rows("SELECT * FROM tenants WHERE status IN ('trial','active') AND deleted_at IS NULL AND report_emails IS NOT NULL AND report_emails <> ''");
     foreach ($tenants as $t) {
         $GLOBALS['tenant'] = $t;
         try {

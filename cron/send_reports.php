@@ -7,5 +7,5 @@ if (PHP_SAPI !== 'cli') {
     exit('Run from the command line, or use the /cron?key=... URL instead.');
 }
 require __DIR__ . '/../app/bootstrap.php';
-$lines = array_merge(run_scheduled_reports(in_array('--force', $argv, true)), wave_sync());
+$lines = array_merge(run_scheduled_reports(in_array('--force', $argv, true)), wave_sync(), purge_expired_tenants());
 echo ($lines ? implode(PHP_EOL, $lines) : 'Nothing due.') . PHP_EOL;

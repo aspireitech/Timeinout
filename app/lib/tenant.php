@@ -286,3 +286,72 @@ function seed_demo_people(int $tenantId, string $industry = 'school'): void
         insert('teachers', ['tenant_id' => $tenantId, 'employee_code' => $code, 'first_name' => $fn, 'last_name' => $ln]);
     }
 }
+
+// ---------- Deleting a portal ----------
+/** Days a deleted portal's data is kept so it can be restored. */
+const DELETE_GRACE_DAYS = 30;
+
+/** Close a portal now; its data stays for DELETE_GRACE_DAYS and it can be restored until then. */
+function tenant_soft_delete(array $t): void
+{
+    update('tenants', ['deleted_at' => gmdate('Y-m-d H:i:s')], 'id = ?', [$t['id']]);
+}
+
+function tenant_restore(array $t): void
+{
+    update('tenants', ['deleted_at' => null], 'id = ?', [$t['id']]);
+}
+
+/**
+ * Removes a portal for good: its people, attendance, logins, logs and logo. A portal with its own
+ * database is first saved to backups/deleted/, then all its tables are dropped (the empty
+ * database itself is removed in hPanel). Payments are kept for your accounts.
+ * @return string what was done
+ */
+function tenant_purge(array $t): string
+{
+    $note = '';
+    if (tenant_db_config($t)) {
+        $dir = ROOT_DIR . '/backups/deleted';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0700, true);
+            file_put_contents(ROOT_DIR . '/backups/.htaccess', "Require all denied\n");
+        }
+        $file = $dir . '/' . $t['slug'] . '_' . $t['db_name'] . '_' . gmdate('Y-m-d_Hi') . '.sql.gz';
+        dump_database(tenant_pdo($t), $file);
+        with_tenant_db($t, fn() => without_routing(function () {
+            db()->exec('SET FOREIGN_KEY_CHECKS=0');
+            foreach (db()->query('SHOW FULL TABLES WHERE Table_type = "BASE TABLE"')->fetchAll(PDO::FETCH_NUM) as [$table]) {
+                db()->exec("DROP TABLE IF EXISTS `$table`");
+            }
+            db()->exec('SET FOREIGN_KEY_CHECKS=1');
+        }));
+        $note = 'own database ' . $t['db_name'] . ' emptied (copy saved as backups/deleted/' . basename($file) . '); remove the empty database in hPanel';
+    } else {
+        q('DELETE FROM audit_log WHERE tenant_id = ?', [$t['id']]);
+        $note = 'data removed from the shared database';
+    }
+    if (!empty($t['logo_path']) && is_file(PUBLIC_DIR . '/' . $t['logo_path'])) {
+        @unlink(PUBLIC_DIR . '/' . $t['logo_path']);
+    }
+    q('DELETE FROM tenants WHERE id = ?', [$t['id']]); // people, attendance, users, tiles… follow (ON DELETE CASCADE)
+    return $note;
+}
+
+/** Cron: remove portals deleted more than DELETE_GRACE_DAYS ago. */
+function purge_expired_tenants(): array
+{
+    $log = [];
+    $GLOBALS['audit_system'] = true;
+    foreach (rows('SELECT * FROM tenants WHERE deleted_at IS NOT NULL AND deleted_at < ?', [gmdate('Y-m-d H:i:s', time() - DELETE_GRACE_DAYS * 86400)]) as $t) {
+        try {
+            $note = tenant_purge($t);
+            audit('Portal removed permanently', $t['name'] . ' (' . $t['slug'] . ')', true, DELETE_GRACE_DAYS . ' days after deletion; ' . $note);
+            $log[] = $t['slug'] . ': removed permanently';
+        } catch (Throwable $e) {
+            audit('Portal removed permanently', $t['name'] . ' (' . $t['slug'] . ')', false, $e->getMessage());
+            $log[] = $t['slug'] . ': removal FAILED ' . $e->getMessage();
+        }
+    }
+    return $log;
+}

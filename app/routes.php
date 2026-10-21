@@ -57,6 +57,8 @@ function platform_routes(string $path): void
         ['GET|POST', '/super/portals/new',   'super_portal_new'],
         ['GET',      '/super/portals/created', 'super_portal_created'],
         ['POST',     '/super/tenants/{id}/password', 'super_owner_password', 'Reset portal owner password'],
+        ['GET|POST', '/super/tenants/{id}/delete', 'super_tenant_delete'],
+        ['POST',     '/super/tenants/{id}/restore', 'super_tenant_restore', 'Restored deleted portal'],
         ['GET',      '/super/leads',         'super_leads'],
         ['POST',     '/super/leads/{id}',    'super_lead_update',   'Updated lead'],
         ['GET',      '/super',               'super_tenants'],
