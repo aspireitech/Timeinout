@@ -227,6 +227,18 @@ function import_students(int $tenantId, array $rows): array
             csv_pick($row, ['phone', 'guardianphone', 'parentphone']),
             csv_pick($row, ['email', 'guardianemail', 'parentemail']),
         ]];
+        // Simple layout: Father / Mother columns, plus up to two relatives with their relationship
+        foreach (['father' => 'Father', 'mother' => 'Mother'] as $k => $relName) {
+            $guardians[] = [csv_pick($row, [$k, $k . 'name']), $relName, csv_pick($row, [$k . 'phone', $k . 'mobile']), csv_pick($row, [$k . 'email'])];
+        }
+        for ($i = 1; $i <= 2; $i++) {
+            $guardians[] = [
+                csv_pick($row, ["relative{$i}name", "relative{$i}", "other{$i}name", "other{$i}"]),
+                csv_pick($row, ["relative{$i}relationship", "relative{$i}relation", "other{$i}relationship"]) ?: 'Relative',
+                csv_pick($row, ["relative{$i}phone", "other{$i}phone"]),
+                csv_pick($row, ["relative{$i}email", "other{$i}email"]),
+            ];
+        }
         for ($i = 1; $i <= 4; $i++) {
             $guardians[] = [
                 csv_pick($row, ["guardian{$i}name", "guardian{$i}", "parent{$i}name", "parent{$i}"]),

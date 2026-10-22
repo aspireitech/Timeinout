@@ -315,10 +315,10 @@ function admin_sample_students(): void
 {
     require_admin();
     csv_download('students-sample.csv', [
-        ['student_id', 'first_name', 'last_name', 'grade', 'guardian1_name', 'guardian1_relationship', 'guardian1_phone', 'guardian2_name', 'guardian2_relationship', 'guardian2_phone'],
-        ['S101', 'Olivia', 'Martin', 'Grade 1', 'Paul Martin', 'Father', '555-0201', 'Anna Martin', 'Mother', '555-0202'],
-        ['S102', 'Lucas', 'Nguyen', 'Grade 3', 'Minh Nguyen', 'Father', '555-0211', 'Lan Nguyen', 'Mother', '555-0212'],
-        ['S103', 'Sofia', 'Rossi', 'KG', 'Marco Rossi', 'Father', '555-0221', '', '', ''],
+        ['student_id', 'student_first_name', 'student_last_name', 'grade', 'father', 'father_phone', 'mother', 'mother_phone', 'relative1_name', 'relative1_relationship', 'relative1_phone'],
+        ['S101', 'Olivia', 'Martin', 'Grade 1', 'Paul Martin', '555-0201', 'Anna Martin', '555-0202', 'Rose Martin', 'Grandmother', '555-0203'],
+        ['S102', 'Lucas', 'Nguyen', 'Grade 3', 'Minh Nguyen', '555-0211', 'Lan Nguyen', '555-0212', '', '', ''],
+        ['S103', 'Sofia', 'Rossi', 'KG', 'Marco Rossi', '555-0221', 'Giulia Rossi', '', 'Luca Bianchi', 'Uncle', ''],
     ]);
 }
 
