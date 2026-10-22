@@ -107,9 +107,12 @@ function xlsx_read(string $file): array
             if ($type === 's') {
                 $v = $strings[(int) $c->v] ?? '';
             } elseif ($type === 'inlineStr') {
-                $v = (string) $c->is->t;
-                foreach ($c->is->r as $run) {
-                    $v .= (string) $run->t;
+                $v = '';
+                if (isset($c->is)) { // empty cells have no <is> element
+                    $v = (string) $c->is->t;
+                    foreach ($c->is->r as $run) {
+                        $v .= (string) $run->t;
+                    }
                 }
             } elseif ($type === 'b') {
                 $v = ((string) $c->v) === '1' ? 'TRUE' : 'FALSE';
