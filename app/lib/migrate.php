@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 function setting(string $key, $default = null)
 {
@@ -53,6 +53,9 @@ function migrate(): void
         }
         if ($v < 5) {
             migration_5();
+        }
+        if ($v < 6) {
+            migration_6();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -222,4 +225,17 @@ function migration_5(): void
     if (!column_exists('tenants', 'deleted_at')) {
         q('ALTER TABLE tenants ADD COLUMN deleted_at DATETIME NULL');
     }
+}
+
+/** Logins by user ID (email optional for staff) and "must change password at first sign-in". */
+function migration_6(): void
+{
+    if (!column_exists('users', 'username')) {
+        q('ALTER TABLE users ADD COLUMN username VARCHAR(40) NULL AFTER email');
+        q('ALTER TABLE users ADD UNIQUE KEY uq_user_username (tenant_id, username)');
+    }
+    if (!column_exists('users', 'must_change_password')) {
+        q('ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0');
+    }
+    q('ALTER TABLE users MODIFY email VARCHAR(190) NULL');
 }

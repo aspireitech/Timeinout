@@ -75,6 +75,7 @@ function platform_routes(string $path): void
 function tenant_routes(string $path): void
 {
     billing_gate($path);
+    enforce_password_change($path);
     // A 4th item names the change for the audit log; those posts are logged automatically.
     dispatch($path, [
         // Kiosk (the screen students, parents and teachers use)
@@ -82,6 +83,7 @@ function tenant_routes(string $path): void
         ['GET|POST', '/login',                     'login_page'],
         ['GET|POST', '/login/verify',              'login_verify'],
         ['GET',      '/logout',                    'logout_action'],
+        ['GET|POST', '/account/password',          'account_password',      'Changed own password'],
         ['GET',      '/api/search',                'api_search'],
         ['GET',      '/api/guardians',             'api_guardians'],
         ['GET',      '/api/status',                'api_status'],

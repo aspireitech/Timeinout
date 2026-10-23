@@ -132,7 +132,7 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
 
   <footer class="k-foot">
     <?php if (is_admin()): ?><a href="<?= e(url('/admin')) ?>"><?= icon('settings', 14) ?> Admin</a>
-    <?php elseif ($ku = current_user()): ?><span class="muted">Kiosk signed in as <?= e($ku['name']) ?></span> · <a href="<?= e(url('/logout')) ?>">Sign out</a>
+    <?php elseif ($ku = current_user()): ?><span class="muted">Kiosk signed in as <?= e($ku['name']) ?></span> · <a href="<?= e(url('/account/password')) ?>">Change password</a> · <a href="<?= e(url('/logout')) ?>">Sign out</a>
     <?php else: ?><a href="<?= e(url('/login')) ?>">Staff login</a><?php endif; ?>
   </footer>
 </div>

@@ -84,30 +84,56 @@ function admin_otp_enabled(): bool
 function attempt_login(string $email, string $password): ?string
 {
     $scope = 't' . tid();
-    $email = strtolower(trim($email));
+    $email = strtolower(trim($email)); // an email address or a user ID
     $who = ['email' => $email, 'tenant_id' => tid(), 'name' => null];
     if (login_blocked($scope, $email)) {
         audit('Sign-in blocked', $email, false, 'Too many failed attempts in 15 minutes', $who);
         return 'Too many failed attempts. Please wait 15 minutes and try again.';
     }
-    $u = row('SELECT * FROM users WHERE tenant_id = ? AND email = ?', [tid(), $email]);
+    $u = find_login_user($email);
     if (!$u || !password_verify($password, $u['password_hash'])) {
         login_attempt($scope, $email, false);
-        audit('Sign-in', $email, false, $u ? 'Wrong password' : 'Unknown email', $who);
-        return 'That email and password do not match.';
+        audit('Sign-in', $email, false, $u ? 'Wrong password' : 'Unknown email or user ID', $who);
+        return 'That email or user ID and password do not match.';
     }
     login_attempt($scope, $email, true);
-    if (in_array($u['role'], ['owner', 'admin'], true) && admin_otp_enabled()) {
+    if (in_array($u['role'], ['owner', 'admin'], true) && admin_otp_enabled() && !empty($u['email'])) {
         return otp_start('t' . tid(), user_ref($u)) ? 'otp' : 'We could not email your sign-in code. Please contact your service provider.';
     }
     complete_login($u);
-    audit('Sign-in', $email, true, ucfirst($u['role']) . ' (kiosk)');
+    audit('Sign-in', login_name($u), true, ucfirst($u['role']) . (in_array($u['role'], ['owner', 'admin'], true) ? '' : ' (kiosk)'));
     return null;
+}
+
+/** Finds a login by email address or user ID in the current portal. */
+function find_login_user(string $login): ?array
+{
+    $login = strtolower(trim($login));
+    if ($login === '') {
+        return null;
+    }
+    return row('SELECT * FROM users WHERE tenant_id = ? AND (email = ? OR username = ?) ORDER BY email = ? DESC LIMIT 1', [tid(), $login, $login, $login]);
+}
+
+/** What a person types to sign in: their user ID when they have one, otherwise their email. */
+function login_name(array $u): string
+{
+    return (string) (($u['username'] ?? '') ?: ($u['email'] ?? ''));
 }
 
 function user_ref(array $u): array
 {
-    return ['id' => (int) $u['id'], 'tenant_id' => (int) $u['tenant_id'], 'name' => $u['name'], 'email' => $u['email'], 'role' => $u['role']];
+    return ['id' => (int) $u['id'], 'tenant_id' => (int) $u['tenant_id'], 'name' => $u['name'], 'email' => ($u['email'] ?? '') ?: login_name($u),
+            'username' => $u['username'] ?? null, 'role' => $u['role'], 'must_change' => !empty($u['must_change_password'])];
+}
+
+/** People who must choose a new password are sent to that page before anything else. */
+function enforce_password_change(string $path): void
+{
+    $u = current_user();
+    if ($u && !empty($u['must_change']) && !in_array($path, ['/account/password', '/logout'], true)) {
+        redirect(url('/account/password'));
+    }
 }
 
 function complete_login(array $u): void
