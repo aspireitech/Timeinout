@@ -1,4 +1,4 @@
--- TimeInOut — multi-tenant check-in SaaS
+-- ClockInOut — multi-tenant check-in SaaS
 -- MySQL 5.7+ / MariaDB 10.3+. Import once (phpMyAdmin → Import, or: mysql dbname < schema.sql)
 
 SET NAMES utf8mb4;

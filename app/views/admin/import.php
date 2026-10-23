@@ -1,15 +1,17 @@
-<div class="topbar"><div><h1>Import from a spreadsheet</h1><div class="muted">Save your Excel or Google Sheet as <b>CSV</b>, then upload it here. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
+<div class="topbar"><div><h1>Import from a spreadsheet</h1><div class="muted">Upload an Excel file (<b>.xlsx</b>) or a <b>CSV</b>. The first sheet is used and its first row must be the column headers. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
 <div class="grid c2">
   <div class="card">
     <h3><span class="avatar" style="width:34px;height:34px"><?= icon('users', 18) ?></span> <?= e(term('a2')) ?><?= uses_contacts() ? ' &amp; ' . e(strtolower(term('c2'))) : '' ?></h3>
-    <p class="muted small">One row per person. Put each contact in <code>guardian1_…</code>, <code>guardian2_…</code> columns — or repeat the student on several rows with <code>guardian_name</code>, <code>relationship</code>, <code>phone</code>.</p>
+    <p class="muted small">One row per <?= e(strtolower(term('a1'))) ?>. Columns: <code>student_id</code>, <code>student_first_name</code>, <code>student_last_name</code>, <code>grade</code>,
+      <code>father</code>, <code>mother</code> (each with optional <code>_phone</code> / <code>_email</code>), and up to two other people allowed to check in:
+      <code>relative1_name</code> + <code>relative1_relationship</code> (e.g. Grandmother, Uncle). Extra columns are ignored.</p>
     <div class="table-wrap" style="margin-bottom:14px"><table class="table small">
-      <tr><th>student_id</th><th>first_name</th><th>last_name</th><th>grade</th><th>guardian1_name</th><th>guardian1_relationship</th><th>guardian2_name</th><th>…</th></tr>
-      <tr><td>S101</td><td>Olivia</td><td>Martin</td><td>Grade 1</td><td>Paul Martin</td><td>Father</td><td>Anna Martin</td><td>…</td></tr>
+      <tr><th>student_id</th><th>student_first_name</th><th>student_last_name</th><th>grade</th><th>father</th><th>mother</th><th>relative1_name</th><th>relative1_relationship</th></tr>
+      <tr><td>S101</td><td>Olivia</td><td>Martin</td><td>Grade 1</td><td>Paul Martin</td><td>Anna Martin</td><td>Rose Martin</td><td>Grandmother</td></tr>
     </table></div>
     <form method="post" enctype="multipart/form-data">
       <?= csrf_field() ?><input type="hidden" name="type" value="students">
-      <div class="field"><input type="file" name="file" accept=".csv,text/csv" required></div>
+      <div class="field"><input type="file" name="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></div>
       <div class="row"><button class="btn btn-primary"><?= icon('upload', 16) ?> Upload students</button>
         <a class="btn btn-ghost" href="<?= e(url('/admin/import/sample-students.csv')) ?>"><?= icon('download', 16) ?> Sample file</a></div>
     </form>
@@ -23,7 +25,7 @@
     </table></div>
     <form method="post" enctype="multipart/form-data">
       <?= csrf_field() ?><input type="hidden" name="type" value="teachers">
-      <div class="field"><input type="file" name="file" accept=".csv,text/csv" required></div>
+      <div class="field"><input type="file" name="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></div>
       <div class="row"><button class="btn btn-accent"><?= icon('upload', 16) ?> Upload teachers</button>
         <a class="btn btn-ghost" href="<?= e(url('/admin/import/sample-teachers.csv')) ?>"><?= icon('download', 16) ?> Sample file</a></div>
     </form>

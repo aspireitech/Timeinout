@@ -1,4 +1,6 @@
-# TimeInOut — student, teacher & material-pickup check-in (SaaS)
+# ClockInOut — clock-in / clock-out, visitor and pickup check-in (SaaS)
+
+> **Going live on clockinoutapp.com?** Start with [docs/GO_LIVE.md](docs/GO_LIVE.md): Cloudflare, Hostinger, the `/super` console, Google sign-in, creating a customer portal with its own database, and the dev → live routine.
 
 A simple, colorful, multi-tenant web app in plain **PHP + MySQL**. Schools, daycares and after-school programs sign up, get their own portal (`theirname.abc.com`) right away, and use it on any tablet or phone to:
 
@@ -32,8 +34,8 @@ No Composer, no Node and no build step: you upload the files and it runs.
 
 ```bash
 # 1. Database
-mysql -u root -e "CREATE DATABASE timeinout CHARACTER SET utf8mb4"
-mysql -u root timeinout < database/schema.sql
+mysql -u root -e "CREATE DATABASE clockinout CHARACTER SET utf8mb4"
+mysql -u root clockinout < database/schema.sql
 
 # 2. Config
 cp app/config.sample.php app/config.php     # then edit the 'db' section
@@ -48,9 +50,9 @@ Open http://localhost:8000, click **Start free trial**, tick "Add sample student
 
 ## Put it on hosting (cPanel or similar)
 
-1. **Upload** the whole project to a folder *outside* `public_html`, for example `/home/USER/timeinout/`.
+1. **Upload** the whole project to a folder *outside* `public_html`, for example `/home/USER/clockinout/`.
 2. **Point the domain at `public/`.**
-   - For the main domain: cPanel → *Domains* → set the document root of `abc.com` to `/home/USER/timeinout/public`.
+   - For the main domain: cPanel → *Domains* → set the document root of `abc.com` to `/home/USER/clockinout/public`.
    - If your host won't let you change it, upload everything **into** `public_html`. The root `.htaccess` sends requests to `public/` and blocks `app/`, `database/` and `cron/`.
 3. **Create the database.** cPanel → *MySQL Databases*: create the database and a user, then add the user to the database with ALL PRIVILEGES. Then go to *phpMyAdmin* → choose the DB → *Import* → `database/schema.sql`.
 4. **Configure.** Copy `app/config.sample.php` to `app/config.php` and set:
@@ -66,7 +68,7 @@ Open http://localhost:8000, click **Start free trial**, tick "Add sample student
 ### Turn on `name.abc.com` subdomains
 
 1. **DNS**: add an `A` record `*` (that is, `*.abc.com`) pointing to the same IP as `abc.com`.
-2. **Hosting**: cPanel → *Domains* → *Create a New Domain*: enter `*.abc.com` with document root `/home/USER/timeinout/public`.
+2. **Hosting**: cPanel → *Domains* → *Create a New Domain*: enter `*.abc.com` with document root `/home/USER/clockinout/public`.
 3. **SSL**: issue a wildcard certificate for `*.abc.com`. cPanel AutoSSL does this when the DNS is on the host; otherwise use Let's Encrypt DNS validation or Cloudflare.
 4. In `app/config.php` set `'tenant_url_mode' => 'subdomain'`.
 
@@ -83,7 +85,7 @@ You don't copy any files for a new customer. Every subdomain is served by the sa
 cPanel → *Cron Jobs*. Add a job that runs **every hour**:
 
 ```
-php /home/USER/timeinout/cron/send_reports.php
+php /home/USER/clockinout/cron/send_reports.php
 ```
 
 Or, if your host has no cron, have a free web-cron service call `https://abc.com/cron?key=YOUR_CRON_KEY` every hour.
@@ -95,7 +97,7 @@ Each school chooses its send time, weekly day and attachments (PDF and/or CSV) i
 ```nginx
 server {
   server_name abc.com *.abc.com;
-  root /var/www/timeinout/public;
+  root /var/www/clockinout/public;
   index index.php;
   location / { try_files $uri /index.php$is_args$args; }
   location ~ \.php$ { include fastcgi_params; fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; fastcgi_pass unix:/run/php/php8.3-fpm.sock; }

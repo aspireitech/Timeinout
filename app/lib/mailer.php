@@ -2,8 +2,14 @@
 // Sends HTML email via PHP mail() or a minimal built-in SMTP client
 // (STARTTLS / SSL + AUTH LOGIN), so no Composer packages are needed.
 
-/** Email settings: the provider console (saved in the database) wins over config.php. */
-function mail_config(): array
+/**
+ * Email settings for one sender mailbox.
+ *   'contact'  sign-in codes, account notices, leads   (default: contact@<base_domain>)
+ *   'reports'  daily / weekly / monthly / on-demand reports  (default: reports@<base_domain>)
+ * Server settings come from config.php 'mail', overridden by /super → Settings; each sender's
+ * address, login and password come from config.php 'mail_senders' when set there.
+ */
+function mail_config(string $sender = 'contact'): array
 {
     $m = cfg('mail', []);
     try {
@@ -16,28 +22,46 @@ function mail_config(): array
     } catch (Throwable $e) {
         // settings table not there yet: use config.php
     }
+    $s = cfg('mail_senders', [])[$sender] ?? [];
+    foreach (['from_email', 'from_name', 'user', 'pass'] as $k) {
+        if (($s[$k] ?? '') !== '') {
+            $m[$k] = $s[$k];
+        }
+    }
     return $m;
+}
+
+/** The mailbox that receives copies, leads and suspicious-activity reports. */
+function contact_email(): string
+{
+    return (string) (cfg('contact_email') ?: cfg('lead_email') ?: 'contact@' . cfg('base_domain'));
 }
 
 $GLOBALS['mail_error'] = null;
 
 /**
  * Sends an HTML email, optionally with attachments: [[filename, mime type, bytes], ...].
+ * $sender picks the mailbox ('contact' or 'reports'); $bcc gets a hidden copy.
  * On failure the reason is left in $GLOBALS['mail_error'].
  */
-function send_mail(array $to, string $subject, string $html, array $attachments = []): bool
+function send_mail(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = []): bool
 {
     $GLOBALS['mail_error'] = null;
-    $to = array_values(array_filter(array_map('trim', $to), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL)));
+    $valid = fn(array $list) => array_values(array_unique(array_filter(array_map('trim', $list), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL))));
+    $to = $valid($to);
+    $bcc = array_values(array_diff($valid($bcc), $to));
     if (!$to) {
         $GLOBALS['mail_error'] = 'No valid recipient email address.';
         return false;
     }
-    $m = mail_config();
-    $from = ($m['from_email'] ?? '') ?: 'no-reply@' . cfg('base_domain');
+    $m = mail_config($sender);
+    $from = ($m['from_email'] ?? '') ?: $sender . '@' . cfg('base_domain');
     $fromName = ($m['from_name'] ?? '') ?: cfg('app_name');
     $encSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $headers = ['MIME-Version: 1.0', 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <$from>"];
+    if ($sender !== 'contact') {
+        $headers[] = 'Reply-To: ' . contact_email(); // replies to a report reach a person
+    }
 
     if ($attachments) {
         $b = 'b' . bin2hex(random_bytes(12));
@@ -56,7 +80,7 @@ function send_mail(array $to, string $subject, string $html, array $attachments 
 
     if (($m['driver'] ?? 'mail') === 'smtp') {
         try {
-            smtp_send($m, $from, $to, array_merge($headers, [
+            smtp_send($m, $from, array_merge($to, $bcc), array_merge($headers, [
                 'To: ' . implode(', ', $to),
                 'Subject: ' . $encSubject,
                 'Date: ' . date('r'),
@@ -68,6 +92,9 @@ function send_mail(array $to, string $subject, string $html, array $attachments 
             error_log('SMTP error: ' . $ex->getMessage());
             return false;
         }
+    }
+    if ($bcc) {
+        $headers[] = 'Bcc: ' . implode(', ', $bcc);
     }
     $ok = @mail(implode(', ', $to), $encSubject, $body, implode("\r\n", $headers));
     if (!$ok) {

@@ -1,5 +1,5 @@
 
-/* TimeInOut homepage (approved concept, docs/mockup/home-v2.html).
+/* ClockInOut homepage (approved concept, docs/mockup/home-v2.html).
    Layout: marketing page — split hero (copy | animated time clock), industry icon grid, steps, flows, security band, pricing.
    One committed light visual world (a product homepage), so colors are set explicitly rather than theme-switched. */
 :root {
@@ -8,7 +8,7 @@
   --paper: #F5F6FB;      /* page ground, faint cool grey */
   --card: #FFFFFF;
   --line: #E4E6F1;
-  --brand: #5B4CE0;      /* TimeInOut violet, kept from the current site */
+  --brand: #5B4CE0;      /* ClockInOut violet, kept from the current site */
   --in: #0FA97A;         /* clock-in green */
   --out: #E8613C;        /* clock-out coral */
   --amber: #F2A93B;      /* punch-card stamp */

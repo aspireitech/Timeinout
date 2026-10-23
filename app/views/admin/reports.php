@@ -1,15 +1,15 @@
-<?php $t = tenant(); $base = '/admin/reports?period=' . $period . '&date='; ?>
+<?php $t = tenant(); $base = '/admin/reports?period=' . $period . '&date='; $range = $period === 'custom' ? '&to=' . $to : ''; ?>
 <div class="topbar">
-  <div><h1>Reports</h1><div class="muted"><?= e(ucfirst($period)) ?> · <?= e($label) ?></div></div>
+  <div><h1>Reports</h1><div class="muted"><?= e($period === 'custom' ? 'Custom range' : ucfirst($period)) ?> · <?= e($label) ?></div></div>
   <div class="row">
-    <a class="btn btn-ghost" href="<?= e(url('/admin/reports/download?format=pdf&period=' . $period . '&date=' . $date)) ?>"><?= icon('download') ?> PDF</a>
-    <a class="btn btn-ghost" href="<?= e(url('/admin/reports/download?format=csv&period=' . $period . '&date=' . $date)) ?>"><?= icon('download') ?> CSV</a>
+    <a class="btn btn-ghost" href="<?= e(url('/admin/reports/download?format=pdf&period=' . $period . '&date=' . $date . $range)) ?>"><?= icon('download') ?> PDF</a>
+    <a class="btn btn-ghost" href="<?= e(url('/admin/reports/download?format=csv&period=' . $period . '&date=' . $date . $range)) ?>"><?= icon('download') ?> CSV</a>
     <details class="send-menu">
       <summary class="btn btn-primary"><?= icon('mail') ?> Email now</summary>
       <div class="send-pop card">
-        <form method="post" action="<?= e(url('/admin/reports/send')) ?>"><?= csrf_field() ?><input type="hidden" name="period" value="<?= e($period) ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="to" value="list">
+        <form method="post" action="<?= e(url('/admin/reports/send')) ?>"><?= csrf_field() ?><input type="hidden" name="period" value="<?= e($period) ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><?php if ($period === 'custom'): ?><input type="hidden" name="to" value="<?= e($to) ?>"><?php endif; ?><input type="hidden" name="send_to" value="list">
           <button class="btn btn-block">To report recipients</button></form>
-        <form method="post" action="<?= e(url('/admin/reports/send')) ?>"><?= csrf_field() ?><input type="hidden" name="period" value="<?= e($period) ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="to" value="me">
+        <form method="post" action="<?= e(url('/admin/reports/send')) ?>"><?= csrf_field() ?><input type="hidden" name="period" value="<?= e($period) ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><?php if ($period === 'custom'): ?><input type="hidden" name="to" value="<?= e($to) ?>"><?php endif; ?><input type="hidden" name="send_to" value="me">
           <button class="btn btn-block btn-ghost">Only to me (<?= e(current_user()['email']) ?>)</button></form>
       </div>
     </details>
@@ -20,12 +20,18 @@
   <form class="inline-form" method="get">
     <div class="field" style="flex:0 0 auto"><label>Period</label>
       <div class="row" style="gap:6px">
-        <?php foreach (['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly'] as $k => $l): ?>
-          <a class="btn btn-sm <?= $period === $k ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(url('/admin/reports?period=' . $k . '&date=' . $date)) ?>"><?= $l ?></a>
+        <?php foreach (['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', 'custom' => 'Custom range'] as $k => $l): ?>
+          <a class="btn btn-sm <?= $period === $k ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(url('/admin/reports?period=' . $k . '&date=' . ($k === 'custom' ? (new DateTime($date))->modify('first day of this month')->format('Y-m-d') . '&to=' . $date : $date))) ?>"><?= $l ?></a>
         <?php endforeach; ?>
       </div>
     </div>
     <input type="hidden" name="period" value="<?= e($period) ?>">
+    <?php if ($period === 'custom'): ?>
+      <div class="field" style="flex:0 1 180px"><label>From</label><input type="date" name="date" value="<?= e($from) ?>"></div>
+      <div class="field" style="flex:0 1 180px"><label>To</label><input type="date" name="to" value="<?= e($to) ?>"></div>
+      <button class="btn btn-sm btn-primary">Show</button>
+      <span class="muted small">Up to <?= REPORT_MAX_MONTHS ?> months per report.</span>
+    <?php else: ?>
     <div class="field" style="flex:0 1 200px"><label>Date in period</label><input type="date" name="date" value="<?= e($date) ?>" onchange="this.form.submit()"></div>
     <?php
       $step = ['daily' => '1 day', 'weekly' => '1 week', 'monthly' => '1 month'][$period];
@@ -34,6 +40,7 @@
     ?>
     <a class="btn btn-sm btn-ghost" href="<?= e(url($base . $prev)) ?>">← Previous</a>
     <a class="btn btn-sm btn-ghost" href="<?= e(url($base . $next)) ?>">Next →</a>
+    <?php endif; ?>
   </form>
 </div>
 

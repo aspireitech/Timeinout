@@ -45,11 +45,22 @@ function platform_routes(string $path): void
     dispatch($path, [
         ['GET',      '/',                    'platform_home'],
         ['GET|POST', '/signup',              'platform_signup'],
+        ['GET|POST', '/demo',                'platform_demo'],
+        ['GET|POST', '/report-activity',     'platform_report_activity'],
         ['GET',      '/check-address',       'platform_check_slug'],
         ['GET|POST', '/login',               'platform_find_login'],
         ['GET|POST', '/super/login',         'super_login'],
         ['GET|POST', '/super/verify',        'super_verify'],
         ['GET',      '/super/logout',        'super_logout'],
+        ['GET',      '/super/google',        'super_google_start'],
+        ['GET',      '/super/google/callback', 'super_google_callback'],
+        ['GET|POST', '/super/portals/new',   'super_portal_new'],
+        ['GET',      '/super/portals/created', 'super_portal_created'],
+        ['POST',     '/super/tenants/{id}/password', 'super_owner_password', 'Reset portal owner password'],
+        ['GET|POST', '/super/tenants/{id}/delete', 'super_tenant_delete'],
+        ['POST',     '/super/tenants/{id}/restore', 'super_tenant_restore', 'Restored deleted portal'],
+        ['GET',      '/super/leads',         'super_leads'],
+        ['POST',     '/super/leads/{id}',    'super_lead_update',   'Updated lead'],
         ['GET',      '/super',               'super_tenants'],
         ['POST',     '/super/tenants/{id}',  'super_update_tenant', 'Changed subscriber plan/status'],
         ['POST',     '/super/demo',          'super_seed_demo',     'Rebuilt demo portal'],
@@ -64,6 +75,7 @@ function platform_routes(string $path): void
 function tenant_routes(string $path): void
 {
     billing_gate($path);
+    enforce_password_change($path);
     // A 4th item names the change for the audit log; those posts are logged automatically.
     dispatch($path, [
         // Kiosk (the screen students, parents and teachers use)
@@ -71,6 +83,7 @@ function tenant_routes(string $path): void
         ['GET|POST', '/login',                     'login_page'],
         ['GET|POST', '/login/verify',              'login_verify'],
         ['GET',      '/logout',                    'logout_action'],
+        ['GET|POST', '/account/password',          'account_password',      'Changed own password'],
         ['GET',      '/api/search',                'api_search'],
         ['GET',      '/api/guardians',             'api_guardians'],
         ['GET',      '/api/status',                'api_status'],

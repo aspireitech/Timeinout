@@ -70,7 +70,22 @@ if ($resolved === false) {
 if ($resolved === null) {
     platform_routes($path);
 } else {
+    if (!empty($resolved['deleted_at'])) {
+        http_response_code(410);
+        view('partials/error', ['code' => 410, 'message' => 'This portal has been closed. Please contact your service provider.']);
+    }
     $GLOBALS['tenant'] = $resolved;
+    // A portal with its own database: every query from here on runs there
+    if (tenant_db_config($resolved)) {
+        try {
+            tenant_db_migrate($resolved);
+            use_tenant_db($resolved);
+        } catch (Throwable $ex) {
+            http_response_code(503);
+            view('partials/error', ['code' => 503, 'message' => 'This portal\'s database is not reachable right now. Please try again in a few minutes.'
+                . (cfg('debug') ? ' (' . $ex->getMessage() . ')' : '')]);
+        }
+    }
     // Suspended by the provider: everything is closed. A cancelled or unpaid subscription is
     // handled by billing_gate(), which still lets admins sign in and renew under Billing.
     if ($resolved['status'] === 'suspended') {

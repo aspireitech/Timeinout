@@ -271,11 +271,16 @@ function admin_import(): void
         $type = input('type') === 'teachers' ? 'teachers' : 'students';
         $f = $_FILES['file'] ?? null;
         if (!$f || $f['error'] !== UPLOAD_ERR_OK || $f['size'] > 5 * 1024 * 1024) {
-            flash('error', 'Please choose a CSV file under 5 MB.');
+            flash('error', 'Please choose a CSV or Excel (.xlsx) file under 5 MB.');
             redirect(url('/admin/import'));
         }
         audit_note(ucfirst($type) . ' file: ' . basename((string) ($f['name'] ?? '')));
-        $rows = csv_read($f['tmp_name']);
+        try {
+            $rows = sheet_read($f['tmp_name'], (string) ($f['name'] ?? ''));
+        } catch (RuntimeException $e) {
+            flash('error', $e->getMessage());
+            redirect(url('/admin/import'));
+        }
         if (!$rows) {
             flash('error', 'The file looks empty. The first row must be the column headers.');
             redirect(url('/admin/import'));
@@ -310,10 +315,10 @@ function admin_sample_students(): void
 {
     require_admin();
     csv_download('students-sample.csv', [
-        ['student_id', 'first_name', 'last_name', 'grade', 'guardian1_name', 'guardian1_relationship', 'guardian1_phone', 'guardian2_name', 'guardian2_relationship', 'guardian2_phone'],
-        ['S101', 'Olivia', 'Martin', 'Grade 1', 'Paul Martin', 'Father', '555-0201', 'Anna Martin', 'Mother', '555-0202'],
-        ['S102', 'Lucas', 'Nguyen', 'Grade 3', 'Minh Nguyen', 'Father', '555-0211', 'Lan Nguyen', 'Mother', '555-0212'],
-        ['S103', 'Sofia', 'Rossi', 'KG', 'Marco Rossi', 'Father', '555-0221', '', '', ''],
+        ['student_id', 'student_first_name', 'student_last_name', 'grade', 'father', 'father_phone', 'mother', 'mother_phone', 'relative1_name', 'relative1_relationship', 'relative1_phone'],
+        ['S101', 'Olivia', 'Martin', 'Grade 1', 'Paul Martin', '555-0201', 'Anna Martin', '555-0202', 'Rose Martin', 'Grandmother', '555-0203'],
+        ['S102', 'Lucas', 'Nguyen', 'Grade 3', 'Minh Nguyen', '555-0211', 'Lan Nguyen', '555-0212', '', '', ''],
+        ['S103', 'Sofia', 'Rossi', 'KG', 'Marco Rossi', '555-0221', 'Giulia Rossi', '', 'Luca Bianchi', 'Uncle', ''],
     ]);
 }
 
@@ -388,21 +393,26 @@ function admin_log_delete(int $id): void
 }
 
 // ---------- Reports ----------
+/** @return array{0:string,1:string,2:?string} period, date (start), end date for custom ranges */
 function report_params(): array
 {
-    $period = in_array(input('period'), ['daily', 'weekly', 'monthly'], true) ? (string) input('period') : 'daily';
+    $period = in_array(input('period'), ['daily', 'weekly', 'monthly', 'custom'], true) ? (string) input('period') : 'daily';
     $date = valid_date((string) input('date')) ? (string) input('date') : tenant_today();
-    return [$period, $date];
+    $end = $period === 'custom' ? (valid_date((string) input('to')) ? (string) input('to') : $date) : null;
+    if ($period === 'custom') {
+        [$date, $end] = report_period('custom', $date, $end); // ordered and capped at 6 months
+    }
+    return [$period, $date, $end];
 }
 
 function admin_reports(): void
 {
     require_admin();
-    [$period, $date] = report_params();
-    [$from, $to, $label] = report_period($period, $date);
+    [$period, $date, $end] = report_params();
+    [$from, $to, $label] = report_period($period, $date, $end);
     $r = report_build(tid(), $from, $to);
     $sent = rows('SELECT * FROM report_log WHERE tenant_id = ? ORDER BY sent_at DESC LIMIT 8', [tid()]);
-    admin_view('reports', compact('period', 'date', 'from', 'to', 'label', 'r', 'sent'));
+    admin_view('reports', compact('period', 'date', 'end', 'from', 'to', 'label', 'r', 'sent'));
 }
 
 function send_download(string $filename, string $mime, string $data): void
@@ -418,13 +428,13 @@ function send_download(string $filename, string $mime, string $data): void
 function admin_report_download(): void
 {
     require_admin();
-    [$period, $date] = report_params();
-    [$from, $to, $label] = report_period($period, $date);
+    [$period, $date, $end] = report_params();
+    [$from, $to, $label] = report_period($period, $date, $end);
     $r = report_build(tid(), $from, $to);
     $pdf = input('format') === 'pdf';
     audit('Downloaded ' . $period . ' report', $label, true, $pdf ? 'PDF' : 'CSV');
     if ($pdf) {
-        send_download("$period-report-$from.pdf", 'application/pdf', pdf_report(tenant(), ucfirst($period) . ' report — ' . $label, $r));
+        send_download("$period-report-$from.pdf", 'application/pdf', pdf_report(tenant(), ($period === 'custom' ? 'Report' : ucfirst($period) . ' report') . ' — ' . $label, $r));
     }
     send_download("$period-activity-$from.csv", 'text/csv; charset=utf-8', csv_string(report_csv_rows($r)));
 }
@@ -454,14 +464,14 @@ function admin_report_send(): void
 {
     require_admin();
     audit_skip(); // report_send() writes its own entry with recipients and attachments
-    [$period, $date] = report_params();
+    [$period, $date, $end] = report_params();
     $t = tenant();
-    if (input('to') === 'me') {
+    if (input('send_to') === 'me') {
         $t['report_emails'] = current_user()['email'];
     }
-    [$ok, $err] = report_send($t, $period, $date, 'manual');
+    [$ok, $err] = report_send($t, $period, $date, 'manual', $end);
     flash($ok ? 'success' : 'error', $ok ? 'Report emailed to ' . str_replace(',', ', ', (string) $t['report_emails']) . '.' : 'The report was not sent: ' . $err);
-    redirect(url("/admin/reports?period=$period&date=$date"));
+    redirect(url("/admin/reports?period=$period&date=$date" . ($end ? "&to=$end" : '')));
 }
 
 // ---------- Branding & settings ----------
@@ -523,7 +533,7 @@ function admin_settings(): void
 function admin_users(): void
 {
     require_admin();
-    $users = rows('SELECT id, name, email, role, last_login_at FROM users WHERE tenant_id = ? ORDER BY role, name', [tid()]);
+    $users = rows('SELECT id, name, email, username, role, must_change_password, last_login_at FROM users WHERE tenant_id = ? ORDER BY role, name', [tid()]);
     admin_view('users', compact('users'));
 }
 
@@ -539,31 +549,112 @@ function password_problem(string $pass, string $role): ?string
     return null;
 }
 
+/**
+ * Add a login. Staff sign in with a user ID (email optional, used for notices); admins need an
+ * email for sign-in codes. Leave the password empty to generate one. Optionally the person must
+ * choose a new password at first sign-in, and the details are emailed to them.
+ */
 function admin_user_save(): void
 {
     require_admin();
-    $email = strtolower((string) input('email'));
+    $name = mb_substr(trim((string) input('name')), 0, 120);
+    $email = strtolower(trim((string) input('email')));
+    $username = strtolower(trim((string) input('username')));
     $role = in_array(input('role'), ['admin', 'staff'], true) ? (string) input('role') : 'staff';
     $pass = (string) ($_POST['password'] ?? '');
-    audit_note($email . ' (' . $role . ')');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || input('name') === '') {
-        flash('error', 'Name and a valid email are required.');
-    } elseif ($p = password_problem($pass, $role)) {
-        flash('error', $p);
-    } elseif (val('SELECT id FROM users WHERE tenant_id = ? AND email = ?', [tid(), $email])) {
-        flash('error', 'A user with that email already exists.');
-    } else {
-        insert('users', ['tenant_id' => tid(), 'name' => mb_substr((string) input('name'), 0, 120), 'email' => $email, 'role' => $role, 'password_hash' => password_hash($pass, PASSWORD_DEFAULT)]);
-        flash('success', 'User added. Share the portal link and password with them.');
+    $generated = $pass === '';
+    if ($generated) {
+        $pass = temp_password();
     }
+    $mustChange = input('must_change') === '1';
+    audit_note(($username ?: $email) . ' (' . $role . ')');
+    $error = null;
+    if ($name === '') {
+        $error = 'Enter the person\'s name.';
+    } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'That email address does not look right.';
+    } elseif ($role === 'admin' && $email === '') {
+        $error = 'Admins need an email address: their sign-in code is sent there.';
+    } elseif ($username === '' && $email === '') {
+        $error = 'Enter a user ID or an email address to sign in with.';
+    } elseif ($username !== '' && !preg_match('/^[a-z0-9][a-z0-9._-]{2,39}$/', $username)) {
+        $error = 'User ID: 3–40 letters, numbers, dots, dashes or underscores (for example frontdesk or maria.k).';
+    } elseif ($username !== '' && str_contains($username, '@')) {
+        $error = 'A user ID cannot contain @.';
+    } elseif ($p = password_problem($pass, $role)) {
+        $error = $p;
+    } elseif ($email !== '' && val('SELECT id FROM users WHERE tenant_id = ? AND (email = ? OR username = ?)', [tid(), $email, $email])) {
+        $error = 'A login with that email already exists.';
+    } elseif ($username !== '' && val('SELECT id FROM users WHERE tenant_id = ? AND (username = ? OR email = ?)', [tid(), $username, $username])) {
+        $error = 'That user ID is already taken in this portal.';
+    }
+    if ($error) {
+        audit_skip();
+        flash('error', $error);
+        redirect(url('/admin/users'));
+    }
+    $id = insert('users', ['tenant_id' => tid(), 'name' => $name, 'email' => $email ?: null, 'username' => $username ?: null, 'role' => $role,
+        'password_hash' => password_hash($pass, PASSWORD_DEFAULT), 'must_change_password' => $mustChange ? 1 : 0]);
+    $u = row('SELECT * FROM users WHERE id = ?', [$id]);
+    user_credentials_result($u, $pass, $mustChange, false, input('send_email') === '1', $generated);
     redirect(url('/admin/users'));
+}
+
+/** Emails the login details when asked; otherwise (or when email fails) shows the password once. */
+function user_credentials_result(array $u, string $pass, bool $temporary, bool $reset, bool $send, bool $generated): void
+{
+    $sent = $send && !empty($u['email']) && user_credentials_mail($u, $pass, $temporary, $reset);
+    $what = $reset ? 'New password set for ' . $u['name'] : $u['name'] . ' was added';
+    if ($sent) {
+        flash('success', $what . '. The sign-in details were emailed to ' . $u['email'] . '.');
+        audit_note(login_name($u) . ' (' . $u['role'] . ')', 'Sign-in details emailed to ' . $u['email'] . ($temporary ? '; must change password at first sign-in' : ''));
+        return;
+    }
+    $why = $send && empty($u['email']) ? ' (no email address on this login, so nothing was emailed)' : ($send ? ' (the email could not be sent: ' . ($GLOBALS['mail_error'] ?? 'unknown error') . ')' : '');
+    flash($send ? 'error' : 'success', $what . $why . '. Give them these details yourself — shown only now: sign in with ' . login_name($u)
+        . ', ' . ($temporary ? 'temporary password ' : 'password ') . ($generated || $send ? $pass : '(the one you entered)') . ($temporary ? '. They will choose a new one at first sign-in.' : '.'));
+    audit_note(login_name($u) . ' (' . $u['role'] . ')', ($send ? 'Email not sent' : 'Not emailed') . ($temporary ? '; must change password at first sign-in' : ''));
+}
+
+/** Professional welcome / new-password email with the sign-in details. */
+function user_credentials_mail(array $u, string $pass, bool $temporary, bool $reset): bool
+{
+    $t = tenant();
+    $app = cfg('app_name');
+    $login = tenant_url($t, '/login');
+    $isAdmin = in_array($u['role'], ['owner', 'admin'], true);
+    $row = fn(string $k, string $v, bool $mono = false) => '<tr><td style="padding:10px 14px;color:#6b7090;font-size:13px;width:150px;border-bottom:1px solid #eceef6">' . $k . '</td>'
+        . '<td style="padding:10px 14px;font-size:15px;font-weight:600;color:#161b36;border-bottom:1px solid #eceef6;' . ($mono ? 'font-family:Consolas,Menlo,monospace;letter-spacing:.5px' : '') . '">' . $v . '</td></tr>';
+    $intro = $reset
+        ? 'A new ' . ($temporary ? 'temporary ' : '') . 'password has been set for your account at <b>' . e($t['name']) . '</b>.'
+        : 'An account has been created for you at <b>' . e($t['name']) . '</b>' . ($isAdmin ? ' with administrator access.' : ' so you can open the check-in kiosk.');
+    $next = $temporary
+        ? '<p style="margin:16px 0 0">For your security, you will be asked to choose your own password the first time you sign in. This temporary password stops working once you change it.</p>'
+        : '<p style="margin:16px 0 0">Please keep this password private. You can change it at any time after signing in.</p>';
+    $otp = $isAdmin && admin_otp_enabled() ? '<p style="margin:12px 0 0">When you sign in, we will also email you a 6-digit code to confirm it is you.</p>' : '';
+    $html = '<div style="background:#f3f4fa;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;color:#1f2340">'
+        . '<div style="max-width:560px;margin:auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px rgba(22,27,54,.08)">'
+        . '<div style="background:#5B4CE0;color:#fff;padding:22px 26px"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">' . e($app) . '</div>'
+        . '<div style="font-size:21px;font-weight:700;margin-top:4px">' . ($reset ? 'Your new password' : 'Welcome to ' . e($t['name'])) . '</div></div>'
+        . '<div style="padding:22px 26px;font-size:15px;line-height:1.55">'
+        . '<p style="margin:0 0 14px">Hello ' . e($u['name']) . ',</p><p style="margin:0 0 16px">' . $intro . '</p>'
+        . '<table style="width:100%;border-collapse:collapse;border:1px solid #eceef6;border-radius:12px">'
+        . $row('Sign-in page', '<a href="' . e($login) . '" style="color:#5B4CE0">' . e(preg_replace('#^https?://#', '', $login)) . '</a>')
+        . $row(!empty($u['username']) ? 'User ID' : 'Email', e(login_name($u)), true)
+        . $row($temporary ? 'Temporary password' : 'Password', e($pass), true)
+        . '</table>' . $next . $otp
+        . '<p style="margin:22px 0 0"><a href="' . e($login) . '" style="display:inline-block;background:#5B4CE0;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px">Sign in</a></p>'
+        . '<p style="margin:22px 0 0;color:#6b7090;font-size:13px">If you were not expecting this email, please ignore it and let your administrator know, or contact us at ' . e(contact_email()) . '.</p>'
+        . '<p style="margin:16px 0 0">Kind regards,<br>' . e($t['name']) . ' · ' . e($app) . '</p></div></div></div>';
+    $subject = $reset ? 'Your new ' . ($temporary ? 'temporary ' : '') . 'password for ' . $t['name'] : 'Your ' . $t['name'] . ' account on ' . $app;
+    return send_mail([(string) $u['email']], $subject, $html);
 }
 
 function admin_user_delete(int $id): void
 {
     $me = require_admin();
     $u = row('SELECT * FROM users WHERE id = ? AND tenant_id = ?', [$id, tid()]);
-    audit_note($u ? $u['email'] . ' (' . $u['role'] . ')' : "#$id");
+    audit_note($u ? login_name($u) . ' (' . $u['role'] . ')' : "#$id");
     if (!$u || $u['role'] === 'owner' || $u['id'] == $me['id']) {
         flash('error', 'That user cannot be removed.');
     } else {
@@ -578,15 +669,22 @@ function admin_user_password(int $id): void
 {
     $me = require_admin();
     $u = row('SELECT * FROM users WHERE id = ? AND tenant_id = ?', [$id, tid()]);
-    audit_note($u ? $u['email'] . ' (' . $u['role'] . ')' : "#$id");
+    audit_note($u ? login_name($u) . ' (' . $u['role'] . ')' : "#$id");
     $pass = (string) ($_POST['password'] ?? '');
+    $generated = $pass === '';
+    if ($generated) {
+        $pass = temp_password();
+    }
+    $mustChange = input('must_change') === '1';
     if (!$u || ($u['role'] === 'owner' && $u['id'] != $me['id'])) {
+        audit_skip();
         flash('error', "That user's password cannot be changed here.");
     } elseif ($p = password_problem($pass, $u['role'])) {
+        audit_skip();
         flash('error', $p);
     } else {
-        update('users', ['password_hash' => password_hash($pass, PASSWORD_DEFAULT)], 'id = ?', [$id]);
-        flash('success', 'New password set for ' . $u['name'] . '.');
+        update('users', ['password_hash' => password_hash($pass, PASSWORD_DEFAULT), 'must_change_password' => $mustChange ? 1 : 0], 'id = ?', [$id]);
+        user_credentials_result($u, $pass, $mustChange, true, input('send_email') === '1', $generated);
     }
     redirect(url('/admin/users'));
 }
@@ -596,7 +694,7 @@ function admin_password(): void
     $me = require_admin();
     $u = row('SELECT * FROM users WHERE id = ?', [$me['id']]);
     $new = (string) ($_POST['new_password'] ?? '');
-    audit_note($me['email']);
+    audit_note(login_name($u));
     if (!password_verify((string) ($_POST['current_password'] ?? ''), $u['password_hash'])) {
         flash('error', 'Current password is not correct.');
     } elseif ($p = password_problem($new, $u['role'])) {

@@ -84,30 +84,56 @@ function admin_otp_enabled(): bool
 function attempt_login(string $email, string $password): ?string
 {
     $scope = 't' . tid();
-    $email = strtolower(trim($email));
+    $email = strtolower(trim($email)); // an email address or a user ID
     $who = ['email' => $email, 'tenant_id' => tid(), 'name' => null];
     if (login_blocked($scope, $email)) {
         audit('Sign-in blocked', $email, false, 'Too many failed attempts in 15 minutes', $who);
         return 'Too many failed attempts. Please wait 15 minutes and try again.';
     }
-    $u = row('SELECT * FROM users WHERE tenant_id = ? AND email = ?', [tid(), $email]);
+    $u = find_login_user($email);
     if (!$u || !password_verify($password, $u['password_hash'])) {
         login_attempt($scope, $email, false);
-        audit('Sign-in', $email, false, $u ? 'Wrong password' : 'Unknown email', $who);
-        return 'That email and password do not match.';
+        audit('Sign-in', $email, false, $u ? 'Wrong password' : 'Unknown email or user ID', $who);
+        return 'That email or user ID and password do not match.';
     }
     login_attempt($scope, $email, true);
-    if (in_array($u['role'], ['owner', 'admin'], true) && admin_otp_enabled()) {
+    if (in_array($u['role'], ['owner', 'admin'], true) && admin_otp_enabled() && !empty($u['email'])) {
         return otp_start('t' . tid(), user_ref($u)) ? 'otp' : 'We could not email your sign-in code. Please contact your service provider.';
     }
     complete_login($u);
-    audit('Sign-in', $email, true, ucfirst($u['role']) . ' (kiosk)');
+    audit('Sign-in', login_name($u), true, ucfirst($u['role']) . (in_array($u['role'], ['owner', 'admin'], true) ? '' : ' (kiosk)'));
     return null;
+}
+
+/** Finds a login by email address or user ID in the current portal. */
+function find_login_user(string $login): ?array
+{
+    $login = strtolower(trim($login));
+    if ($login === '') {
+        return null;
+    }
+    return row('SELECT * FROM users WHERE tenant_id = ? AND (email = ? OR username = ?) ORDER BY email = ? DESC LIMIT 1', [tid(), $login, $login, $login]);
+}
+
+/** What a person types to sign in: their user ID when they have one, otherwise their email. */
+function login_name(array $u): string
+{
+    return (string) (($u['username'] ?? '') ?: ($u['email'] ?? ''));
 }
 
 function user_ref(array $u): array
 {
-    return ['id' => (int) $u['id'], 'tenant_id' => (int) $u['tenant_id'], 'name' => $u['name'], 'email' => $u['email'], 'role' => $u['role']];
+    return ['id' => (int) $u['id'], 'tenant_id' => (int) $u['tenant_id'], 'name' => $u['name'], 'email' => ($u['email'] ?? '') ?: login_name($u),
+            'username' => $u['username'] ?? null, 'role' => $u['role'], 'must_change' => !empty($u['must_change_password'])];
+}
+
+/** People who must choose a new password are sent to that page before anything else. */
+function enforce_password_change(string $path): void
+{
+    $u = current_user();
+    if ($u && !empty($u['must_change']) && !in_array($path, ['/account/password', '/logout'], true)) {
+        redirect(url('/account/password'));
+    }
 }
 
 function complete_login(array $u): void
@@ -142,7 +168,11 @@ function otp_start(string $scope, array $who): bool
         . '<h2 style="margin:0 0 8px">Your sign-in code</h2>'
         . '<p>Use this code to finish signing in to <b>' . e($place) . '</b>:</p>'
         . '<p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f0f1f8;border-radius:12px;padding:14px;text-align:center">' . $code . '</p>'
-        . '<p style="color:#6b7090;font-size:13px">It expires in 10 minutes. If you did not try to sign in, change your password and tell your administrator.</p></div>';
+        . '<p style="color:#6b7090;font-size:13px">It expires in 10 minutes. Never share this code: ' . e(cfg('app_name')) . ' staff will never ask for it.</p>'
+        . '<div style="margin-top:18px;border:1px solid #f3c7c9;background:#fff5f5;border-radius:14px;padding:14px 16px;font-size:13px;color:#7a2a2e">'
+        . '<b>Did not request this code?</b> Someone may know your password. Do not use the code, change your password, and '
+        . '<a href="' . e(suspicious_link($who, $place)) . '" style="color:#c0262d;font-weight:bold">report it to us</a>'
+        . ' (or email ' . e(contact_email()) . ').</div></div>';
     // The demo school's admin mailbox does not exist, so the code is shown on screen instead.
     $demo = (tenant()['slug'] ?? '') === DEMO_SLUG;
     $ok = $demo || send_mail([$who['email']], 'Your sign-in code: ' . $code, $html);
@@ -213,19 +243,136 @@ function super_check(string $email, string $password): ?string
         audit('Provider sign-in blocked', $email, false, 'Too many failed attempts', $who);
         return 'Too many failed attempts. Please wait 15 minutes and try again.';
     }
-    $stored = trim((string) ($sa['password'] ?? ''));
-    $passOk = str_starts_with($stored, '$2y$') ? password_verify($password, $stored) : ($stored !== '' && hash_equals($stored, $password));
+    $passOk = super_password_ok($password);
     $ok = $passOk && strcasecmp($email, trim((string) ($sa['email'] ?? ''))) === 0;
     login_attempt('super', $email, $ok);
     if (!$ok) {
         audit('Provider sign-in', $email, false, 'Wrong email or password', $who);
         return 'Wrong email or password. They must match super_admin in app/config.php.';
     }
-    if (setting('super_otp', '0') === '1') {
-        return otp_start('super', $who) ? 'otp' : 'We could not email your sign-in code. Check the email settings.';
+    return super_second_factor($who);
+}
+
+/**
+ * Every provider sign-in (password or Google) is finished with an emailed code.
+ * Only 'super_otp' => false in app/config.php (someone with server access) turns it off,
+ * for example while the email settings are being repaired.
+ */
+function super_second_factor(array $who): ?string
+{
+    if (cfg('super_otp', true) !== false) {
+        return otp_start('super', $who) ? 'otp' : 'We could not email your sign-in code. Check the email settings (or set super_otp to false in app/config.php until mail works).';
     }
-    super_complete($email);
+    super_complete($who['email']);
     return null;
+}
+
+/** Checks the provider password from app/config.php (plain text or a password_hash value). */
+function super_password_ok(string $password): bool
+{
+    $stored = trim((string) (cfg('super_admin')['password'] ?? ''));
+    $password = trim($password);
+    return str_starts_with($stored, '$2y$') ? password_verify($password, $stored) : ($stored !== '' && hash_equals($stored, $password));
+}
+
+/** Emails allowed to open /super: the super_admin email plus any listed in google_oauth.allowed_emails. */
+function super_emails(): array
+{
+    $list = array_merge([(string) (cfg('super_admin')['email'] ?? '')], (array) (cfg('google_oauth')['allowed_emails'] ?? []));
+    return array_values(array_filter(array_map(fn($e) => strtolower(trim((string) $e)), $list)));
+}
+
+// ---------- Sign in with Google (OpenID Connect, authorization code + PKCE) ----------
+function google_ready(): bool
+{
+    $g = cfg('google_oauth', []);
+    return !empty($g['client_id']) && !empty($g['client_secret']);
+}
+
+function google_redirect_uri(): string
+{
+    return scheme() . '://' . ($_SERVER['HTTP_HOST'] ?? cfg('base_domain')) . base_path() . '/super/google/callback';
+}
+
+/** The Google page to send the browser to. */
+function google_auth_url(): string
+{
+    $verifier = rtrim(strtr(base64_encode(random_bytes(48)), '+/', '-_'), '=');
+    $_SESSION['google'] = ['state' => bin2hex(random_bytes(16)), 'verifier' => $verifier, 'at' => time()];
+    return 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
+        'client_id'             => cfg('google_oauth')['client_id'],
+        'redirect_uri'          => google_redirect_uri(),
+        'response_type'         => 'code',
+        'scope'                 => 'openid email profile',
+        'state'                 => $_SESSION['google']['state'],
+        'code_challenge'        => rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='),
+        'code_challenge_method' => 'S256',
+        'prompt'                => 'select_account',
+        'login_hint'            => cfg('super_admin')['email'] ?? '',
+    ]);
+}
+
+function google_http(string $url, ?array $post = null, ?string $bearer = null): array
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15,
+        CURLOPT_HTTPHEADER => $bearer ? ['Authorization: Bearer ' . $bearer] : [],
+    ]);
+    if ($post !== null) {
+        curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => http_build_query($post)]);
+    }
+    $body = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    if ($body === false) {
+        throw new RuntimeException('Could not reach Google: ' . $err);
+    }
+    $data = json_decode((string) $body, true) ?: [];
+    if ($code >= 400) {
+        throw new RuntimeException('Google said: ' . ($data['error_description'] ?? $data['error'] ?? "HTTP $code"));
+    }
+    return $data;
+}
+
+/**
+ * Handles Google's redirect back. Returns 'otp' when the sign-in code was emailed, 'done' when
+ * signed in, or the reason Google sign-in failed (the password form always stays available).
+ */
+function google_callback(array $query): string
+{
+    $g = $_SESSION['google'] ?? null;
+    unset($_SESSION['google']);
+    if (!empty($query['error'])) {
+        return 'Google sign-in was cancelled (' . $query['error'] . ').';
+    }
+    if (!$g || time() - $g['at'] > 600 || !hash_equals($g['state'], (string) ($query['state'] ?? ''))) {
+        return 'Google sign-in expired or did not come from this page. Please try again.';
+    }
+    $tok = google_http('https://oauth2.googleapis.com/token', [
+        'client_id' => cfg('google_oauth')['client_id'], 'client_secret' => cfg('google_oauth')['client_secret'],
+        'code' => (string) ($query['code'] ?? ''), 'code_verifier' => $g['verifier'],
+        'grant_type' => 'authorization_code', 'redirect_uri' => google_redirect_uri(),
+    ]);
+    $info = google_http('https://openidconnect.googleapis.com/v1/userinfo', null, (string) ($tok['access_token'] ?? ''));
+    $email = strtolower(trim((string) ($info['email'] ?? '')));
+    $who = ['email' => $email, 'name' => 'Service provider', 'provider' => true];
+    if ($email === '' || empty($info['email_verified'])) {
+        return 'Google did not return a verified email address.';
+    }
+    if (login_blocked('super', $email)) {
+        audit('Provider sign-in blocked', $email, false, 'Too many failed attempts', $who);
+        return 'Too many failed attempts. Please wait 15 minutes and try again.';
+    }
+    $ok = in_array($email, super_emails(), true);
+    login_attempt('super', $email, $ok);
+    if (!$ok) {
+        audit('Provider sign-in (Google)', $email, false, 'This Google account is not allowed', $who);
+        return 'The Google account ' . $email . ' is not allowed to open the provider console.';
+    }
+    audit('Provider sign-in (Google)', $email, true, 'Google identity confirmed; email code next', $who);
+    return super_second_factor($who) ?? 'done';
 }
 
 function super_complete(string $email): void
@@ -248,4 +395,27 @@ function require_super(): void
         redirect(base_path() . '/super/login' . (isset($_GET['li']) ? '?nosession=1' : ''));
     }
     $_SESSION['super_seen'] = time();
+}
+
+// ---------- "I did not request this code" reports ----------
+/** Signed link in every sign-in code email; opening it lets the person report the attempt. */
+function suspicious_link(array $who, string $place): string
+{
+    $payload = rtrim(strtr(base64_encode(json_encode([
+        'e' => $who['email'], 'p' => $place, 'ip' => client_ip(), 't' => time(),
+        'ua' => mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 160),
+    ])), '+/', '-_'), '=');
+    $sig = substr(hash_hmac('sha256', $payload, app_key()), 0, 32);
+    return scheme() . '://' . cfg('base_domain') . '/report-activity?t=' . $payload . '.' . $sig;
+}
+
+/** Decodes a report link; null when it was altered or is older than 30 days. */
+function suspicious_token(string $token): ?array
+{
+    [$payload, $sig] = array_pad(explode('.', $token, 2), 2, '');
+    if ($payload === '' || !hash_equals(substr(hash_hmac('sha256', $payload, app_key()), 0, 32), $sig)) {
+        return null;
+    }
+    $d = json_decode((string) base64_decode(strtr($payload, '-_', '+/')), true);
+    return is_array($d) && time() - (int) ($d['t'] ?? 0) < 30 * 86400 ? $d : null;
 }
