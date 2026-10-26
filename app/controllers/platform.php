@@ -220,7 +220,7 @@ function super_settings(): void
         $before = ['driver' => $m['driver'] ?? '', 'host' => $m['host'] ?? '', 'port' => $m['port'] ?? '', 'secure' => $m['secure'] ?? '', 'user' => $m['user'] ?? '',
             'from_email' => $m['from_email'] ?? '', 'from_name' => $m['from_name'] ?? '', 'admin_otp' => setting('admin_otp', '1')];
         $new = [
-            'driver'     => input('driver') === 'mail' ? 'mail' : 'smtp',
+            'driver'     => in_array(input('driver'), ['mail', 'smtp', 'graph'], true) ? (string) input('driver') : 'smtp',
             'host'       => mb_substr((string) input('host'), 0, 190),
             'port'       => (string) max(1, min(65535, (int) input('port', '587'))),
             'secure'     => in_array(input('secure'), ['tls', 'ssl', ''], true) ? (string) input('secure') : 'tls',

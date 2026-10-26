@@ -106,6 +106,33 @@ The link opens a page with one button; pressing it emails contact@ with the subj
 **Suspicious activity reported — <account>**, the portal, the IP and the time of the attempt.
 (Opening the link alone does nothing, so email virus scanners cannot file false reports.)
 
+### Email through Microsoft Graph (Microsoft 365, no SMTP)
+
+Use this when Microsoft 365 refuses SMTP ("SmtpClientAuthentication is disabled for the Tenant"). Mail
+still comes from contact@ and reports@, through Microsoft's servers, so SPF/DKIM/DMARC pass unchanged.
+
+1. **Register the app**: https://entra.microsoft.com → Applications → **App registrations** → New registration →
+   name `ClockInOut Mail`, "Accounts in this organizational directory only" → Register.
+   Copy **Application (client) ID** and **Directory (tenant) ID** from the Overview page.
+2. **Permission**: API permissions → Add a permission → Microsoft Graph → **Application permissions** →
+   `Mail.Send` → Add → **Grant admin consent** (status turns green).
+3. **Secret**: Certificates & secrets → New client secret (24 months) → copy the **Value** (shown once).
+   Put a reminder in your calendar to renew it before it expires.
+4. **Limit it to the two mailboxes** (important: otherwise the app could send as any mailbox in your
+   company). Exchange Online PowerShell (`Connect-ExchangeOnline`):
+   ```powershell
+   New-DistributionGroup -Name "ClockInOut Senders" -Type Security -Members contact@clockinoutapp.com,reports@clockinoutapp.com
+   New-ApplicationAccessPolicy -AppId <client-id> -PolicyScopeGroupId "ClockInOut Senders" -AccessRight RestrictAccess -Description "ClockInOut may send only as contact@ and reports@"
+   Test-ApplicationAccessPolicy -AppId <client-id> -Identity contact@clockinoutapp.com   # AccessCheckResult: Granted
+   Test-ApplicationAccessPolicy -AppId <client-id> -Identity someone.else@clockinoutapp.com  # Denied
+   ```
+   (Microsoft's newer equivalent is "RBAC for Applications" in Exchange Online; either works.)
+5. **app/config.php**: set `'driver' => 'graph'` in `mail`, and fill in
+   `'graph' => ['tenant_id' => '…', 'client_id' => '…', 'client_secret' => '…']`.
+   The mailbox passwords in `mail_senders` are no longer needed (leave them empty).
+6. `/super → Settings → Send test email` from contact@ and from reports@. Changes in Entra can take a
+   few minutes to apply.
+
 ### 3b. Reports
 
 - Each portal sends **daily** (the previous day), **weekly** (last Monday–Sunday, sent on

@@ -77,11 +77,19 @@ return [
     // Email server. 'smtp' is recommended (Hostinger: smtp.hostinger.com, port 465, secure 'ssl').
     // Server settings can also be changed in /super → Settings, which wins over this file.
     'mail' => [
-        'driver'     => 'smtp',          // 'mail' or 'smtp'
+        'driver'     => 'smtp',          // 'graph' (Microsoft 365 via Graph), 'smtp' or 'mail'
         'host'       => 'smtp.hostinger.com',
         'port'       => 465,
         'secure'     => 'ssl',           // 'tls', 'ssl' or ''
         'from_name'  => 'ClockInOut',
+    ],
+
+    // Microsoft 365 without SMTP: set 'driver' => 'graph' above and fill this in (see docs/GO_LIVE.md, "Email
+    // through Microsoft Graph"). Mail is then sent as the from_email addresses below; no mailbox passwords needed.
+    'graph' => [
+        'tenant_id'     => '',   // Entra ID → Overview → Directory (tenant) ID
+        'client_id'     => '',   // App registration → Application (client) ID
+        'client_secret' => '',   // App registration → Certificates & secrets → client secret VALUE
     ],
 
     // The two mailboxes mail is sent from. Each signs in to SMTP with its own password.

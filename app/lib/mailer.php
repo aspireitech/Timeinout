@@ -22,6 +22,9 @@ function mail_config(string $sender = 'contact'): array
     } catch (Throwable $e) {
         // settings table not there yet: use config.php
     }
+    if ((cfg('mail')['driver'] ?? '') === 'graph') {
+        $m['driver'] = 'graph'; // Microsoft Graph chosen in config.php always wins
+    }
     $s = cfg('mail_senders', [])[$sender] ?? [];
     foreach (['from_email', 'from_name', 'user', 'pass'] as $k) {
         if (($s[$k] ?? '') !== '') {
@@ -57,6 +60,9 @@ function send_mail(array $to, string $subject, string $html, array $attachments 
     $m = mail_config($sender);
     $from = ($m['from_email'] ?? '') ?: $sender . '@' . cfg('base_domain');
     $fromName = ($m['from_name'] ?? '') ?: cfg('app_name');
+    if (($m['driver'] ?? '') === 'graph') {
+        return graph_send($from, $fromName, $to, $bcc, $subject, $html, $attachments, $sender !== 'contact' ? contact_email() : null);
+    }
     $encSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $headers = ['MIME-Version: 1.0', 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <$from>"];
     if ($sender !== 'contact') {
@@ -152,4 +158,79 @@ function smtp_send(array $c, string $from, array $to, array $headers, string $bo
     $cmd($data . "\r\n.", [250]);
     $cmd('QUIT', [221]);
     fclose($fp);
+}
+
+// ---------- Microsoft 365 through Microsoft Graph (no SMTP, no mailbox passwords) ----------
+// config.php: 'mail' => ['driver' => 'graph', …] and 'graph' => ['tenant_id', 'client_id', 'client_secret'].
+// The Entra app needs the Mail.Send application permission, limited to the sending mailboxes.
+
+function graph_http(string $method, string $url, array $headers, string $body): array
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_HTTPHEADER => $headers, CURLOPT_POSTFIELDS => $body]);
+    $resp = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    if ($resp === false) {
+        throw new RuntimeException('Could not reach Microsoft: ' . $err);
+    }
+    return [$code, json_decode((string) $resp, true) ?: []];
+}
+
+/** App-only access token, cached until shortly before it expires. */
+function graph_token(): string
+{
+    $g = cfg('graph', []);
+    if (empty($g['tenant_id']) || empty($g['client_id']) || empty($g['client_secret'])) {
+        throw new RuntimeException('Microsoft Graph is not set up: add tenant_id, client_id and client_secret under graph in app/config.php.');
+    }
+    $cache = APP_DIR . '/sessions/graph_token.json';
+    $c = is_file($cache) ? json_decode((string) file_get_contents($cache), true) : null;
+    if ($c && ($c['client'] ?? '') === $g['client_id'] && ($c['exp'] ?? 0) > time() + 120) {
+        return (string) decrypt_pii($c['token']);
+    }
+    [$code, $d] = graph_http('POST', rtrim($g['login_url'] ?? 'https://login.microsoftonline.com', '/') . '/' . rawurlencode($g['tenant_id']) . '/oauth2/v2.0/token',
+        ['Content-Type: application/x-www-form-urlencoded'], http_build_query([
+            'client_id' => $g['client_id'], 'client_secret' => $g['client_secret'],
+            'scope' => 'https://graph.microsoft.com/.default', 'grant_type' => 'client_credentials']));
+    if ($code !== 200 || empty($d['access_token'])) {
+        throw new RuntimeException('Microsoft sign-in failed: ' . ($d['error_description'] ?? $d['error'] ?? "HTTP $code"));
+    }
+    @file_put_contents($cache, json_encode(['client' => $g['client_id'], 'exp' => time() + (int) ($d['expires_in'] ?? 3600), 'token' => encrypt_pii($d['access_token'])]));
+    @chmod($cache, 0600);
+    return (string) $d['access_token'];
+}
+
+function graph_send(string $from, string $fromName, array $to, array $bcc, string $subject, string $html, array $attachments, ?string $replyTo): bool
+{
+    $addr = fn(array $list) => array_map(fn($a) => ['emailAddress' => ['address' => $a]], $list);
+    $msg = [
+        'subject' => $subject,
+        'body' => ['contentType' => 'HTML', 'content' => $html],
+        'from' => ['emailAddress' => ['address' => $from, 'name' => $fromName]],
+        'toRecipients' => $addr($to),
+    ];
+    if ($bcc) {
+        $msg['bccRecipients'] = $addr($bcc);
+    }
+    if ($replyTo) {
+        $msg['replyTo'] = $addr([$replyTo]);
+    }
+    foreach ($attachments as [$name, $mime, $data]) {
+        $msg['attachments'][] = ['@odata.type' => '#microsoft.graph.fileAttachment', 'name' => $name, 'contentType' => $mime, 'contentBytes' => base64_encode($data)];
+    }
+    try {
+        [$code, $d] = graph_http('POST', rtrim(cfg('graph')['api_url'] ?? 'https://graph.microsoft.com', '/') . '/v1.0/users/' . rawurlencode($from) . '/sendMail',
+            ['Authorization: Bearer ' . graph_token(), 'Content-Type: application/json'], json_encode(['message' => $msg, 'saveToSentItems' => false]));
+        if ($code === 202) {
+            return true;
+        }
+        $GLOBALS['mail_error'] = 'Microsoft Graph: ' . ($d['error']['message'] ?? "HTTP $code") . ($code === 403 ? ' (check the Mail.Send permission, admin consent and that ' . $from . ' is in the allowed mailboxes)' : '');
+    } catch (Throwable $e) {
+        $GLOBALS['mail_error'] = $e->getMessage();
+    }
+    error_log('Graph mail error: ' . $GLOBALS['mail_error']);
+    return false;
 }

@@ -8,7 +8,7 @@
       <?= csrf_field() ?>
       <div class="grid c2">
         <div class="field"><label for="s-driver">Send with</label>
-          <select id="s-driver" name="driver"><option value="smtp" <?= $mail ? '' : 'selected' ?>>SMTP server (recommended)</option><option value="mail" <?= $mail ? 'selected' : '' ?>>PHP mail() (often lands in spam)</option></select></div>
+          <select id="s-driver" name="driver"><option value="graph" <?= ($m['driver'] ?? '') === 'graph' ? 'selected' : '' ?>>Microsoft 365 (Graph API, set up in config.php)</option><option value="smtp" <?= ($m['driver'] ?? '') === 'smtp' ? 'selected' : '' ?>>SMTP server</option><option value="mail" <?= $mail ? 'selected' : '' ?>>PHP mail() (often lands in spam)</option></select></div>
         <div class="field"><label for="s-host">SMTP host</label><input type="text" id="s-host" name="host" value="<?= e($m['host'] ?? '') ?>" placeholder="mail.yourdomain.com"></div>
         <div class="field"><label for="s-port">Port</label><input type="number" id="s-port" name="port" value="<?= e($m['port'] ?? 587) ?>"><div class="hint">587 with TLS, or 465 with SSL.</div></div>
         <div class="field"><label for="s-secure">Encryption</label>
