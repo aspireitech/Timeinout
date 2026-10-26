@@ -175,7 +175,7 @@ function split_people(string $cell): array
     $out = [];
     foreach (preg_split('/\s*[;\n]\s*/', trim($cell)) as $p) {
         $p = trim($p);
-        if ($p === '' || is_blank_value($p)) {
+        if ($p === '' || is_blank_value($p) || strcasecmp($p, 'self') === 0) { // "Self": no guardian, the kiosk offers Self
             continue;
         }
         $out[] = preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/', $p, $m) ? [trim($m[1]), trim($m[2])] : [$p, null];

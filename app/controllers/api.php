@@ -71,6 +71,10 @@ function api_guardians(): void
     api_guard();
     $sid = (int) input('student_id');
     $list = rows('SELECT id, name, relationship FROM guardians WHERE tenant_id = ? AND student_id = ? ORDER BY id', [tid(), $sid]);
+    if (!$list) { // nobody on file (e.g. an adult learner): they sign themselves in and out
+        $st = row('SELECT first_name, last_name FROM students WHERE id = ? AND tenant_id = ?', [$sid, tid()]);
+        json_out($st ? [['id' => 0, 'name' => 'Self', 'relationship' => 'Signing in or out on their own', 'initials' => initials(full_name($st)), 'self' => true]] : []);
+    }
     json_out(array_map(fn($g) => ['id' => (int) $g['id'], 'name' => $g['name'], 'relationship' => $g['relationship'], 'initials' => initials($g['name'])], $list));
 }
 
@@ -147,6 +151,9 @@ function api_record(): void
     $guardian = null;
     if ($type === 'student' && $tile['needs_contact']) {
         $guardian = row('SELECT * FROM guardians WHERE id = ? AND student_id = ? AND tenant_id = ?', [$guardianId, $personId, tid()]);
+        if (!$guardian && $guardianId === 0 && !val('SELECT 1 FROM guardians WHERE student_id = ? AND tenant_id = ?', [$personId, tid()])) {
+            $guardian = ['id' => null, 'name' => 'Self']; // only allowed when no guardian is on file
+        }
         if (!$guardian) {
             json_out(['error' => 'Please choose who is with them.'], 422);
         }

@@ -102,7 +102,7 @@
 
   function whoHTML() {
     let sub = S.person.grade || (isStaff() ? S.tile.label : '');
-    if (S.guardian) sub = (sub ? sub + ' · ' : '') + 'with ' + S.guardian.name + (S.guardian.relationship ? ` (${S.guardian.relationship})` : '');
+    if (S.guardian) sub = (sub ? sub + ' · ' : '') + (S.guardian.self ? 'Self' : 'with ' + S.guardian.name + (S.guardian.relationship ? ` (${S.guardian.relationship})` : ''));
     return `<span class="avatar ${isStaff() ? 'teacher' : ''}">${esc(S.person.initials)}</span><div><div style="font-weight:800;font-size:1.15rem">${esc(S.person.name)}</div><div class="muted">${esc(sub)}</div></div>${S.tile.type === 'pickup' ? '' : badge(S.person.status)}`;
   }
 
