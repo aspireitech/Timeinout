@@ -170,11 +170,18 @@ function csv_read(string $file): array
 function csv_pick(array $row, array $keys): string
 {
     foreach ($keys as $k) {
-        if (($row[$k] ?? '') !== '') {
-            return $row[$k];
+        $v = trim((string) ($row[$k] ?? ''));
+        if ($v !== '' && !is_blank_value($v)) {
+            return $v;
         }
     }
     return '';
+}
+
+/** Cells that mean "nothing here": N/A, NA, none, -, null… are treated as empty. */
+function is_blank_value(string $v): bool
+{
+    return (bool) preg_match('/^(n\/?a|none|null|nil|-+|\.+|tbd|unknown|not available)$/i', trim($v));
 }
 
 function split_name(string $full): array
@@ -227,17 +234,28 @@ function import_students(int $tenantId, array $rows): array
             csv_pick($row, ['phone', 'guardianphone', 'parentphone']),
             csv_pick($row, ['email', 'guardianemail', 'parentemail']),
         ]];
-        // Simple layout: Father / Mother columns, plus up to two relatives with their relationship
+        // Simple layout: Father / Mother columns (also "Guardian (Father)"), plus authorized relatives
         foreach (['father' => 'Father', 'mother' => 'Mother'] as $k => $relName) {
-            $guardians[] = [csv_pick($row, [$k, $k . 'name']), $relName, csv_pick($row, [$k . 'phone', $k . 'mobile']), csv_pick($row, [$k . 'email'])];
+            $guardians[] = [csv_pick($row, [$k, $k . 'name', 'guardian' . $k, $k . 'sname', $k . 'guardian']), $relName,
+                csv_pick($row, [$k . 'phone', $k . 'mobile', 'guardian' . $k . 'phone']), csv_pick($row, [$k . 'email', 'guardian' . $k . 'email'])];
         }
         for ($i = 1; $i <= 2; $i++) {
             $guardians[] = [
-                csv_pick($row, ["relative{$i}name", "relative{$i}", "other{$i}name", "other{$i}"]),
+                csv_pick($row, ["relative{$i}name", "relative{$i}", "other{$i}name", "other{$i}", "authorizedrelative{$i}"]),
                 csv_pick($row, ["relative{$i}relationship", "relative{$i}relation", "other{$i}relationship"]) ?: 'Relative',
                 csv_pick($row, ["relative{$i}phone", "other{$i}phone"]),
                 csv_pick($row, ["relative{$i}email", "other{$i}email"]),
             ];
+        }
+        // "Authorized Relative" column: one or more people separated by ; or new lines,
+        // each optionally with the relationship in brackets: "Rose Martin (Grandmother); Tom Lee (Uncle)"
+        $auth = csv_pick($row, ['authorizedrelative', 'authorizedrelatives', 'authorizedpickup', 'authorizedperson', 'relative', 'relatives']);
+        foreach (preg_split('/\s*[;\n]\s*/', $auth) as $person) {
+            if (preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/', $person, $m)) {
+                $guardians[] = [trim($m[1]), trim($m[2]), '', ''];
+            } elseif (trim($person) !== '') {
+                $guardians[] = [trim($person), 'Authorized relative', '', ''];
+            }
         }
         for ($i = 1; $i <= 4; $i++) {
             $guardians[] = [
