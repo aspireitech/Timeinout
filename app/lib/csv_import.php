@@ -7,14 +7,20 @@
 /** Reads an uploaded CSV or .xlsx file into header-keyed rows. */
 function sheet_read(string $file, string $originalName): array
 {
+    return sheet_rows(sheet_table($file, $originalName));
+}
+
+/** Reads an uploaded CSV or .xlsx file as a plain table: list of rows, the first row being the headers. */
+function sheet_table(string $file, string $originalName): array
+{
     $head = (string) file_get_contents($file, false, null, 0, 4);
     if ($head === "PK\x03\x04" || str_ends_with(strtolower($originalName), '.xlsx')) {
-        return xlsx_read($file);
+        return xlsx_table($file);
     }
     if ($head === "\xD0\xCF\x11\xE0") {
         throw new RuntimeException('This is an old Excel .xls file. In Excel choose File → Save As → Excel Workbook (.xlsx) or CSV, then upload again.');
     }
-    return csv_read($file);
+    return csv_table($file);
 }
 
 /** Header row + data rows → the same shape csv_read() returns. */
@@ -41,8 +47,13 @@ function sheet_rows(array $table): array
     return $out;
 }
 
-/** First worksheet of an .xlsx workbook (Office Open XML), values only. */
 function xlsx_read(string $file): array
+{
+    return sheet_rows(xlsx_table($file));
+}
+
+/** First worksheet of an .xlsx workbook (Office Open XML), values only, as a table. */
+function xlsx_table(string $file): array
 {
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('This server cannot open .xlsx files (PHP zip extension missing). Save the sheet as CSV and upload that.');
@@ -131,10 +142,15 @@ function xlsx_read(string $file): array
             $table[] = array_replace($row, $cells);
         }
     }
-    return sheet_rows($table);
+    return $table;
 }
 
 function csv_read(string $file): array
+{
+    return sheet_rows(csv_table($file));
+}
+
+function csv_table(string $file): array
 {
     $raw = file_get_contents($file);
     $raw = preg_replace('/^\xEF\xBB\xBF/', '', (string) $raw); // Excel BOM
@@ -146,24 +162,15 @@ function csv_read(string $file): array
     $fh = fopen('php://temp', 'r+');
     fwrite($fh, $raw);
     rewind($fh);
-    $header = null;
-    $out = [];
+    $table = [];
     while (($r = fgetcsv($fh, 0, $delim, '"', '\\')) !== false) {
         if ($r === [null] || implode('', $r) === '') {
             continue;
         }
-        if ($header === null) {
-            $header = array_map(fn($h) => preg_replace('/[^a-z0-9]/', '', strtolower((string) $h)), $r);
-            continue;
-        }
-        $row = [];
-        foreach ($header as $i => $h) {
-            $row[$h] = trim((string) ($r[$i] ?? ''));
-        }
-        $out[] = $row;
+        $table[] = array_map(fn($v) => (string) $v, $r);
     }
     fclose($fh);
-    return $out;
+    return $table;
 }
 
 /** First non-empty value among several header spellings. */

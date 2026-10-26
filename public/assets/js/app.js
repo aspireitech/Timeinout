@@ -57,4 +57,18 @@
     });
     check();
   }
+
+  // Import "Match your columns": show the relationship box for guardians, the guardian picker for phone/email/relationship
+  const mapForm = document.getElementById('import-map');
+  if (mapForm) {
+    mapForm.querySelectorAll('select.map-field').forEach((sel) => {
+      const sync = () => {
+        const row = sel.closest('tr');
+        row.querySelector('.map-label').hidden = sel.value !== 'guardian';
+        row.querySelector('.map-target').hidden = !sel.value.startsWith('g_');
+      };
+      sel.addEventListener('change', sync);
+      sync();
+    });
+  }
 })();

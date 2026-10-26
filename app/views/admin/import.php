@@ -1,4 +1,4 @@
-<div class="topbar"><div><h1>Import from a spreadsheet</h1><div class="muted">Upload an Excel file (<b>.xlsx</b>) or a <b>CSV</b>. The first sheet is used and its first row must be the column headers. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
+<div class="topbar"><div><h1>Import from a spreadsheet</h1><div class="muted">Upload an Excel file (<b>.xlsx</b>) or a <b>CSV</b> with any columns: the first row must be the headers. Next you will match each column to a field, or keep it as extra info. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
 <div class="grid c2">
   <div class="card">
     <h3><span class="avatar" style="width:34px;height:34px"><?= icon('users', 18) ?></span> <?= e(term('a2')) ?><?= uses_contacts() ? ' &amp; ' . e(strtolower(term('c2'))) : '' ?></h3>

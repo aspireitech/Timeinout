@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 function setting(string $key, $default = null)
 {
@@ -56,6 +56,9 @@ function migrate(): void
         }
         if ($v < 6) {
             migration_6();
+        }
+        if ($v < 7) {
+            migration_7();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -238,4 +241,21 @@ function migration_6(): void
         q('ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0');
     }
     q('ALTER TABLE users MODIFY email VARCHAR(190) NULL');
+}
+
+/** Extra info from imported columns (encrypted JSON) and remembered column choices per portal. */
+function migration_7(): void
+{
+    foreach (['students', 'teachers'] as $table) {
+        if (!column_exists($table, 'extra')) {
+            q("ALTER TABLE $table ADD COLUMN extra TEXT NULL");
+        }
+    }
+    q("CREATE TABLE IF NOT EXISTS import_maps (
+        tenant_id INT UNSIGNED NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        mapping TEXT NOT NULL,
+        updated_at DATETIME NOT NULL,
+        PRIMARY KEY (tenant_id, type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }

@@ -264,39 +264,124 @@ function admin_material_delete(int $id): void
 }
 
 // ---------- CSV import ----------
+/** Step 1: upload a CSV or Excel file. It is read and kept briefly, then the columns are matched. */
 function admin_import(): void
 {
     require_admin();
     if (is_post()) {
+        audit_skip(); // the import itself is logged when the columns are confirmed
         $type = input('type') === 'teachers' ? 'teachers' : 'students';
         $f = $_FILES['file'] ?? null;
         if (!$f || $f['error'] !== UPLOAD_ERR_OK || $f['size'] > 5 * 1024 * 1024) {
             flash('error', 'Please choose a CSV or Excel (.xlsx) file under 5 MB.');
             redirect(url('/admin/import'));
         }
-        audit_note(ucfirst($type) . ' file: ' . basename((string) ($f['name'] ?? '')));
         try {
-            $rows = sheet_read($f['tmp_name'], (string) ($f['name'] ?? ''));
+            $table = sheet_table($f['tmp_name'], (string) ($f['name'] ?? ''));
         } catch (RuntimeException $e) {
             flash('error', $e->getMessage());
             redirect(url('/admin/import'));
         }
-        if (!$rows) {
-            flash('error', 'The file looks empty. The first row must be the column headers.');
+        $table = array_values(array_filter($table, fn($r) => implode('', array_map('strval', $r)) !== ''));
+        $headers = array_map(fn($h) => trim((string) $h), $table[0] ?? []);
+        $rows = array_slice($table, 1);
+        if (!$headers || !array_filter($headers) || !$rows) {
+            flash('error', 'The file looks empty. The first row must be the column headers, with people on the rows below.');
             redirect(url('/admin/import'));
         }
-        db()->beginTransaction();
-        $stats = $type === 'teachers' ? import_teachers(tid(), $rows) : import_students(tid(), $rows);
-        db()->commit();
-        $parts = [];
-        foreach ($stats as $k => $v) {
-            $parts[] = str_replace('_', ' ', $k) . ': ' . $v;
-        }
-        audit_note(ucfirst($type) . ' file: ' . basename((string) $f['name']), implode(', ', $parts) . ' (' . count($rows) . ' rows)');
-        flash('success', 'Import finished — ' . implode(', ', $parts) . '.');
-        redirect(url($type === 'teachers' ? '/admin/teachers' : '/admin/students'));
+        import_pending_clear();
+        $token = bin2hex(random_bytes(16));
+        file_put_contents(import_pending_file($token), json_encode(['headers' => $headers, 'rows' => $rows]));
+        $_SESSION['import'] = ['token' => $token, 'type' => $type, 'name' => basename((string) ($f['name'] ?? 'file')), 'tenant' => tid()];
+        redirect(url('/admin/import/map'));
     }
     admin_view('import');
+}
+
+function import_pending_file(string $token): string
+{
+    return APP_DIR . '/sessions/import_' . preg_replace('/[^a-f0-9]/', '', $token) . '.json';
+}
+
+/** Removes this person's pending file and any left over for more than a day. */
+function import_pending_clear(): void
+{
+    if (!empty($_SESSION['import']['token'])) {
+        @unlink(import_pending_file($_SESSION['import']['token']));
+    }
+    unset($_SESSION['import']);
+    foreach (glob(APP_DIR . '/sessions/import_*.json') ?: [] as $old) {
+        if (filemtime($old) < time() - 86400) {
+            @unlink($old);
+        }
+    }
+}
+
+/** Step 2: match each column to a field (or keep it as extra info), then import. */
+function admin_import_map(): void
+{
+    require_admin();
+    $p = $_SESSION['import'] ?? null;
+    $data = $p && (int) $p['tenant'] === tid() && is_file(import_pending_file($p['token'])) ? json_decode((string) file_get_contents(import_pending_file($p['token'])), true) : null;
+    if (!$data) {
+        audit_skip();
+        flash('error', 'Please upload the file again.');
+        redirect(url('/admin/import'));
+    }
+    $type = $p['type'];
+    [$headers, $rows] = [$data['headers'], $data['rows']];
+    if (input('cancel') === '1') {
+        audit_skip();
+        import_pending_clear();
+        redirect(url('/admin/import'));
+    }
+    $map = suggest_mapping($type, $headers, saved_mapping($type));
+    $error = null;
+    if (is_post()) {
+        $fields = import_fields($type);
+        foreach ($headers as $i => $h) {
+            $field = (string) ($_POST['field'][$i] ?? 'ignore');
+            $map[$i] = [isset($fields[$field]) ? $field : 'ignore', mb_substr(trim((string) ($_POST['label'][$i] ?? '')), 0, 40),
+                ($_POST['target'][$i] ?? '') === '' ? null : (int) $_POST['target'][$i]];
+            if ($map[$i][0] !== 'guardian') {
+                $map[$i][1] = '';
+            }
+            if (!str_starts_with($map[$i][0], 'g_')) {
+                $map[$i][2] = null;
+            }
+        }
+        $error = mapping_problem($type, $map);
+        if ($error === null) {
+            save_mapping($type, $headers, $map);
+            $records = mapped_records($type, $headers, $rows, $map);
+            db()->beginTransaction();
+            $stats = $type === 'teachers' ? import_teacher_records(tid(), $records) : import_student_records(tid(), $records);
+            db()->commit();
+            import_pending_clear();
+            $parts = [];
+            foreach ($stats as $k => $v) {
+                $parts[] = str_replace('_', ' ', $k) . ': ' . $v;
+            }
+            $extra = array_values(array_map(fn($i) => $headers[$i], array_keys(array_filter($map, fn($m) => $m[0] === 'extra'))));
+            audit_note(ucfirst($type) . ' file: ' . $p['name'], implode(', ', $parts) . ' (' . count($rows) . ' rows)' . ($extra ? '; extra info: ' . implode(', ', $extra) : ''));
+            flash('success', 'Import finished — ' . implode(', ', $parts) . '.' . ($extra ? ' Kept as extra info: ' . implode(', ', $extra) . '.' : ''));
+            redirect(url($type === 'teachers' ? '/admin/teachers' : '/admin/students'));
+        }
+        audit_skip();
+    }
+    $samples = [];
+    foreach ($headers as $i => $h) {
+        $vals = [];
+        foreach ($rows as $r) {
+            $x = trim((string) ($r[$i] ?? ''));
+            if ($x !== '' && count($vals) < 3) {
+                $vals[] = mb_substr($x, 0, 40);
+            }
+        }
+        $samples[$i] = $vals;
+    }
+    admin_view('import_map', ['type' => $type, 'fileName' => $p['name'], 'headers' => $headers, 'samples' => $samples, 'map' => $map,
+        'fields' => import_fields($type), 'count' => count($rows), 'error' => $error]);
 }
 
 function csv_download(string $filename, array $rows): void

@@ -21,6 +21,7 @@ require APP_DIR . '/lib/auth.php';
 require APP_DIR . '/lib/mailer.php';
 require APP_DIR . '/lib/reports.php';
 require APP_DIR . '/lib/csv_import.php';
+require APP_DIR . '/lib/import_map.php';
 require APP_DIR . '/lib/demo.php';
 require APP_DIR . '/lib/crypto.php';
 require APP_DIR . '/lib/audit.php';
