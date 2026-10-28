@@ -68,6 +68,7 @@ function platform_routes(string $path): void
         ['POST',     '/super/tenants/{id}',  'super_update_tenant', 'Changed subscriber plan/status'],
         ['POST',     '/super/demo',          'super_seed_demo',     'Rebuilt demo portal'],
         ['GET|POST', '/super/settings',      'super_settings'],
+        ['GET|POST', '/super/security',      'super_security',      'Changed provider sign-in security'],
         ['GET',      '/super/audit',         'super_audit'],
         ['GET|POST', '/super/payments',      'super_payments'],
         ['POST',     '/webhooks/stripe',     'webhook_stripe'],

@@ -157,6 +157,21 @@ still comes from contact@ and reports@, through Microsoft's servers, so SPF/DKIM
 - If email itself breaks, someone with server access can set `'super_otp' => false` in
   `app/config.php`, sign in, fix email in `/super → Settings`, then set it back to `true`.
 
+### Remove the password from config.php (recommended)
+
+1. Sign in, open **`/super` → Sign-in**, and under **Change password** set a new password
+   (14+ characters). It is stored **hashed in the database**.
+2. Delete the `'password' => '…'` line from `super_admin` in `app/config.php` (keep the email).
+3. On the same page click **Create recovery codes** and save the 10 codes in your password
+   manager. If the sign-in code email ever fails, the code page offers **"Use a recovery code"**;
+   each code works once, and you get an email whenever one is used.
+4. Last resort, if Google, email and recovery codes all fail (needs server/SSH access):
+   `php cron/super_password.php --recovery` sets a new password in the database and prints new
+   recovery codes.
+
+Order of sign-in options: **Google → emailed code**, or **password → emailed code**, with
+**recovery codes** replacing the emailed code when email is down.
+
 ### Turn on Sign in with Google
 
 1. https://console.cloud.google.com → create a project “ClockInOut”.

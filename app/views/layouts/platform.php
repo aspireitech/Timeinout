@@ -17,6 +17,7 @@
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/payments') ?>">Payments</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/audit') ?>">Audit log</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/settings') ?>">Settings</a>
+        <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/security') ?>">Sign-in</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/logout') ?>">Log out</a>
       <?php else: ?>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/#pricing') ?>">Pricing</a>

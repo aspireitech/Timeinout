@@ -436,3 +436,5 @@ label.sub { font-size: .78rem; color: var(--muted); font-weight: 600; margin-bot
 .wn-final { text-align: center; padding: 30px; }
 .wn-public { margin-top: 10px; }
 @media (max-width: 900px) { .wn-road, .wn-request { grid-template-columns: 1fr; } .wn-hero { padding: 30px 20px; border-radius: 22px; } .wn-request { padding: 20px 16px; } }
+.rc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 16px; }
+.rc-grid code { background: var(--soft); border-radius: 10px; padding: 10px; text-align: center; font-size: 1.05rem; letter-spacing: .12em; }

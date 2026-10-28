@@ -248,7 +248,7 @@ function super_check(string $email, string $password): ?string
     login_attempt('super', $email, $ok);
     if (!$ok) {
         audit('Provider sign-in', $email, false, 'Wrong email or password', $who);
-        return 'Wrong email or password. They must match super_admin in app/config.php.';
+        return 'Wrong email or password.';
     }
     return super_second_factor($who);
 }
@@ -261,18 +261,90 @@ function super_check(string $email, string $password): ?string
 function super_second_factor(array $who): ?string
 {
     if (cfg('super_otp', true) !== false) {
-        return otp_start('super', $who) ? 'otp' : 'We could not email your sign-in code. Check the email settings (or set super_otp to false in app/config.php until mail works).';
+        if (otp_start('super', $who)) {
+            return 'otp';
+        }
+        if (super_recovery_left() > 0) { // email is down: let the provider use a recovery code instead
+            $_SESSION['otp']['super'] = ['who' => $who, 'hash' => null, 'expires' => time() + OTP_TTL, 'tries' => 0, 'sent' => time(), 'mail_failed' => true];
+            return 'otp';
+        }
+        return 'We could not email your sign-in code. Check the email settings, or use the server command in docs/GO_LIVE.md.';
     }
     super_complete($who['email']);
     return null;
 }
 
 /** Checks the provider password from app/config.php (plain text or a password_hash value). */
+/**
+ * Checks the provider password. Once a password is set in /super → Settings (stored hashed in the
+ * database), the one in app/config.php is ignored and can be removed from that file.
+ */
 function super_password_ok(string $password): bool
 {
-    $stored = trim((string) (cfg('super_admin')['password'] ?? ''));
     $password = trim($password);
+    $hash = (string) setting('super_password_hash', '');
+    if ($hash !== '') {
+        return $password !== '' && password_verify($password, $hash);
+    }
+    $stored = trim((string) (cfg('super_admin')['password'] ?? ''));
     return str_starts_with($stored, '$2y$') ? password_verify($password, $stored) : ($stored !== '' && hash_equals($stored, $password));
+}
+
+function super_password_set(string $password): void
+{
+    setting_set('super_password_hash', password_hash($password, PASSWORD_DEFAULT));
+}
+
+function super_password_problem(string $password): ?string
+{
+    if (strlen($password) < 14) {
+        return 'Use at least 14 characters.';
+    }
+    if (!preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password)) {
+        return 'Use letters and at least one number.';
+    }
+    return null;
+}
+
+// ---------- Recovery codes: used instead of the emailed code when email is down ----------
+/** Makes 10 new one-time codes (shown once), replacing any old ones. */
+function super_recovery_generate(): array
+{
+    $codes = [];
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for ($n = 0; $n < 10; $n++) {
+        $c = '';
+        for ($i = 0; $i < 12; $i++) {
+            $c .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+        $codes[] = substr($c, 0, 4) . '-' . substr($c, 4, 4) . '-' . substr($c, 8, 4);
+    }
+    setting_set('super_recovery', json_encode(array_map(fn($c) => password_hash($c, PASSWORD_DEFAULT), $codes)));
+    return $codes;
+}
+
+function super_recovery_left(): int
+{
+    return count(json_decode((string) setting('super_recovery', '[]'), true) ?: []);
+}
+
+/** Uses up a recovery code. True when it was valid. */
+function super_recovery_use(string $code): bool
+{
+    $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code));
+    if (strlen($code) !== 12) {
+        return false;
+    }
+    $code = substr($code, 0, 4) . '-' . substr($code, 4, 4) . '-' . substr($code, 8, 4);
+    $hashes = json_decode((string) setting('super_recovery', '[]'), true) ?: [];
+    foreach ($hashes as $i => $h) {
+        if (password_verify($code, $h)) {
+            unset($hashes[$i]);
+            setting_set('super_recovery', json_encode(array_values($hashes)));
+            return true;
+        }
+    }
+    return false;
 }
 
 /** Emails allowed to open /super: the super_admin email plus any listed in google_oauth.allowed_emails. */

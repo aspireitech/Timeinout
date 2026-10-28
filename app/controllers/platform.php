@@ -124,9 +124,31 @@ function super_verify(): void
         redirect(base_path() . '/super/login');
     }
     $error = $info = null;
+    if (!empty($o['mail_failed'])) {
+        $info = 'The sign-in code email could not be sent. Use one of your recovery codes below.';
+    }
     if (is_post()) {
-        if (input('resend') === '1') {
+        if (input('recovery') !== '') {
+            $who = $o['who'];
+            if (login_blocked('super-recovery', $who['email'])) {
+                $error = 'Too many wrong recovery codes. Please wait 15 minutes.';
+            } elseif (super_recovery_use((string) input('recovery'))) {
+                login_attempt('super-recovery', $who['email'], true);
+                audit('Provider sign-in with recovery code', $who['email'], true, super_recovery_left() . ' recovery codes left', $who);
+                super_complete($who['email']);
+                send_mail([(string) (cfg('super_admin')['email'] ?? '')], cfg('app_name') . ': a recovery code was used',
+                    '<p>A recovery code was used to sign in to the provider console on ' . gmdate('M j, Y H:i') . ' UTC from ' . e(client_ip()) . '. '
+                    . super_recovery_left() . ' codes are left. If this was not you, change the provider password and create new recovery codes now.</p>');
+                redirect(base_path() . '/super?li=1');
+            } else {
+                login_attempt('super-recovery', $who['email'], false);
+                audit('Provider sign-in with recovery code', $who['email'], false, 'Wrong or used code', $who);
+                $error = 'That recovery code is not valid (each code works once).';
+            }
+        } elseif (input('resend') === '1') {
             $info = otp_resend('super');
+        } elseif (!empty($o['mail_failed'])) {
+            $error = 'No code was emailed. Use a recovery code.';
         } elseif (($error = otp_check('super', (string) input('code'))) === null) {
             super_complete($o['who']['email']);
             redirect(base_path() . '/super?li=1');
@@ -134,8 +156,37 @@ function super_verify(): void
             redirect(base_path() . '/super/login');
         }
     }
-    view('auth/verify', ['error' => $error, 'info' => $info, 'email' => $o['who']['email'], 'demoCode' => null,
+    view('auth/verify', ['error' => $error, 'info' => $info, 'email' => $o['who']['email'], 'demoCode' => null, 'recovery' => true,
         'action' => base_path() . '/super/verify', 'back' => base_path() . '/super/login'], 'platform');
+}
+
+/** Provider password (stored hashed in the database) and recovery codes. */
+function super_security(): void
+{
+    require_super();
+    $codes = null;
+    if (is_post()) {
+        if (input('action') === 'password') {
+            $new = (string) ($_POST['new_password'] ?? '');
+            if (!super_password_ok((string) ($_POST['current_password'] ?? ''))) {
+                audit_note('Provider password', 'Not changed: current password wrong');
+                flash('error', 'Your current password is not correct.');
+            } elseif ($new !== (string) ($_POST['confirm_password'] ?? '')) {
+                flash('error', 'The two new passwords do not match.');
+            } elseif ($p = super_password_problem($new)) {
+                flash('error', $p);
+            } else {
+                super_password_set($new);
+                audit_note('Provider password', 'Changed; stored hashed in the database');
+                flash('success', 'Password saved (hashed in the database). You can now remove the password from app/config.php.');
+            }
+        } elseif (input('action') === 'recovery') {
+            $codes = super_recovery_generate();
+            audit_note('Recovery codes', '10 new codes created; old codes no longer work');
+        }
+    }
+    view('platform/super_security', ['codes' => $codes, 'left' => super_recovery_left(), 'dbPassword' => (string) setting('super_password_hash', '') !== '',
+        'configPassword' => trim((string) (cfg('super_admin')['password'] ?? '')) !== ''], 'platform');
 }
 
 function super_logout(): void
