@@ -23,6 +23,8 @@
   })();
 </script>
 <link rel="icon" href="<?= asset('img/favicon.svg') ?>" type="image/svg+xml">
+<link rel="icon" href="<?= asset('img/favicon-32.png') ?>" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="<?= asset('img/apple-touch-icon.png') ?>">
 <?php if ($t = tenant()): ?>
 <style>:root { --brand: <?= e(hex_color($t['primary_color'], '#6C5CE7')) ?>; --accent: <?= e(hex_color($t['accent_color'], '#00B894')) ?>; }</style>
 <?php endif; ?>

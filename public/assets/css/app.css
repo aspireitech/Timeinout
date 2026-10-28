@@ -156,6 +156,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 /* ---------- Platform (marketing) ---------- */
 .pnav { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; gap: 12px; }
 .pnav .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; color: var(--ink); text-decoration: none; }
+.pnav .logo-mark { background: #161B36; color: #F2A93B; }
 .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
 .hero { padding: 50px 0 40px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
 .hero h1 { font-size: clamp(2rem, 4.5vw, 3.2rem); letter-spacing: -.03em; }
