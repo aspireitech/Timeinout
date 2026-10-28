@@ -42,6 +42,9 @@ function dispatch(string $path, array $routes): void
 
 function platform_routes(string $path): void
 {
+    if (preg_match('#^/for/([a-z-]+)$#', $path, $m) && isset(CAMPAIGNS[$m[1]])) {
+        platform_campaign($m[1]);
+    }
     dispatch($path, [
         ['GET',      '/',                    'platform_home'],
         ['GET|POST', '/signup',              'platform_signup'],

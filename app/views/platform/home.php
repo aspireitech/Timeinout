@@ -130,6 +130,7 @@
     <p>Create your space in a minute and put it on a tablet today.</p>
     <a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a>
   </section>
-  <footer>© <?= date('Y') ?> <?= e(cfg('app_name')) ?> · <a href="<?= e(base_path()) ?>/login">Sign in to your space</a></footer>
+  <footer><div class="camp-more">Solutions: <?php foreach (CAMPAIGNS as $k => $x): ?><a href="<?= e(base_path() . '/for/' . $k) ?>"><?= e($x['nav']) ?></a><?php endforeach; ?></div>
+    © <?= date('Y') ?> <?= e(cfg('app_name')) ?> · <a href="<?= e(base_path()) ?>/login">Sign in to your space</a></footer>
 </div>
 

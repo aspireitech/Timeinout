@@ -608,8 +608,8 @@ function platform_demo(): void
         }
         if (!$errors) {
             if (!$bot) {
-                $id = insert('leads', $d + ['status' => 'new', 'ip' => client_ip(), 'created_at' => gmdate('Y-m-d H:i:s')]);
-                $ok = lead_notify($d);
+                $id = insert('leads', $d + ['status' => 'new', 'ip' => client_ip(), 'source' => lead_source(), 'created_at' => gmdate('Y-m-d H:i:s')]);
+                $ok = lead_notify($d + ['source' => lead_source()]);
                 update('leads', ['emailed' => $ok ? 1 : 0], 'id = ?', [$id]);
                 audit('Demo request', $d['company'] . ' — ' . $d['name'], true, $ok ? 'Emailed to ' . lead_inbox() : 'Saved; email failed: ' . ($GLOBALS['mail_error'] ?? ''),
                     ['email' => $d['email'], 'name' => $d['name']]);
@@ -634,6 +634,9 @@ function lead_notify(array $d): bool
         'Phone' => '<a href="tel:' . e(preg_replace('/[^0-9+]/', '', $d['phone'])) . '">' . e($d['phone']) . '</a>',
         'Industry' => e(industry($d['industry'])['name']), 'People' => e(EMPLOYEE_RANGES[$d['employees']] ?? $d['employees']),
     ];
+    if (!empty($d['source'])) {
+        $rows['Came from'] = e($d['source']);
+    }
     $rows['Name'] = e($rows['Name']);
     $tr = '';
     foreach ($rows as $k => $v) {
@@ -661,9 +664,9 @@ function super_leads(): void
     $where = isset(LEAD_STATUSES[$status]) ? 'WHERE status = ?' : '';
     $leads = rows("SELECT * FROM leads $where ORDER BY created_at DESC LIMIT 1000", $where ? [$status] : []);
     if (input('export') === 'csv') {
-        $out = [['Date (UTC)', 'Name', 'Email', 'Organization', 'Phone', 'Industry', 'People', 'Status', 'Message', 'Notes']];
+        $out = [['Date (UTC)', 'Name', 'Email', 'Organization', 'Phone', 'Industry', 'People', 'Source', 'Status', 'Message', 'Notes']];
         foreach ($leads as $l) {
-            $out[] = [$l['created_at'], $l['name'], $l['email'], $l['company'], $l['phone'], industry((string) $l['industry'])['name'], $l['employees'], $l['status'], $l['message'], $l['notes']];
+            $out[] = [$l['created_at'], $l['name'], $l['email'], $l['company'], $l['phone'], industry((string) $l['industry'])['name'], $l['employees'], $l['source'] ?? '', $l['status'], $l['message'], $l['notes']];
         }
         send_download('leads.csv', 'text/csv; charset=utf-8', csv_string($out));
     }
@@ -820,4 +823,17 @@ function super_request_update(int $id): void
         flash('success', 'Request updated. The customer sees the new status in their portal.');
     }
     redirect(base_path() . '/super/requests' . (input('back') !== '' ? '?status=' . urlencode((string) input('back')) : ''));
+}
+
+// ---------- Campaign landing pages (/for/<key>) ----------
+function platform_campaign(string $key): void
+{
+    view('platform/campaign', ['key' => $key, 'c' => CAMPAIGNS[$key]], 'home');
+}
+
+/** Campaign / referral tag from ?src= (letters, numbers, dashes). */
+function lead_source(): ?string
+{
+    $s = strtolower(substr((string) input('src'), 0, 40));
+    return preg_match('/^[a-z0-9][a-z0-9_-]*$/', $s) ? $s : null;
 }

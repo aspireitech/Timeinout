@@ -34,6 +34,7 @@
     <form class="lead-card" method="post" action="<?= e(base_path() . '/demo') ?>" novalidate>
       <?= csrf_field() ?>
       <?php if (isset($errors['form'])): ?><div class="flash error"><?= e($errors['form']) ?></div><?php endif; ?>
+      <?php if ($src = lead_source()): ?><input type="hidden" name="src" value="<?= e($src) ?>"><?php endif; ?>
       <div class="lead-hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
       <div class="grid c2">
         <div class="field"><label for="l-name">Full name</label>

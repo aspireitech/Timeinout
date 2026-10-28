@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 function setting(string $key, $default = null)
 {
@@ -62,6 +62,9 @@ function migrate(): void
         }
         if ($v < 8) {
             migration_8();
+        }
+        if ($v < 9) {
+            migration_9();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -285,4 +288,12 @@ function migration_8(): void
         KEY ix_fr_tenant (tenant_id, created_at),
         KEY ix_fr_status (status, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Which campaign page or link a demo request came from (?src=…). */
+function migration_9(): void
+{
+    if (!column_exists('leads', 'source')) {
+        q('ALTER TABLE leads ADD COLUMN source VARCHAR(40) NULL AFTER message');
+    }
 }

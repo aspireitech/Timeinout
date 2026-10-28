@@ -17,7 +17,8 @@
         <td class="small nowrap"><?= e(date('M j, Y', strtotime($l['created_at']))) ?><br><span class="muted"><?= e(date('H:i', strtotime($l['created_at']))) ?> UTC</span>
           <?php if (!$l['emailed']): ?><br><span class="badge warn">email not sent</span><?php endif; ?></td>
         <td class="small"><b><?= e($l['name']) ?></b><br><a href="mailto:<?= e($l['email']) ?>"><?= e($l['email']) ?></a><br><a href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string) $l['phone'])) ?>"><?= e($l['phone']) ?></a></td>
-        <td class="small"><b><?= e($l['company']) ?></b><br><?= e(industry((string) $l['industry'])['name']) ?><br><span class="muted"><?= e(EMPLOYEE_RANGES[$l['employees']] ?? $l['employees']) ?> people</span></td>
+        <td class="small"><b><?= e($l['company']) ?></b><br><?= e(industry((string) $l['industry'])['name']) ?><br><span class="muted"><?= e(EMPLOYEE_RANGES[$l['employees']] ?? $l['employees']) ?> people</span>
+          <?php if (!empty($l['source'])): ?><br><span class="badge student">via <?= e($l['source']) ?></span><?php endif; ?></td>
         <td class="small" style="max-width:280px"><?= nl2br(e((string) $l['message'])) ?: '<span class="muted">—</span>' ?></td>
         <td>
           <form method="post" action="<?= e(base_path() . '/super/leads/' . $l['id']) ?>" class="stack">
