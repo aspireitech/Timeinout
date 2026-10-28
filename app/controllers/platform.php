@@ -618,7 +618,8 @@ function platform_demo(): void
         }
         $old = $d;
     }
-    view('platform/demo', ['old' => $old, 'errors' => $errors, 'sent' => $sent, 'demo' => $sent ? demo_tenant() : null], 'platform');
+    view('platform/demo', ['old' => $old, 'errors' => $errors, 'sent' => $sent, 'demo' => $sent ? demo_tenant() : null,
+        'metaTitle' => 'Book a live demo | ' . cfg('app_name'), 'metaDesc' => 'See ClockInOut with your own people: two-tap check-in, safe pickups, live attendance and reports by email.'], 'platform');
 }
 
 function lead_inbox(): string
@@ -798,7 +799,8 @@ function super_tenant_restore(int $id): void
 // ---------- Public "What's new" and provider view of feature requests ----------
 function platform_whats_new(): void
 {
-    view('platform/whats_new', [], 'platform');
+    view('platform/whats_new', ['metaTitle' => "What's new in " . cfg('app_name'), 'metaDesc' => 'Latest releases and what we are building next: missed check-out reminders, a support center, admin roles and more.',
+        'shareImage' => 'og-whats-new.jpg'], 'platform');
 }
 
 function super_requests(): void
@@ -828,7 +830,9 @@ function super_request_update(int $id): void
 // ---------- Campaign landing pages (/for/<key>) ----------
 function platform_campaign(string $key): void
 {
-    view('platform/campaign', ['key' => $key, 'c' => CAMPAIGNS[$key]], 'home');
+    $c = CAMPAIGNS[$key];
+    view('platform/campaign', ['key' => $key, 'c' => $c, 'metaTitle' => html_entity_decode(strip_tags($c['title'])) . ' | ' . cfg('app_name') . ' for ' . $c['nav'],
+        'metaDesc' => $c['lead'], 'shareImage' => is_file(PUBLIC_DIR . '/assets/img/og/og-' . $key . '.jpg') ? 'og-' . $key . '.jpg' : null], 'home');
 }
 
 /** Campaign / referral tag from ?src= (letters, numbers, dashes). */

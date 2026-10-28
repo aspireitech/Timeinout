@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <?php require APP_DIR . '/views/partials/head.php'; ?>
-<title><?= e(cfg('app_name')) ?> — Simple clock-in &amp; clock-out for any team</title>
-<meta name="description" content="Student, teacher and material pickup check-in for schools, daycares and after-school programs.">
+<title><?= e($metaTitle ?? cfg('app_name') . ': time & attendance for any front door') ?></title>
+<meta name="description" content="<?= e($metaDesc ?? 'Sign-in and sign-out kiosk for students, staff, members and visitors. Live attendance, safe pickups and reports emailed at 7:00.') ?>">
+<?php require APP_DIR . '/views/partials/share.php'; ?>
 </head>
 <body>
 <div class="wrap">
