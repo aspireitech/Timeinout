@@ -34,6 +34,9 @@ $nav = function (string $path, string $ico, string $label) use ($here) {
       <?= $nav('/admin/billing', 'card', 'Billing') ?>
       <?= $nav('/admin/users', 'shield', 'Users') ?>
       <?= $nav('/admin/audit', 'list', 'Audit log') ?>
+      <div class="nav-label">Help</div>
+      <?= $nav('/admin/help', 'help', 'Help & FAQ') ?>
+      <?= $nav('/admin/whats-new', 'spark', "What's new") ?>
       <a href="<?= e(url('/logout')) ?>"><?= icon('logout') ?><span class="t">Log out</span></a>
     </nav>
     <div class="foot">

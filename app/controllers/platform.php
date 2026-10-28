@@ -740,3 +740,33 @@ function super_tenant_restore(int $id): void
     }
     redirect(base_path() . '/super');
 }
+
+// ---------- Public "What's new" and provider view of feature requests ----------
+function platform_whats_new(): void
+{
+    view('platform/whats_new', [], 'platform');
+}
+
+function super_requests(): void
+{
+    require_super();
+    $status = (string) input('status');
+    $where = isset(FEATURE_STATUSES[$status]) ? 'WHERE status = ?' : '';
+    $requests = rows("SELECT * FROM feature_requests $where ORDER BY created_at DESC LIMIT 500", $where ? [$status] : []);
+    $counts = array_column(rows('SELECT status, COUNT(*) AS n FROM feature_requests GROUP BY status'), 'n', 'status');
+    view('platform/super_requests', compact('requests', 'status', 'counts'), 'platform');
+}
+
+function super_request_update(int $id): void
+{
+    require_super();
+    $r = row('SELECT * FROM feature_requests WHERE id = ?', [$id]);
+    if ($r) {
+        $new = ['status' => isset(FEATURE_STATUSES[(string) input('status')]) ? (string) input('status') : $r['status'],
+                'reply' => mb_substr(trim((string) input('reply')), 0, 2000) ?: null, 'updated_at' => gmdate('Y-m-d H:i:s')];
+        audit_note('#' . $id . ' ' . $r['title'] . ' (' . $r['portal'] . ')', audit_diff($r, $new, ['updated_at']));
+        update('feature_requests', $new, 'id = ?', [$id]);
+        flash('success', 'Request updated. The customer sees the new status in their portal.');
+    }
+    redirect(base_path() . '/super/requests' . (input('back') !== '' ? '?status=' . urlencode((string) input('back')) : ''));
+}

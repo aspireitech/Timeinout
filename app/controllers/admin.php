@@ -400,10 +400,10 @@ function admin_sample_students(): void
 {
     require_admin();
     csv_download('students-sample.csv', [
-        ['student_id', 'student_first_name', 'student_last_name', 'grade', 'father', 'father_phone', 'mother', 'mother_phone', 'relative1_name', 'relative1_relationship', 'relative1_phone'],
-        ['S101', 'Olivia', 'Martin', 'Grade 1', 'Paul Martin', '555-0201', 'Anna Martin', '555-0202', 'Rose Martin', 'Grandmother', '555-0203'],
-        ['S102', 'Lucas', 'Nguyen', 'Grade 3', 'Minh Nguyen', '555-0211', 'Lan Nguyen', '555-0212', '', '', ''],
-        ['S103', 'Sofia', 'Rossi', 'KG', 'Marco Rossi', '555-0221', 'Giulia Rossi', '', 'Luca Bianchi', 'Uncle', ''],
+        ['Student ID', 'First Name', 'Last Name', 'Grade', 'Guardian (Father)', 'Guardian (Mother)', 'Authorized Relative'],
+        ['S101', 'Olivia', 'Martin', 'Grade 1', 'Paul Martin', 'Anna Martin', 'Rose Martin (Grandmother)'],
+        ['S102', 'Lucas', 'Nguyen', 'Grade 3', 'Minh Nguyen', 'N/A', 'Lan Tran (Aunt); Bao Tran (Uncle)'],
+        ['S103', 'Daniel', 'Reyes', 'Adult', 'N/A', 'N/A', 'N/A'],
     ]);
 }
 
@@ -411,9 +411,9 @@ function admin_sample_teachers(): void
 {
     require_admin();
     csv_download('teachers-sample.csv', [
-        ['employee_id', 'first_name', 'last_name', 'email', 'phone'],
-        ['T101', 'Grace', 'Hopper', 'grace@example.com', '555-0301'],
-        ['T102', 'Alan', 'Turing', 'alan@example.com', '555-0302'],
+        ['Employee ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Department'],
+        ['T101', 'Grace', 'Hopper', 'grace@example.com', '555-0301', 'Front desk'],
+        ['T102', 'Alan', 'Turing', 'alan@example.com', '555-0302', 'Teaching'],
     ]);
 }
 
@@ -1041,4 +1041,74 @@ function admin_billing_wave(): void
         flash('error', $e->getMessage());
     }
     redirect(url('/admin/billing'));
+}
+
+// ---------- Help & FAQ, What's new, feature requests ----------
+function admin_help(): void
+{
+    require_admin();
+    admin_view('help', ['t' => tenant()]);
+}
+
+function admin_whats_new(): void
+{
+    require_admin();
+    $mine = rows('SELECT * FROM feature_requests WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 50', [tid()]);
+    $old = $_SESSION['fr_old'] ?? [];
+    $errors = $_SESSION['fr_errors'] ?? [];
+    unset($_SESSION['fr_old'], $_SESSION['fr_errors']);
+    admin_view('whats_new', ['mine' => $mine, 'old' => $old, 'errors' => $errors]);
+}
+
+/** A customer asks for a feature: stored for the provider (/super → Requests) and emailed to contact@. */
+function admin_feature_request(): void
+{
+    $me = require_admin();
+    unset($_SESSION['fr_old'], $_SESSION['fr_errors']);
+    $d = [
+        'title'    => mb_substr(trim((string) input('title')), 0, 150),
+        'category' => (string) input('category'),
+        'priority' => (string) input('priority'),
+        'details'  => mb_substr(trim((string) input('details')), 0, 4000),
+        'problem'  => mb_substr(trim((string) input('problem')), 0, 2000),
+        'people'   => mb_substr(trim((string) input('people')), 0, 60),
+    ];
+    $errors = [];
+    if (mb_strlen($d['title']) < 4) {
+        $errors['title'] = 'Give the feature a short name.';
+    }
+    if (!isset(FEATURE_CATEGORIES[$d['category']])) {
+        $errors['category'] = 'Choose an area.';
+    }
+    if (!isset(FEATURE_PRIORITIES[$d['priority']])) {
+        $errors['priority'] = 'Choose how important it is.';
+    }
+    if (mb_strlen($d['details']) < 15) {
+        $errors['details'] = 'Describe what you would like it to do (a sentence or two).';
+    }
+    if (!$errors && (int) val('SELECT COUNT(*) FROM feature_requests WHERE tenant_id = ? AND created_at > ?', [tid(), gmdate('Y-m-d H:i:s', time() - 86400)]) >= 10) {
+        $errors['title'] = 'You have sent 10 requests today. Please send more tomorrow, or email us.';
+    }
+    if ($errors) {
+        audit_skip();
+        $_SESSION['fr_old'] = $d;
+        $_SESSION['fr_errors'] = $errors;
+        redirect(url('/admin/whats-new#request'));
+    }
+    $t = tenant();
+    $now = gmdate('Y-m-d H:i:s');
+    $id = insert('feature_requests', $d + ['tenant_id' => tid(), 'portal' => $t['name'], 'user_name' => $me['name'], 'user_email' => $me['email'],
+        'status' => 'new', 'created_at' => $now, 'updated_at' => $now]);
+    audit_note($d['title'], FEATURE_CATEGORIES[$d['category']] . ' · ' . FEATURE_PRIORITIES[$d['priority']]);
+    $row = fn($k, $v) => '<tr><td style="padding:9px 12px;color:#6b7090;font-size:13px;width:150px;border-bottom:1px solid #eceef6">' . $k . '</td><td style="padding:9px 12px;font-size:14px;color:#161b36;border-bottom:1px solid #eceef6">' . $v . '</td></tr>';
+    $html = '<div style="background:#f3f4fa;padding:24px 12px;font-family:Arial,Helvetica,sans-serif"><div style="max-width:580px;margin:auto;background:#fff;border-radius:18px;overflow:hidden">'
+        . '<div style="background:#5B4CE0;color:#fff;padding:20px 24px"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Feature request #' . $id . '</div>'
+        . '<div style="font-size:20px;font-weight:700;margin-top:4px">' . e($d['title']) . '</div></div><div style="padding:18px 22px"><table style="width:100%;border-collapse:collapse">'
+        . $row('Portal', e($t['name']) . ' (' . e($t['slug']) . ')') . $row('From', e($me['name']) . ' · ' . e((string) $me['email']))
+        . $row('Area', e(FEATURE_CATEGORIES[$d['category']])) . $row('Importance', e(FEATURE_PRIORITIES[$d['priority']])) . $row('People affected', e($d['people'] ?: '—'))
+        . $row('What it should do', nl2br(e($d['details']))) . $row('Problem it solves', nl2br(e($d['problem'] ?: '—')))
+        . '</table><p style="color:#6b7090;font-size:12px;margin-top:16px">Reply and set a status in the provider console → Requests.</p></div></div></div>';
+    send_mail([contact_email()], 'Feature request: ' . $d['title'] . ' — ' . $t['name'], $html);
+    flash('success', 'Thank you! Your request was sent to our team. You can follow its status below.');
+    redirect(url('/admin/whats-new#mine'));
 }

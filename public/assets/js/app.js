@@ -71,4 +71,26 @@
       sync();
     });
   }
+
+  // Help & FAQ: filter questions as you type
+  const faqQ = document.getElementById('faq-q');
+  if (faqQ) {
+    faqQ.addEventListener('input', () => {
+      const q = faqQ.value.trim().toLowerCase();
+      let any = false;
+      document.querySelectorAll('.faq-section').forEach((sec) => {
+        let shown = 0;
+        sec.querySelectorAll('.faq-item').forEach((it) => {
+          const hit = !q || it.textContent.toLowerCase().includes(q);
+          it.hidden = !hit;
+          if (q && hit) it.open = true;
+          if (!q) it.open = false;
+          shown += hit ? 1 : 0;
+        });
+        sec.hidden = shown === 0;
+        any = any || shown > 0;
+      });
+      document.getElementById('faq-none').hidden = any;
+    });
+  }
 })();

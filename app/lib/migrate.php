@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 function setting(string $key, $default = null)
 {
@@ -59,6 +59,9 @@ function migrate(): void
         }
         if ($v < 7) {
             migration_7();
+        }
+        if ($v < 8) {
+            migration_8();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -257,5 +260,29 @@ function migration_7(): void
         mapping TEXT NOT NULL,
         updated_at DATETIME NOT NULL,
         PRIMARY KEY (tenant_id, type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Feature requests sent from customer portals (stored in the main database). */
+function migration_8(): void
+{
+    q("CREATE TABLE IF NOT EXISTS feature_requests (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        tenant_id INT UNSIGNED NULL,
+        portal VARCHAR(160) NULL,
+        user_name VARCHAR(120) NULL,
+        user_email VARCHAR(190) NULL,
+        title VARCHAR(150) NOT NULL,
+        category VARCHAR(20) NOT NULL,
+        priority VARCHAR(20) NOT NULL,
+        details TEXT NOT NULL,
+        problem TEXT NULL,
+        people VARCHAR(60) NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'new',
+        reply TEXT NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        KEY ix_fr_tenant (tenant_id, created_at),
+        KEY ix_fr_status (status, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }

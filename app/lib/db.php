@@ -9,7 +9,7 @@
 //             log are read from and written to that database only. Queries that name a
 //             platform table (see PLATFORM_TABLES) still go to the platform database.
 
-const PLATFORM_TABLES = ['tenants', 'settings', 'payments', 'leads'];
+const PLATFORM_TABLES = ['tenants', 'settings', 'payments', 'leads', 'feature_requests'];
 
 function pdo_connect(array $c): PDO
 {

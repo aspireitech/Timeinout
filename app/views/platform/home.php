@@ -2,7 +2,7 @@
 <div class="wrap">
   <nav class="top" aria-label="Main">
     <a class="logo" href="<?= e(base_path()) ?>/"><span class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A93B" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span><?= e(cfg('app_name')) ?></a>
-    <div class="nav-links"><a href="#industries">Industries</a><a href="#how">How it works</a><a href="#demo">Live demo</a><a href="#security">Security</a><a href="#pricing">Pricing</a></div>
+    <div class="nav-links"><a href="#industries">Industries</a><a href="#how">How it works</a><a href="#demo">Live demo</a><a href="#security">Security</a><a href="#pricing">Pricing</a><a href="<?= e(base_path()) ?>/whats-new">What's new</a></div>
     <div class="nav-cta"><a class="btn btn-ghost" href="<?= e(base_path()) ?>/login">Sign in</a><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a></div>
   </nav>
 

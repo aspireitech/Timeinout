@@ -13,12 +13,14 @@
       <?php if (!empty($_SESSION['super'])): ?>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super') ?>">Subscribers</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/leads') ?>">Leads</a>
+        <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/requests') ?>">Requests</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/payments') ?>">Payments</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/audit') ?>">Audit log</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/settings') ?>">Settings</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/logout') ?>">Log out</a>
       <?php else: ?>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/#pricing') ?>">Pricing</a>
+        <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/whats-new') ?>">What's new</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/demo') ?>">Book a demo</a>
         <a class="btn btn-primary btn-sm" href="<?= e(base_path() . '/signup') ?>">Start free trial</a>
       <?php endif; ?>
