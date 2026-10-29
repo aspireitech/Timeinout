@@ -132,6 +132,17 @@ section.block { padding-block: 70px 0; }
 .price .amt small { font-size: .95rem; color: var(--muted); font-weight: 600; }
 .price ul { list-style: none; padding: 0; margin: 6px 0 14px; display: grid; gap: 6px; color: var(--muted); font-size: .92rem; }
 .price li::before { content: "✓"; color: var(--in); font-weight: 800; margin-right: 8px; }
+.price li.plus { color: var(--ink); font-weight: 700; } .price li.plus::before { content: none; }
+.price { position: relative; } .price .tagline { margin: 0; color: var(--muted); font-size: .92rem; }
+.price .note { color: var(--muted); font-size: .85rem; margin-top: -4px; }
+.badge-pop { position: absolute; top: -13px; left: 24px; background: var(--brand); color: #fff; font-size: .75rem; font-weight: 700; padding: 5px 12px; border-radius: 999px; }
+.cyc { position: absolute; opacity: 0; pointer-events: none; }
+.cycle { display: flex; gap: 4px; width: max-content; max-width: 100%; margin: 0 auto 26px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; }
+.cycle label { padding: 9px 18px; border-radius: 999px; font-weight: 700; font-size: .92rem; cursor: pointer; color: var(--muted); }
+.cycle em { font-style: normal; font-size: .75rem; background: #E3F7F0; color: #0E8A66; padding: 3px 8px; border-radius: 999px; margin-left: 4px; }
+#cyc-m:checked ~ .cycle label[for="cyc-m"], #cyc-y:checked ~ .cycle label[for="cyc-y"] { background: var(--ink); color: #fff; }
+#cyc-m:focus-visible ~ .cycle label[for="cyc-m"], #cyc-y:focus-visible ~ .cycle label[for="cyc-y"] { outline: 2px solid var(--brand); outline-offset: 2px; }
+.price .yr, #cyc-y:checked ~ .prices .mo { display: none; } #cyc-y:checked ~ .prices .yr { display: block; }
 .pay { text-align: center; color: var(--muted); font-size: .88rem; margin-top: 16px; }
 
 .final { margin-block: 80px 40px; text-align: center; display: grid; gap: 16px; justify-items: center; background: var(--amber); border-radius: 28px; padding: 54px 24px; }

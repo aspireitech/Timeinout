@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 function setting(string $key, $default = null)
 {
@@ -65,6 +65,9 @@ function migrate(): void
         }
         if ($v < 9) {
             migration_9();
+        }
+        if ($v < 10) {
+            migration_10();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -295,5 +298,13 @@ function migration_9(): void
 {
     if (!column_exists('leads', 'source')) {
         q('ALTER TABLE leads ADD COLUMN source VARCHAR(40) NULL AFTER message');
+    }
+}
+
+/** V10: monthly or yearly billing per portal. */
+function migration_10(): void
+{
+    if (!column_exists('tenants', 'billing_cycle')) {
+        q("ALTER TABLE tenants ADD COLUMN billing_cycle VARCHAR(10) NOT NULL DEFAULT 'monthly' AFTER billing_provider");
     }
 }

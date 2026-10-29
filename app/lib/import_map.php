@@ -245,9 +245,9 @@ function person_extra(array $person): array
 }
 
 /** Adds or updates students (matched by ID, else by name) and their guardians. Never removes anyone. */
-function import_student_records(int $tenantId, array $records): array
+function import_student_records(int $tenantId, array $records, ?int $room = null): array
 {
-    $stats = ['students_new' => 0, 'students_updated' => 0, 'guardians_new' => 0, 'skipped' => 0];
+    $stats = ['students_new' => 0, 'students_updated' => 0, 'guardians_new' => 0, 'skipped' => 0, 'over_plan_limit' => 0];
     foreach ($records as $rec) {
         $first = mb_substr($rec['first'], 0, 80);
         $last = mb_substr($rec['last'], 0, 80);
@@ -265,6 +265,9 @@ function import_student_records(int $tenantId, array $records): array
                 'extra' => $rec['extra'] ? merge_extra($student['extra'] ?? null, $rec['extra']) : ($student['extra'] ?? null)], 'id = ?', [$student['id']]);
             $sid = (int) $student['id'];
             $stats['students_updated']++;
+        } elseif ($room !== null && $room-- <= 0) {
+            $stats['over_plan_limit']++; // the plan's people limit is reached: not added
+            continue;
         } else {
             $sid = insert('students', ['tenant_id' => $tenantId, 'student_code' => $code ?: null, 'first_name' => $first, 'last_name' => $last,
                 'grade' => $group ?: null, 'extra' => merge_extra(null, $rec['extra'])]);
@@ -304,9 +307,9 @@ function import_student_records(int $tenantId, array $records): array
 }
 
 /** Adds or updates staff (matched by employee ID, else by name). */
-function import_teacher_records(int $tenantId, array $records): array
+function import_teacher_records(int $tenantId, array $records, ?int $room = null): array
 {
-    $stats = ['teachers_new' => 0, 'teachers_updated' => 0, 'skipped' => 0];
+    $stats = ['teachers_new' => 0, 'teachers_updated' => 0, 'skipped' => 0, 'over_plan_limit' => 0];
     foreach ($records as $rec) {
         $first = mb_substr($rec['first'], 0, 80);
         $last = mb_substr($rec['last'], 0, 80);
@@ -329,6 +332,8 @@ function import_teacher_records(int $tenantId, array $records): array
             $data['extra'] = $rec['extra'] ? merge_extra($t['extra'] ?? null, $rec['extra']) : ($t['extra'] ?? null);
             update('teachers', $data, 'id = ?', [$t['id']]);
             $stats['teachers_updated']++;
+        } elseif ($room !== null && $room-- <= 0) {
+            $stats['over_plan_limit']++;
         } else {
             insert('teachers', $data + ['tenant_id' => $tenantId, 'employee_code' => $code ?: null, 'extra' => merge_extra(null, $rec['extra'])]);
             $stats['teachers_new']++;

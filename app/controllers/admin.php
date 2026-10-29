@@ -112,6 +112,11 @@ function admin_student_save(int $id = 0): void
         audit_note(full_name($data) . " (#$id)", audit_diff($before, $data));
         flash('success', 'Student saved.');
     } else {
+        if (people_room() === 0) {
+            audit_skip();
+            flash('error', plan_limit_message('people'));
+            redirect(url('/admin/students'));
+        }
         $id = insert('students', $data + ['tenant_id' => tid()]);
         audit_note(full_name($data) . " (#$id)", 'Grade: ' . ($data['grade'] ?? '-'));
         foreach ([1, 2] as $i) { // quick-add up to two guardians with the student
@@ -215,6 +220,9 @@ function admin_teacher_save(int $id = 0): void
         update('teachers', $data, 'id = ? AND tenant_id = ?', [$id, tid()]);
         audit_note(null, audit_diff($before, $plain));
         flash('success', 'Teacher saved.');
+    } elseif (people_room() === 0) {
+        audit_skip();
+        flash('error', plan_limit_message('people'));
     } else {
         insert('teachers', $data + ['tenant_id' => tid()]);
         flash('success', 'Teacher added.');
@@ -355,7 +363,8 @@ function admin_import_map(): void
             save_mapping($type, $headers, $map);
             $records = mapped_records($type, $headers, $rows, $map);
             db()->beginTransaction();
-            $stats = $type === 'teachers' ? import_teacher_records(tid(), $records) : import_student_records(tid(), $records);
+            $room = people_room();
+            $stats = $type === 'teachers' ? import_teacher_records(tid(), $records, $room) : import_student_records(tid(), $records, $room);
             db()->commit();
             import_pending_clear();
             $parts = [];
@@ -364,7 +373,8 @@ function admin_import_map(): void
             }
             $extra = array_values(array_map(fn($i) => $headers[$i], array_keys(array_filter($map, fn($m) => $m[0] === 'extra'))));
             audit_note(ucfirst($type) . ' file: ' . $p['name'], implode(', ', $parts) . ' (' . count($rows) . ' rows)' . ($extra ? '; extra info: ' . implode(', ', $extra) : ''));
-            flash('success', 'Import finished — ' . implode(', ', $parts) . '.' . ($extra ? ' Kept as extra info: ' . implode(', ', $extra) . '.' : ''));
+            flash(empty($stats['over_plan_limit']) ? 'success' : 'info', 'Import finished — ' . implode(', ', $parts) . '.' . ($extra ? ' Kept as extra info: ' . implode(', ', $extra) . '.' : '')
+                . (empty($stats['over_plan_limit']) ? '' : ' ' . plan_limit_message('people')));
             redirect(url($type === 'teachers' ? '/admin/teachers' : '/admin/students'));
         }
         audit_skip();
@@ -666,6 +676,8 @@ function admin_user_save(): void
         $error = 'User ID: 3–40 letters, numbers, dots, dashes or underscores (for example frontdesk or maria.k).';
     } elseif ($username !== '' && str_contains($username, '@')) {
         $error = 'A user ID cannot contain @.';
+    } elseif (!login_room()) {
+        $error = plan_limit_message('logins');
     } elseif ($p = password_problem($pass, $role)) {
         $error = $p;
     } elseif ($email !== '' && val('SELECT id FROM users WHERE tenant_id = ? AND (email = ? OR username = ?)', [tid(), $email, $email])) {
@@ -984,7 +996,8 @@ function admin_billing(): void
         flash('success', 'Thank you! Your payment is being confirmed by Stripe; this page updates within a minute.');
         redirect(url('/admin/billing'));
     }
-    admin_view('billing', ['t' => tenant(), 'plans' => plans(), 'payments' => $payments, 'state' => billing_state()]);
+    admin_view('billing', ['t' => tenant(), 'plans' => plans(), 'payments' => $payments, 'state' => billing_state(), 'cycle' => cycle_input(),
+        'people' => people_count(), 'logins' => (int) val('SELECT COUNT(*) FROM users WHERE tenant_id = ?', [tid()])]);
 }
 
 function admin_billing_stripe(): void
@@ -995,8 +1008,8 @@ function admin_billing_stripe(): void
         if (!isset(plans()[$plan])) {
             throw new RuntimeException('Please choose a plan.');
         }
-        $url = stripe_checkout_url(tenant(), $plan);
-        audit('Started card checkout', plans()[$plan]['name'] . ' plan', true, 'Stripe Checkout');
+        $url = stripe_checkout_url(tenant(), $plan, cycle_input());
+        audit('Started card checkout', plans()[$plan]['name'] . ' plan (' . cycle_input() . ')', true, 'Stripe Checkout');
         redirect($url);
     } catch (Throwable $e) {
         audit('Started card checkout', $plan, false, $e->getMessage());
@@ -1033,8 +1046,8 @@ function admin_billing_wave(): void
         if (tenant()['wave_invoice_id']) {
             throw new RuntimeException('An invoice is already waiting to be paid. Check your email, or see the payments below.');
         }
-        wave_send_invoice(tenant(), $plan);
-        audit('Requested invoice', plans()[$plan]['name'] . ' plan', true, 'Wave invoice emailed to ' . owner_email(tenant()));
+        wave_send_invoice(tenant(), $plan, cycle_input());
+        audit('Requested invoice', plans()[$plan]['name'] . ' plan (' . cycle_input() . ')', true, 'Wave invoice emailed to ' . owner_email(tenant()));
         flash('success', 'Your invoice is on its way to ' . owner_email(tenant()) . '. Your portal activates as soon as it is paid.');
     } catch (Throwable $e) {
         audit('Requested invoice', $plan, false, $e->getMessage());

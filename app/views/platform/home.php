@@ -113,16 +113,24 @@
   </section>
 
   <section class="block" id="pricing">
-    <div class="head"><span class="eyebrow">Pricing</span><h2>Simple plans. Every feature included.</h2><p>No credit card needed to start. Cancel anytime.</p></div>
+    <div class="head"><span class="eyebrow">Pricing</span><h2>Simple plans that grow with you.</h2><p>Every plan has the full kiosk, safe pickups and reports. Start free, no credit card.</p></div>
+    <?php $free = 12 - annual_months(); ?>
+    <input type="radio" name="cycle" id="cyc-m" class="cyc" checked><input type="radio" name="cycle" id="cyc-y" class="cyc">
+    <div class="cycle" role="group" aria-label="Billing period"><label for="cyc-m">Monthly</label><label for="cyc-y">Yearly<?php if ($free > 0): ?> <em><?= $free ?> months free</em><?php endif; ?></label></div>
     <div class="prices">
-      <?php $i = 0; foreach ($plans as $key => $p): $i++; ?>
-        <div class="price <?= $i === 2 ? 'pop' : '' ?>"><b><?= e($p['name']) ?></b>
-          <div class="amt"><?= e(preg_replace('#/.*$#', '', $p['price'])) ?><small>/month</small></div>
-          <ul><li><?= e($p['limit']) ?></li><li>Every feature included</li><li>PDF &amp; CSV reports, audit log</li></ul>
-          <a class="btn <?= $i === 2 ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(base_path() . '/signup?plan=' . urlencode($key)) ?>">Choose <?= e($p['name']) ?></a></div>
+      <?php foreach ($plans as $key => $p): $feat = $p['features']; $head = ($feat && str_ends_with($feat[0], ':')) ? array_shift($feat) : null; ?>
+        <div class="price <?= $p['popular'] ? 'pop' : '' ?>"><?php if ($p['popular']): ?><span class="badge-pop">Most popular</span><?php endif; ?><b><?= e($p['name']) ?></b>
+          <?php if ($p['tagline']): ?><p class="tagline"><?= e($p['tagline']) ?></p><?php endif; ?>
+          <div class="amt mo">$<?= e(number_format($p['amount'], 0)) ?><small>/month</small></div>
+          <div class="amt yr">$<?= e(number_format($p['annual'], 0)) ?><small>/year</small></div>
+          <div class="note mo">Billed monthly. Cancel anytime.</div>
+          <div class="note yr">That's $<?= e(number_format($p['annual'] / 12, fmod($p['annual'], 12) == 0 ? 0 : 2)) ?>/month<?php if ($free > 0): ?>, you save $<?= e(number_format($p['amount'] * 12 - $p['annual'], 0)) ?><?php endif; ?>.</div>
+          <ul><?php if ($head): ?><li class="plus"><?= e($head) ?></li><?php endif; ?><li><?= e($p['limit']) ?></li>
+            <?php foreach ($feat ?: ['Every feature included', 'PDF & CSV reports, audit log'] as $f): ?><li><?= e($f) ?></li><?php endforeach; ?></ul>
+          <a class="btn <?= $p['popular'] ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(base_path() . '/signup?plan=' . urlencode($key)) ?>">Start free trial</a></div>
       <?php endforeach; ?>
     </div>
-    <p class="pay">Start with a <?= (int) cfg('trial_days', 30) ?>-day free trial. Pay by card with Stripe, or by invoice through Wave.</p>
+    <p class="pay">Start with a <?= (int) cfg('trial_days', 30) ?>-day free trial on any plan. Pay by card with Stripe, or by invoice through Wave. Need more than 500 people or several sites? <a href="<?= e(base_path()) ?>/demo?src=pricing">Talk to us</a>.</p>
   </section>
 
   <section class="final">

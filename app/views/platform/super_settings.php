@@ -26,7 +26,8 @@
         <div class="field"><label for="s-sk">Secret key</label><input type="password" id="s-sk" name="stripe_secret" autocomplete="off" placeholder="<?= secret('stripe_secret') ? 'Saved. Leave empty to keep it' : 'sk_live_…' ?>"></div>
         <div class="field"><label for="s-wh">Webhook signing secret</label><input type="password" id="s-wh" name="stripe_webhook_secret" autocomplete="off" placeholder="<?= secret('stripe_webhook_secret') ? 'Saved. Leave empty to keep it' : 'whsec_…' ?>"></div>
         <?php foreach (plans() as $pk => $pl): ?>
-          <div class="field"><label for="sp-<?= e($pk) ?>">Price ID for <?= e($pl['name']) ?> (<?= e($pl['price']) ?>)</label><input type="text" id="sp-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>" value="<?= e(setting('stripe_price_' . $pk, '')) ?>" placeholder="price_…"></div>
+          <div class="field"><label for="sp-<?= e($pk) ?>">Monthly price ID for <?= e($pl['name']) ?> ($<?= e(number_format($pl['amount'], 0)) ?>/month)</label><input type="text" id="sp-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>" value="<?= e(setting('stripe_price_' . $pk, '')) ?>" placeholder="price_…"></div>
+          <div class="field"><label for="spa-<?= e($pk) ?>">Yearly price ID for <?= e($pl['name']) ?> ($<?= e(number_format($pl['annual'], 0)) ?>/year)</label><input type="text" id="spa-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>_annual" value="<?= e(setting('stripe_price_' . $pk . '_annual', '')) ?>" placeholder="price_… (optional)"></div>
         <?php endforeach; ?>
       </div>
       <h3 style="margin-top:14px"><?= icon('mail') ?> Wave (invoices)</h3>

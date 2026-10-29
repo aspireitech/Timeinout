@@ -20,6 +20,7 @@ $payStatus = ['paid' => ['Paid', 'in'], 'open' => ['Waiting for payment', 'warn'
       <?php elseif ($t['billing_provider'] === 'wave'): ?>Paid by invoice through Wave<?= $t['current_period_end'] ? '. Paid through <b>' . e(date('M j, Y', strtotime($t['current_period_end']))) . '</b>; the next invoice is emailed a week before.' : '.' ?>
       <?php else: ?>Your plan is active.<?php endif; ?>
     </p>
+    <?php if ($current): ?><p class="muted small" style="margin:8px 0 0">People: <b><?= number_format($people) ?></b><?= $current['max_people'] ? ' of ' . number_format($current['max_people']) : ' (no limit)' ?> · Staff logins: <b><?= $logins ?></b><?= $current['max_logins'] ? ' of ' . (int) $current['max_logins'] : ' (no limit)' ?><?= ($t['billing_cycle'] ?? 'monthly') === 'annual' ? ' · Billed yearly' : '' ?></p><?php endif; ?>
   </div>
   <?php if ($t['stripe_customer_id'] && $stripe): ?>
     <form method="post" action="<?= e(url('/admin/billing/portal')) ?>"><?= csrf_field() ?><button class="btn btn-primary"><?= icon('card') ?> Manage card &amp; plan</button></form>
@@ -31,20 +32,24 @@ $payStatus = ['paid' => ['Paid', 'in'], 'open' => ['Waiting for payment', 'warn'
 <?php endif; ?>
 
 <?php if ($state !== 'active' || !$t['billing_provider']): ?>
-<h2 style="margin:24px 0 12px">Choose a plan</h2>
+<?php $free = 12 - annual_months(); ?>
+<div class="row" style="margin:24px 0 12px;justify-content:space-between;flex-wrap:wrap;gap:10px">
+  <h2 style="margin:0">Choose a plan</h2>
+  <div class="row" style="gap:6px"><a class="btn btn-sm <?= $cycle === 'monthly' ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(url('/admin/billing')) ?>">Monthly</a><a class="btn btn-sm <?= $cycle === 'annual' ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(url('/admin/billing?cycle=annual')) ?>">Yearly<?= $free > 0 ? ' · ' . $free . ' months free' : '' ?></a></div>
+</div>
 <?php if (!$stripe && !$wave): ?><div class="flash info">Online payment is being set up. Please contact your service provider to subscribe.</div><?php endif; ?>
 <div class="grid c3">
   <?php foreach ($plans as $k => $p): ?>
     <div class="card price-card <?= $k === $t['plan'] ? 'featured' : '' ?>">
       <h3><?= e($p['name']) ?></h3>
-      <div class="price"><?= e($p['price']) ?></div>
-      <p class="muted"><?= e($p['limit']) ?></p>
+      <div class="price">$<?= e(number_format($cycle === 'annual' ? $p['annual'] : $p['amount'], 0)) ?><span class="muted small">/<?= $cycle === 'annual' ? 'year' : 'month' ?></span></div>
+      <p class="muted"><?= e($p['limit']) ?><?= $p['max_logins'] ? ' · ' . (int) $p['max_logins'] . ' staff logins' : ' · unlimited logins' ?><?= $cycle === 'annual' && $free > 0 ? '<br>You save $' . e(number_format($p['amount'] * 12 - $p['annual'], 0)) . ' a year' : '' ?></p>
       <div class="stack">
-        <?php if ($stripe && setting('stripe_price_' . $k)): ?>
-          <form method="post" action="<?= e(url('/admin/billing/stripe')) ?>"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><button class="btn btn-primary btn-block"><?= icon('card') ?> Pay by card</button></form>
+        <?php if ($stripe && setting('stripe_price_' . $k . ($cycle === 'annual' ? '_annual' : ''))): ?>
+          <form method="post" action="<?= e(url('/admin/billing/stripe')) ?>"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><input type="hidden" name="cycle" value="<?= e($cycle) ?>"><button class="btn btn-primary btn-block"><?= icon('card') ?> Pay by card</button></form>
         <?php endif; ?>
         <?php if ($wave && setting('wave_product_' . $k)): ?>
-          <form method="post" action="<?= e(url('/admin/billing/wave')) ?>" data-confirm="Email a <?= e($p['name']) ?> plan invoice to <?= e(owner_email($t)) ?>?"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><button class="btn btn-ghost btn-block"><?= icon('mail') ?> Pay by invoice (Wave)</button></form>
+          <form method="post" action="<?= e(url('/admin/billing/wave')) ?>" data-confirm="Email a <?= $cycle === 'annual' ? 'yearly ' : '' ?><?= e($p['name']) ?> plan invoice to <?= e(owner_email($t)) ?>?"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><input type="hidden" name="cycle" value="<?= e($cycle) ?>"><button class="btn btn-ghost btn-block"><?= icon('mail') ?> Pay by invoice (Wave)</button></form>
         <?php endif; ?>
       </div>
     </div>

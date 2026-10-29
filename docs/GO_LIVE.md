@@ -201,6 +201,12 @@ Order of sign-in options: **Google → emailed code**, or **password → emailed
 | Audit log | Every provider sign-in and change |
 | Settings | Email (SMTP), Stripe, Wave, admin sign-in codes |
 
+### Plans, limits and yearly billing
+
+- Prices and people limits come from `'plans'` in `app/config.php` (`'limit' => 'Up to 50 people'` sets the limit; "Unlimited" means none). Each plan's description, feature list and staff-login limit are in `app/lib/billing.php` (`PLAN_DETAILS`); any of them can be overridden in config, for example `'max_logins' => 5`.
+- **Enforced:** people (active students + staff, visitors don't count) and staff logins. Adding one more, or importing past the limit, shows "Upgrade in Admin → Billing". Nothing is ever removed.
+- **Yearly billing:** customers pay for 10 months and get 12 (change with `'annual_months' => 10` in config). For card payments, create a **yearly** recurring price for each plan in Stripe (Products → your plan → Add price → Yearly) and paste its ID under `/super → Settings → Yearly price ID`. Wave invoices need nothing extra: yearly invoices use the same product at the yearly amount.
+
 ---
 
 ## 5. Create a customer portal (example: utsjkumon.clockinoutapp.com)

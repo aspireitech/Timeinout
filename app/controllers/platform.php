@@ -297,6 +297,7 @@ function super_settings(): void
         setting_set('wave_business_id', mb_substr(trim((string) input('wave_business_id')), 0, 190));
         foreach (array_keys(plans()) as $pk) {
             setting_set('stripe_price_' . $pk, mb_substr(trim((string) input('stripe_price_' . $pk)), 0, 120));
+            setting_set('stripe_price_' . $pk . '_annual', mb_substr(trim((string) input('stripe_price_' . $pk . '_annual')), 0, 120));
             setting_set('wave_product_' . $pk, mb_substr(trim((string) input('wave_product_' . $pk)), 0, 190));
         }
         setting_set('admin_otp', $new['admin_otp']);
@@ -420,9 +421,9 @@ function super_payments(): void
         'open'  => (int) val("SELECT COALESCE(SUM(amount_cents),0) FROM payments WHERE status = 'open'"),
         'paying' => 0, 'mrr' => 0.0,
     ];
-    foreach (rows("SELECT plan FROM tenants WHERE status = 'active' AND billing_provider IN ('stripe','wave','manual') AND slug <> ?", [DEMO_SLUG]) as $x) {
+    foreach (rows("SELECT plan, billing_cycle FROM tenants WHERE status = 'active' AND billing_provider IN ('stripe','wave','manual') AND slug <> ?", [DEMO_SLUG]) as $x) {
         $stats['paying']++;
-        $stats['mrr'] += $plans[$x['plan']]['amount'] ?? 0;
+        $stats['mrr'] += ($x['billing_cycle'] ?? '') === 'annual' ? ($plans[$x['plan']]['annual'] ?? 0) / 12 : ($plans[$x['plan']]['amount'] ?? 0);
     }
     view('platform/super_payments', ['payments' => $payments, 'stats' => $stats, 'tenants' => rows('SELECT id, name FROM tenants ORDER BY name'), 'tenant' => $tenant], 'platform');
 }
