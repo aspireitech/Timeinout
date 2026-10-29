@@ -338,6 +338,11 @@ function admin_import_map(): void
     }
     $type = $p['type'];
     [$headers, $rows] = [$data['headers'], $data['rows']];
+    if (!is_post() && in_array(input('as'), ['students', 'teachers'], true)) { // "Import as … instead"
+        audit_skip();
+        $_SESSION['import']['type'] = (string) input('as');
+        redirect(url('/admin/import/map'));
+    }
     if (input('cancel') === '1') {
         audit_skip();
         import_pending_clear();
@@ -363,9 +368,11 @@ function admin_import_map(): void
             save_mapping($type, $headers, $map);
             $records = mapped_records($type, $headers, $rows, $map);
             db()->beginTransaction();
+            $GLOBALS['import_new_ids'] = [];
             $room = people_room();
             $stats = $type === 'teachers' ? import_teacher_records(tid(), $records, $room) : import_student_records(tid(), $records, $room);
             db()->commit();
+            $_SESSION['last_import'] = ['tenant' => tid(), 'type' => $type, 'ids' => $GLOBALS['import_new_ids'], 'name' => $p['name'], 'at' => time()];
             import_pending_clear();
             $parts = [];
             foreach ($stats as $k => $v) {
@@ -391,7 +398,40 @@ function admin_import_map(): void
         $samples[$i] = $vals;
     }
     admin_view('import_map', ['type' => $type, 'fileName' => $p['name'], 'headers' => $headers, 'samples' => $samples, 'map' => $map,
-        'fields' => import_fields($type), 'count' => count($rows), 'error' => $error]);
+        'fields' => import_fields($type), 'count' => count($rows), 'error' => $error, 'guess' => import_type_guess($headers)]);
+}
+
+/** The last import in this session, if it added people and is less than a day old. */
+function last_import(string $type): ?array
+{
+    $l = $_SESSION['last_import'] ?? null;
+    return $l && (int) $l['tenant'] === tid() && $l['type'] === $type && $l['ids'] && $l['at'] > time() - 86400 ? $l : null;
+}
+
+/** Removes the people the last import added (not ones that already have check-ins). Updates to existing people stay. */
+function admin_import_undo(): void
+{
+    require_admin();
+    $type = input('type') === 'teachers' ? 'teachers' : 'students';
+    $l = last_import($type);
+    if (!$l) {
+        audit_skip();
+        flash('error', 'There is no recent import to undo.');
+        redirect(url('/admin/import'));
+    }
+    $removed = $kept = 0;
+    foreach ($l['ids'] as $id) {
+        if (val('SELECT id FROM attendance WHERE tenant_id = ? AND person_type = ? AND person_id = ? LIMIT 1', [tid(), $type === 'teachers' ? 'teacher' : 'student', $id])) {
+            $kept++;
+            continue;
+        }
+        $removed += q("DELETE FROM $type WHERE id = ? AND tenant_id = ?", [$id, tid()])->rowCount();
+    }
+    unset($_SESSION['last_import']);
+    audit_note(ucfirst($type) . ' file: ' . $l['name'], "removed $removed added by the import" . ($kept ? ", kept $kept who already checked in" : ''));
+    flash('success', "Import undone: removed $removed " . ($type === 'teachers' ? strtolower(term('b2')) : strtolower(term('a2'))) . ' it had added.'
+        . ($kept ? " $kept already checked in, so they were kept." : ''));
+    redirect(url('/admin/' . $type));
 }
 
 function csv_download(string $filename, array $rows): void

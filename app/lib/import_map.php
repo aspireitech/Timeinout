@@ -16,6 +16,22 @@ function import_fields(string $type): array
             'g_email' => 'Email of a guardian'];
 }
 
+/** 'teachers' or 'students' when the headers clearly look like one list, else null. */
+function import_type_guess(array $headers): ?string
+{
+    $staff = $people = 0;
+    foreach ($headers as $h) {
+        $k = header_key((string) $h);
+        if (preg_match('/(employee|staff|teacher|worker|department|dept|position|jobtitle|hiredate|badge|payroll)/', $k)) {
+            $staff++;
+        }
+        if (preg_match('/(student|learner|child|pupil|grade|class|guardian|father|mother|parent|relative|pickup|authorized)/', $k)) {
+            $people++;
+        }
+    }
+    return $staff && !$people ? 'teachers' : ($people && !$staff ? 'students' : null);
+}
+
 /** Fields a file may use only once. */
 const IMPORT_SINGLE = ['id', 'first', 'last', 'full', 'group', 'email', 'phone'];
 
@@ -271,6 +287,7 @@ function import_student_records(int $tenantId, array $records, ?int $room = null
         } else {
             $sid = insert('students', ['tenant_id' => $tenantId, 'student_code' => $code ?: null, 'first_name' => $first, 'last_name' => $last,
                 'grade' => $group ?: null, 'extra' => merge_extra(null, $rec['extra'])]);
+            $GLOBALS['import_new_ids'][] = (int) $sid;
             $stats['students_new']++;
         }
         foreach ($rec['guardians'] as [$gName, $rel, $phone, $email]) {
@@ -335,7 +352,7 @@ function import_teacher_records(int $tenantId, array $records, ?int $room = null
         } elseif ($room !== null && $room-- <= 0) {
             $stats['over_plan_limit']++;
         } else {
-            insert('teachers', $data + ['tenant_id' => $tenantId, 'employee_code' => $code ?: null, 'extra' => merge_extra(null, $rec['extra'])]);
+            $GLOBALS['import_new_ids'][] = (int) insert('teachers', $data + ['tenant_id' => $tenantId, 'employee_code' => $code ?: null, 'extra' => merge_extra(null, $rec['extra'])]);
             $stats['teachers_new']++;
         }
     }

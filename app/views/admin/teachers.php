@@ -5,6 +5,10 @@
     <button class="btn btn-primary" onclick="document.getElementById('add').classList.toggle('hidden')"><?= icon('plus') ?> Add <?= e(strtolower(term('b1'))) ?></button>
   </div>
 </div>
+<?php if ($li = last_import('teachers')): ?>
+  <div class="flash info" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span><?= icon('upload', 18) ?> Your import of <b><?= e($li['name']) ?></b> added <?= count($li['ids']) ?> here. Wrong list?</span>
+    <form method="post" action="<?= e(url('/admin/import/undo')) ?>" data-confirm="Remove the <?= count($li['ids']) ?> people this import added? People who already checked in are kept."><?= csrf_field() ?><input type="hidden" name="type" value="teachers"><button class="btn btn-sm btn-ghost">Undo this import</button></form></div>
+<?php endif; ?>
 <div class="card hidden" id="add" style="margin-bottom:18px">
   <h3>New <?= e(strtolower(term('b1'))) ?></h3>
   <form method="post" action="<?= e(url('/admin/teachers')) ?>">
