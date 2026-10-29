@@ -1,5 +1,5 @@
 <?php $guardianCols = array_keys(array_filter($map, fn($m) => $m[0] === 'guardian')); ?>
-<div class="topbar"><div><a class="small" href="<?= e(url('/admin/import?')) ?>">← Import</a>
+<div class="topbar"><div><a class="small" href="<?= e(url('/admin/import?type=' . $type)) ?>">← Import</a>
   <h1>Match your columns</h1>
   <div class="muted"><?= e($fileName) ?> · <?= (int) $count ?> row<?= $count === 1 ? '' : 's' ?> · <?= $type === 'teachers' ? e(term('b2')) : e(term('a2')) ?></div></div></div>
 <?php $typeName = fn($t) => $t === 'teachers' ? term('b2') : term('a2'); $other = $type === 'teachers' ? 'students' : 'teachers'; ?>

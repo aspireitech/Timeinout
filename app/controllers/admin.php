@@ -282,20 +282,20 @@ function admin_import(): void
         $f = $_FILES['file'] ?? null;
         if (!$f || $f['error'] !== UPLOAD_ERR_OK || $f['size'] > 5 * 1024 * 1024) {
             flash('error', 'Please choose a CSV or Excel (.xlsx) file under 5 MB.');
-            redirect(url('/admin/import'));
+            redirect(url('/admin/import?type=' . $type));
         }
         try {
             $table = sheet_table($f['tmp_name'], (string) ($f['name'] ?? ''));
         } catch (RuntimeException $e) {
             flash('error', $e->getMessage());
-            redirect(url('/admin/import'));
+            redirect(url('/admin/import?type=' . $type));
         }
         $table = array_values(array_filter($table, fn($r) => implode('', array_map('strval', $r)) !== ''));
         $headers = array_map(fn($h) => trim((string) $h), $table[0] ?? []);
         $rows = array_slice($table, 1);
         if (!$headers || !array_filter($headers) || !$rows) {
             flash('error', 'The file looks empty. The first row must be the column headers, with people on the rows below.');
-            redirect(url('/admin/import'));
+            redirect(url('/admin/import?type=' . $type));
         }
         import_pending_clear();
         $token = bin2hex(random_bytes(16));

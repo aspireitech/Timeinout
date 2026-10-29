@@ -1,5 +1,7 @@
-<div class="topbar"><div><h1>Import from a spreadsheet</h1><div class="muted">Upload an Excel file (<b>.xlsx</b>) or a <b>CSV</b> with any columns: the first row must be the headers. Next you will match each column to a field, or keep it as extra info. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
-<div class="grid c2">
+<?php $only = in_array($_GET['type'] ?? '', ['students', 'teachers'], true) ? $_GET['type'] : null; ?>
+<div class="topbar"><div><h1>Import <?= $only ? e(strtolower(term($only === 'teachers' ? 'b2' : 'a2'))) . ' ' : '' ?>from a spreadsheet</h1><div class="muted">Upload an Excel file (<b>.xlsx</b>) or a <b>CSV</b> with any columns: the first row must be the headers. Next you will match each column to a field, or keep it as extra info. Re-uploading is safe — existing people are updated, not duplicated.</div></div></div>
+<div class="grid <?= $only ? '' : 'c2' ?>">
+  <?php if ($only !== 'teachers'): ?>
   <div class="card">
     <h3><span class="avatar" style="width:34px;height:34px"><?= icon('users', 18) ?></span> <?= e(term('a2')) ?><?= uses_contacts() ? ' &amp; ' . e(strtolower(term('c2'))) : '' ?></h3>
     <p class="muted small">One row per <?= e(strtolower(term('a1'))) ?>. Columns: <code>student_id</code>, <code>student_first_name</code>, <code>student_last_name</code>, <code>grade</code>,
@@ -18,6 +20,8 @@
         <a class="btn btn-ghost" href="<?= e(url('/admin/import/sample-students.csv')) ?>"><?= icon('download', 16) ?> Sample file</a></div>
     </form>
   </div>
+  <?php endif; ?>
+  <?php if ($only !== 'students'): ?>
   <div class="card">
     <h3><span class="avatar teacher" style="width:34px;height:34px"><?= icon('teacher', 18) ?></span> <?= e(term('b2')) ?></h3>
     <p class="muted small">One row per person. A single <code>name</code> column also works.</p>
@@ -32,4 +36,6 @@
         <a class="btn btn-ghost" href="<?= e(url('/admin/import/sample-teachers.csv')) ?>"><?= icon('download', 16) ?> Sample file</a></div>
     </form>
   </div>
+  <?php endif; ?>
 </div>
+<?php if ($only): ?><p class="muted small" style="margin-top:12px"><a href="<?= e(url('/admin/import?type=' . ($only === 'teachers' ? 'students' : 'teachers'))) ?>">Import <?= e(strtolower(term($only === 'teachers' ? 'a2' : 'b2'))) ?> instead</a></p><?php endif; ?>

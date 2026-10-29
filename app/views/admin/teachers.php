@@ -1,7 +1,7 @@
 <div class="topbar">
   <div><h1><?= e(term('b2')) ?></h1><div class="muted"><?= count($teachers) ?> shown</div></div>
   <div class="row">
-    <a class="btn btn-ghost" href="<?= e(url('/admin/import')) ?>"><?= icon('upload') ?> Import</a>
+    <a class="btn btn-ghost" href="<?= e(url('/admin/import?type=teachers')) ?>"><?= icon('upload') ?> Import</a>
     <button class="btn btn-primary" onclick="document.getElementById('add').classList.toggle('hidden')"><?= icon('plus') ?> Add <?= e(strtolower(term('b1'))) ?></button>
   </div>
 </div>

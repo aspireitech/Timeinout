@@ -1,7 +1,7 @@
 <div class="topbar">
   <div><h1><?= e(term('a2')) ?><?= uses_contacts() ? ' &amp; ' . e(strtolower(term('c2'))) : '' ?></h1><div class="muted"><?= count($students) ?> shown</div></div>
   <div class="row">
-    <a class="btn btn-ghost" href="<?= e(url('/admin/import')) ?>"><?= icon('upload') ?> Import</a>
+    <a class="btn btn-ghost" href="<?= e(url('/admin/import?type=students')) ?>"><?= icon('upload') ?> Import</a>
     <button class="btn btn-primary" onclick="document.getElementById('add').classList.toggle('hidden')"><?= icon('plus') ?> Add <?= e(strtolower(term('a1'))) ?></button>
   </div>
 </div>
