@@ -445,3 +445,7 @@ label.sub { font-size: .78rem; color: var(--muted); font-weight: 600; margin-bot
 
 .rel-form { margin-top: 16px; padding: 18px; border: 1px dashed var(--line); border-radius: 16px; }
 .pick-rel { border-style: dashed; }
+.rel-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.rel-chip { border: 2px solid var(--line); background: var(--card, #fff); color: inherit; border-radius: 999px; padding: 11px 18px; font: inherit; font-weight: 700; cursor: pointer; min-height: 46px; }
+.rel-chip:hover { border-color: var(--brand); }
+.rel-chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }

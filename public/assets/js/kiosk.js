@@ -129,7 +129,9 @@
       if (b.dataset.rel) {
         $('#rel-form').classList.remove('hidden');
         $('#rel-error').classList.add('hidden');
-        $('#rel-name').value = ''; $('#rel-rel').value = '';
+        $('#rel-name').value = ''; $('#rel-other').value = '';
+        $('#rel-other').classList.add('hidden');
+        $$('.rel-chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
         setTimeout(() => $('#rel-name').focus(), 60);
         return;
       }
@@ -138,18 +140,30 @@
     }));
   }
 
+  // Relationship: tap one round button; "Other" opens a text box
+  $$('.rel-chip').forEach((c) => c.addEventListener('click', () => {
+    $$('.rel-chip').forEach((x) => x.setAttribute('aria-pressed', String(x === c)));
+    $('#rel-error').classList.add('hidden');
+    const other = c.dataset.rel === 'Other';
+    $('#rel-other').classList.toggle('hidden', !other);
+    if (other) setTimeout(() => $('#rel-other').focus(), 30);
+  }));
   $('#rel-go').addEventListener('click', () => {
     const name = $('#rel-name').value.trim().replace(/\s+/g, ' ');
-    if (name.length < 3 || !/\s/.test(name)) {
-      $('#rel-error').textContent = 'Please type your first and last name.';
+    const chip = $$('.rel-chip').find((c) => c.getAttribute('aria-pressed') === 'true');
+    const relationship = chip ? (chip.dataset.rel === 'Other' ? $('#rel-other').value.trim() : chip.dataset.rel) : '';
+    const err = name.length < 3 || !/\s/.test(name) ? 'Please type your first and last name.'
+      : !relationship ? (chip ? 'Please type the relationship.' : 'Please choose your relationship.') : '';
+    if (err) {
+      $('#rel-error').textContent = err;
       $('#rel-error').classList.remove('hidden');
       return;
     }
-    S.guardian = { id: -1, typed: true, name, relationship: $('#rel-rel').value.trim() || 'Authorized relative' };
+    S.guardian = { id: -1, typed: true, name, relationship };
     S.tile.type === 'pickup' ? openMaterial() : openAction();
   });
   $('#rel-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#rel-go').click(); });
-  $('#rel-rel').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#rel-go').click(); });
+  $('#rel-other').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#rel-go').click(); });
   const relFields = () => (S.guardian && S.guardian.typed ? { relative_name: S.guardian.name, relative_relationship: S.guardian.relationship } : {});
 
   // ---- Step 4a: sign in / out, with only the valid choice enabled

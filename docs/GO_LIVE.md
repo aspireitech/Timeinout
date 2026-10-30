@@ -63,7 +63,7 @@ one for a subdomain behind Cloudflare, create a free **Cloudflare Origin Certifi
    - `base_domain` → `clockinoutapp.com`
    - `tenant_url_mode` → `subdomain`
    - `force_https` → `true`
-   - `super_admin` → `aspireitechsolutions@gmail.com` and a strong password (use the
+   - `super_admin` → `you@yourcompany.com` and a strong password (use the
      hash: `php -r "echo password_hash('…', PASSWORD_DEFAULT), PHP_EOL;"`)
    - `mail` → SMTP host `smtp.hostinger.com`, port `465`, secure `ssl`
    - `mail_senders` → the passwords of the two mailboxes (section 3a)
@@ -186,7 +186,7 @@ Order of sign-in options: **Google → emailed code**, or **password → emailed
    'google_oauth' => [
        'client_id'      => '….apps.googleusercontent.com',
        'client_secret'  => '…',
-       'allowed_emails' => [],   // only aspireitechsolutions@gmail.com (super_admin) by default
+       'allowed_emails' => [],   // only you@yourcompany.com (super_admin) by default
    ],
    ```
 

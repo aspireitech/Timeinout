@@ -61,9 +61,15 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <div class="pick-grid" id="guardians"></div>
         <div class="rel-form hidden" id="rel-form">
           <div class="field"><label for="rel-name">Your full name</label><input type="text" id="rel-name" maxlength="80" autocomplete="off" placeholder="e.g. Rose Martin"></div>
-          <div class="field"><label for="rel-rel">Relationship (optional)</label><input type="text" id="rel-rel" maxlength="40" autocomplete="off" placeholder="e.g. Grandmother, Uncle, Neighbor"></div>
+          <div class="field"><label id="rel-label">Relationship</label>
+            <div class="rel-chips" role="group" aria-labelledby="rel-label">
+              <?php foreach (['Grandmother', 'Grandfather', 'Aunt', 'Uncle', 'Sister', 'Brother', 'Cousin', 'Stepparent', 'Nanny / babysitter', 'Family friend', 'Neighbor', 'Other'] as $rel): ?>
+                <button type="button" class="rel-chip" aria-pressed="false" data-rel="<?= e($rel) ?>"><?= e($rel) ?></button>
+              <?php endforeach; ?>
+            </div>
+            <input type="text" id="rel-other" class="hidden" maxlength="40" autocomplete="off" placeholder="Type the relationship" style="margin-top:10px"></div>
           <div class="k-error hidden" id="rel-error"></div>
-          <button class="btn btn-primary btn-lg btn-block" id="rel-go" type="button"><?= icon('check') ?> Continue</button>
+          <button class="btn btn-primary btn-lg btn-block" id="rel-go" type="button"><?= icon('check') ?> Submit</button>
         </div>
       </div>
     </section>

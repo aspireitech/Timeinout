@@ -33,7 +33,7 @@ return [
     // Password may be plain text or a password_hash() value (starts with $2y$) — prefer the hash:
     //   php -r "echo password_hash('your-long-password', PASSWORD_DEFAULT), PHP_EOL;"
     'super_admin' => [
-        'email'    => 'aspireitechsolutions@gmail.com',
+        'email'    => 'you@yourcompany.com',
         'password' => 'change-me-now',
     ],
 
