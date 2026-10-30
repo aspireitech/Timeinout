@@ -25,8 +25,13 @@ function platform_find_login(): void
 
 function platform_check_slug(): void
 {
-    [$slug, $err] = build_slug((string) input('state'), (string) input('city'), (string) input('name'));
-    json_out(['slug' => $slug, 'url' => $slug ? preview_url($slug) : '', 'error' => $err ?? ($slug ? slug_problem($slug) : null)]);
+    // ?slug= checks a typed address; ?org= suggests one from the business name
+    if (($typed = (string) input('slug')) !== '') {
+        $slug = clean_slug($typed);
+        json_out(['slug' => $slug, 'url' => preview_url($slug), 'error' => slug_problem($slug)]);
+    }
+    $slug = suggest_slug((string) input('org'), (string) input('state'));
+    json_out(['slug' => $slug, 'url' => preview_url($slug), 'error' => null]);
 }
 
 function preview_url(string $slug): string
@@ -37,7 +42,7 @@ function preview_url(string $slug): string
 function platform_signup(): void
 {
     $plans = plans();
-    $old = ['org_name' => '', 'industry' => (string) input('industry', 'office'), 'state' => '', 'city' => '', 'short' => '', 'admin_name' => '',
+    $old = ['org_name' => '', 'industry' => (string) input('industry', 'office'), 'state' => '', 'city' => '', 'slug' => '', 'admin_name' => '',
         'email' => '', 'plan' => (string) input('plan', array_key_first($plans)), 'timezone' => '', 'demo' => '1'];
     $errors = [];
 
@@ -47,7 +52,7 @@ function platform_signup(): void
             'industry'   => array_key_exists((string) input('industry'), industries()) ? (string) input('industry') : 'office',
             'state'      => strtoupper((string) input('state')),
             'city'       => mb_substr(trim((string) input('city')), 0, 40),
-            'short'      => (string) input('short'),
+            'slug'       => clean_slug((string) input('slug')),
             'admin_name' => mb_substr(trim((string) input('admin_name')), 0, 120),
             'email'      => strtolower(trim((string) input('email'))),
             'password'   => (string) ($_POST['password'] ?? ''),
@@ -61,9 +66,11 @@ function platform_signup(): void
         if (!isset(US_STATES[$d['state']]) && $d['state'] !== 'XX') {
             $errors['state'] = 'Please choose your state.';
         }
-        [$d['slug'], $slugErr] = build_slug($d['state'] === 'XX' ? '' : $d['state'], $d['city'], $d['short']);
-        if ($p = $slugErr ?? slug_problem($d['slug'])) {
-            $errors['short'] = $p;
+        if ($d['slug'] === '' && $d['org_name'] !== '') {
+            $d['slug'] = suggest_slug($d['org_name'], $d['state'] === 'XX' ? '' : $d['state']);
+        }
+        if ($p = slug_problem($d['slug'])) {
+            $errors['slug'] = $p;
         }
         if ($d['admin_name'] === '') {
             $errors['admin_name'] = 'Please enter your name.';
@@ -71,8 +78,8 @@ function platform_signup(): void
         if (!filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
             $errors['email'] = 'Please enter a valid email.';
         }
-        if (strlen($d['password']) < 10 || !preg_match('/[A-Za-z]/', $d['password']) || !preg_match('/\d/', $d['password'])) {
-            $errors['password'] = 'Use at least 10 characters, with letters and a number.';
+        if ($p = password_problem($d['password'], 'owner')) {
+            $errors['password'] = $p;
         }
         if (!isset($plans[$d['plan']])) {
             $d['plan'] = (string) array_key_first($plans);

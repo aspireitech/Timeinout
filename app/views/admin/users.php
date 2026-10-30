@@ -16,7 +16,7 @@
               <details class="reset"><summary class="btn btn-sm btn-ghost">New password</summary>
                 <form method="post" action="<?= e(url('/admin/users/' . $u['id'] . '/password')) ?>" class="stack" style="margin-top:6px;text-align:left;min-width:240px">
                   <?= csrf_field() ?>
-                  <div class="field"><input type="text" name="password" placeholder="Leave empty to generate one" autocomplete="off" aria-label="New password for <?= e($u['name']) ?>"></div>
+                  <div class="field"><input type="text" name="password" placeholder="Leave empty to generate one" autocomplete="off" aria-label="New password for <?= e($u['name']) ?>" data-pw-min="<?= $u['role'] === 'staff' ? 8 : 10 ?>" data-pw-optional></div>
                   <label class="check small"><input type="checkbox" name="must_change" value="1" checked><span>Must change it at next sign-in</span></label>
                   <label class="check small"><input type="checkbox" name="send_email" value="1" <?= $u['email'] ? 'checked' : 'disabled' ?>><span>Email it to <?= $u['email'] ? e($u['email']) : '(no email on file)' ?></span></label>
                   <button class="btn btn-sm btn-primary">Set password</button>
@@ -42,8 +42,7 @@
           <div class="hint">3–40 letters, numbers, dots, dashes. Optional if you enter an email.</div></div>
         <div class="field"><label for="u-email">Email <span class="muted">(optional for staff)</span></label><input type="email" id="u-email" name="email" placeholder="name@example.com">
           <div class="hint">Required for admins. Used for notices and to send the sign-in details.</div></div>
-        <div class="field"><label for="u-pass">Password</label><input type="text" id="u-pass" name="password" autocomplete="off" placeholder="Leave empty to generate one">
-          <div class="hint">Staff: 8+ characters. Admins: 10+. Letters and a number.</div></div>
+        <div class="field"><label for="u-pass">Password</label><input type="text" id="u-pass" name="password" autocomplete="off" placeholder="Leave empty to generate one" data-pw-min="8" data-pw-role="u-role" data-pw-optional></div>
         <div class="field"><label>&nbsp;</label>
           <label class="check"><input type="checkbox" name="must_change" value="1" checked><span>Must change password at first sign-in</span></label>
           <label class="check"><input type="checkbox" name="send_email" value="1" checked><span>Email the sign-in details (when an email is entered)</span></label></div>
@@ -56,7 +55,7 @@
     <form method="post" action="<?= e(url('/admin/password')) ?>">
       <?= csrf_field() ?>
       <div class="field"><label for="p-cur">Current password</label><input type="password" id="p-cur" name="current_password" required></div>
-      <div class="field"><label for="p-new">New password</label><input type="password" id="p-new" name="new_password" minlength="10" required><div class="hint">At least 10 characters, with letters and a number.</div></div>
+      <div class="field"><label for="p-new">New password</label><input type="password" id="p-new" name="new_password" minlength="10" autocomplete="new-password" required data-pw-min="10"></div>
       <button class="btn btn-primary">Change password</button>
     </form>
   </div>

@@ -679,8 +679,8 @@ function password_problem(string $pass, string $role): ?string
     if (strlen($pass) < $min) {
         return "Use at least $min characters" . ($min === 10 ? ' for admin passwords' : '') . '.';
     }
-    if (!preg_match('/[A-Za-z]/', $pass) || !preg_match('/\d/', $pass)) {
-        return 'Use letters and at least one number.';
+    if (!preg_match('/[A-Z]/', $pass) || !preg_match('/[a-z]/', $pass) || !preg_match('/\d/', $pass)) {
+        return 'Use at least one uppercase letter, one lowercase letter and one number.';
     }
     return null;
 }

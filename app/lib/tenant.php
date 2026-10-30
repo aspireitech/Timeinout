@@ -158,6 +158,37 @@ function tenant_url(array $t, string $path = '/'): string
     return scheme() . '://' . ($_SERVER['HTTP_HOST'] ?? cfg('base_domain')) . base_path() . '/s/' . $t['slug'] . $path;
 }
 
+/** Lowercase letters, numbers and single dashes, as typed in "Choose your own address". */
+function clean_slug(string $s): string
+{
+    $s = preg_replace('/[^a-z0-9-]+/', '-', strtolower(trim($s)));
+    return substr(trim(preg_replace('/-+/', '-', $s), '-'), 0, 30);
+}
+
+/** A free address made from the business name ("South Jordan Kumon" → southjordankumon). */
+function suggest_slug(string $org, string $state = ''): string
+{
+    $words = preg_split('/[^a-z0-9]+/', strtolower($org), -1, PREG_SPLIT_NO_EMPTY);
+    $words = array_values(array_filter($words, fn($w) => !in_array($w, ['llc', 'inc', 'ltd', 'co', 'corp', 'the', 'and', 'of', 'pllc', 'lp'], true))) ?: ['my', 'space'];
+    $base = substr(implode('', $words), 0, 24);
+    if (strlen($base) < 3) {
+        $base = str_pad($base, 3, '0');
+    }
+    $try = [$base];
+    if ($state !== '' && isset(US_STATES[strtoupper($state)])) {
+        $try[] = $base . strtolower($state);
+    }
+    for ($i = 2; $i <= 99; $i++) {
+        $try[] = $base . $i;
+    }
+    foreach ($try as $s) {
+        if (!slug_problem($s)) {
+            return $s;
+        }
+    }
+    return $base . bin2hex(random_bytes(2));
+}
+
 function slug_problem(string $slug): ?string
 {
     if (!preg_match('/^[a-z0-9]([a-z0-9-]{1,28})[a-z0-9]$/', $slug)) {
