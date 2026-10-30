@@ -7,11 +7,11 @@ const CAMPAIGNS = [
         'nav' => 'Schools & daycares', 'industry' => 'school', 'color' => '#B66A00', 'bg' => '#FFF1DC',
         'eyebrow' => 'For schools, daycares & after-school programs',
         'title' => 'Every pickup, <span class="tick">safely signed out.</span>',
-        'lead' => 'Parents tap their child\'s name and choose who is picking up. Only the guardians you approved can be chosen, and you get a dated record of every drop-off and pickup.',
+        'lead' => 'Parents tap their child\'s name and choose who is picking up: a parent or guardian on file, or an authorized relative who types their name. You get a dated record of every drop-off and pickup.',
         'events' => [['in', 'Olivia Martin signed in', '07:52 · with Anna Martin (Mother)'], ['out', 'Lucas Nguyen signed out', '15:10 · by Lan Tran (Aunt)'], ['pickup', 'Homework folder picked up', '15:12 · by Minh Nguyen']],
         'pains' => ['Paper sign-out sheets nobody can read', 'Not knowing who collected a child, or when', 'Hours spent typing attendance for reports'],
         'features' => [
-            ['Approved pickups only', 'Each child shows only their parents, guardians and authorized relatives. Adults can sign in as "Self".'],
+            ['Know who picked up', 'Each child shows their parents and guardians on file, plus an "Authorized relative" button for anyone else, who types their name (you can turn it off). Adults can sign in as "Self".'],
             ['Today\'s attendance, live', 'Present, absent and gone home, at a glance, from any device.'],
             ['Reports in your inbox at 7:00', 'Daily, weekly and monthly PDF and CSV reports, sent to as many people as you like.'],
             ['Import your roster in minutes', 'Upload your Excel or CSV as it is; match the columns once and you are done.'],

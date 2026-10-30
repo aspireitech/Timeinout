@@ -624,6 +624,7 @@ function admin_settings(): void
             'timezone'        => valid_tz((string) input('timezone')) ? (string) input('timezone') : '',
             'kiosk_public'    => input('kiosk_public') === '1' ? 1 : 0,
             'allow_past_days' => max(0, min(60, (int) input('allow_past_days'))),
+            'allow_typed_relative' => input('allow_typed_relative') === '1' ? 1 : 0,
         ];
         $domain = strtolower(trim((string) input('custom_domain')));
         $domain = preg_replace('#^https?://#', '', rtrim($domain, '/'));

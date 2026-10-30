@@ -442,3 +442,6 @@ label.sub { font-size: .78rem; color: var(--muted); font-weight: 600; margin-bot
 
 .import-into { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .import-into .into { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; font-weight: 800; }
+
+.rel-form { margin-top: 16px; padding: 18px; border: 1px dashed var(--line); border-radius: 16px; }
+.pick-rel { border-style: dashed; }

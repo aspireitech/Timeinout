@@ -68,11 +68,8 @@ return [
     // Stripe and Wave keys are entered in the provider console: /super → Settings.
 
     // Plans shown on the pricing page
-    'plans' => [
-        'starter' => ['name' => 'Starter',    'price' => '$19/mo', 'amount' => 19, 'limit' => 'Up to 50 people'],
-        'school'  => ['name' => 'Business',   'price' => '$49/mo', 'amount' => 49, 'limit' => 'Up to 500 people'],
-        'campus'  => ['name' => 'Enterprise', 'price' => '$99/mo', 'amount' => 99, 'limit' => 'Unlimited people'],
-    ],
+    // Plans, prices and limits are in app/lib/billing.php (PLAN_CATALOG). To adjust one here:
+    // 'plan_overrides' => ['starter' => ['amount' => 45, 'max_people' => 100, 'limit' => 'Up to 100 people']],
 
     // Email server. 'smtp' is recommended (Hostinger: smtp.hostinger.com, port 465, secure 'ssl').
     // Server settings can also be changed in /super → Settings, which wins over this file.

@@ -237,7 +237,7 @@ function super_update_tenant(int $id): void
     $plan = (string) input('plan');
     $t = row('SELECT * FROM tenants WHERE id = ?', [$id]);
     audit_note($t ? $t['name'] . ' (' . $t['slug'] . ')' : "#$id", $t ? audit_diff($t, ['status' => $status, 'plan' => $plan]) : null);
-    if (in_array($status, ['trial', 'active', 'suspended', 'cancelled'], true) && isset(cfg('plans', [])[$plan])) {
+    if (in_array($status, ['trial', 'active', 'suspended', 'cancelled'], true) && isset(plans()[$plan])) {
         update('tenants', ['status' => $status, 'plan' => $plan], 'id = ?', [$id]);
         flash('success', 'Subscriber updated.');
     }

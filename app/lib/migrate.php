@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 function setting(string $key, $default = null)
 {
@@ -68,6 +68,9 @@ function migrate(): void
         }
         if ($v < 10) {
             migration_10();
+        }
+        if ($v < 11) {
+            migration_11();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -306,5 +309,13 @@ function migration_10(): void
 {
     if (!column_exists('tenants', 'billing_cycle')) {
         q("ALTER TABLE tenants ADD COLUMN billing_cycle VARCHAR(10) NOT NULL DEFAULT 'monthly' AFTER billing_provider");
+    }
+}
+
+/** V11: kiosk may offer "Authorized relative" with a typed name. */
+function migration_11(): void
+{
+    if (!column_exists('tenants', 'allow_typed_relative')) {
+        q('ALTER TABLE tenants ADD COLUMN allow_typed_relative TINYINT(1) NOT NULL DEFAULT 1 AFTER allow_past_days');
     }
 }

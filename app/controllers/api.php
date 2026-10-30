@@ -154,6 +154,14 @@ function api_record(): void
         if (!$guardian && $guardianId === 0 && !val('SELECT 1 FROM guardians WHERE student_id = ? AND tenant_id = ?', [$personId, tid()])) {
             $guardian = ['id' => null, 'name' => 'Self']; // only allowed when no guardian is on file
         }
+        if (!$guardian && $guardianId === -1 && (tenant()['allow_typed_relative'] ?? 1)) { // "Authorized relative": name typed at the kiosk
+            $rName = mb_substr(preg_replace('/\s+/u', ' ', trim((string) ($in['relative_name'] ?? ''))), 0, 80);
+            $rRel = mb_substr(trim((string) ($in['relative_relationship'] ?? '')), 0, 40) ?: 'Authorized relative';
+            if (mb_strlen($rName) < 3 || !str_contains($rName, ' ')) {
+                json_out(['error' => 'Please type your first and last name.'], 422);
+            }
+            $guardian = ['id' => null, 'name' => mb_substr($rName . ' (' . $rRel . ')', 0, 120)];
+        }
         if (!$guardian) {
             json_out(['error' => 'Please choose who is with them.'], 422);
         }

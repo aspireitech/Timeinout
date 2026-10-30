@@ -203,8 +203,8 @@ Order of sign-in options: **Google → emailed code**, or **password → emailed
 
 ### Plans, limits and yearly billing
 
-- Prices and people limits come from `'plans'` in `app/config.php` (`'limit' => 'Up to 50 people'` sets the limit; "Unlimited" means none). Each plan's description, feature list and staff-login limit are in `app/lib/billing.php` (`PLAN_DETAILS`); any of them can be overridden in config, for example `'max_logins' => 5`.
-- **Enforced:** people (active students + staff, visitors don't count) and staff logins. Adding one more, or importing past the limit, shows "Upgrade in Admin → Billing". Nothing is ever removed.
+- Plans live in `app/lib/billing.php` (`PLAN_CATALOG`): Starter $39 (75 people, 3 staff logins, 90 days of reports), Business $79 (500 people, unlimited logins, 180 days), Enterprise $149 (unlimited). The old `'plans'` block in `config.php` is no longer read; to change a plan without editing code, add `'plan_overrides' => ['starter' => ['amount' => 45]]` to `config.php`.
+- **Enforced:** people (active students + staff, visitors don't count), staff logins and report history (reports start no earlier than the plan allows; Enterprise can run 12-month reports). Adding one more, or importing past the limit, shows "Upgrade in Admin → Billing". Nothing is ever removed.
 - **Yearly billing:** customers pay for 10 months and get 12 (change with `'annual_months' => 10` in config). For card payments, create a **yearly** recurring price for each plan in Stripe (Products → your plan → Add price → Yearly) and paste its ID under `/super → Settings → Yearly price ID`. Wave invoices need nothing extra: yearly invoices use the same product at the yearly amount.
 
 ---

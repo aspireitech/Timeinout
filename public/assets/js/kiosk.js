@@ -3,7 +3,7 @@
 (function () {
   const root = document.getElementById('kiosk');
   if (!root) return;
-  const API = root.dataset.api, CSRF = root.dataset.csrf, TODAY = root.dataset.today, TZ = root.dataset.tz;
+  const API = root.dataset.api, CSRF = root.dataset.csrf, TODAY = root.dataset.today, TZ = root.dataset.tz, RELATIVE = root.dataset.relative === '1';
   const $ = (s) => root.querySelector(s);
   const $$ = (s) => Array.from(root.querySelectorAll(s));
   const S = { day: TODAY, tile: null, person: null, guardian: null };
@@ -113,20 +113,44 @@
     $('#who-g').innerHTML = whoHTML();
     $('#guardian-title').textContent = S.tile.type === 'pickup' ? 'Who is picking up?' : 'Who is with them?';
     $('#guardians').innerHTML = '<div class="spinner"></div>';
+    $('#rel-form').classList.add('hidden');
     show('guardian');
     const list = await getJSON(`/guardians?student_id=${p.id}`);
-    if (!list.length) {
+    if (!list.length && !RELATIVE) {
       $('#guardians').innerHTML = '<div class="k-hint">No contact is on file for this person. Please see the front desk.</div>';
       return;
     }
+    // Listed parents/guardians first; "Authorized relative" (type your name) is always last when the portal allows it
     $('#guardians').innerHTML = list.map((g, i) =>
       `<button class="pick" data-i="${i}"><span class="avatar material">${esc(g.initials)}</span>` +
-      `<span><div class="nm">${esc(g.name)}</div><div class="sb">${esc(g.relationship || 'Contact')}</div></span></button>`).join('');
+      `<span><div class="nm">${esc(g.name)}</div><div class="sb">${esc(g.relationship || 'Contact')}</div></span></button>`).join('') +
+      (RELATIVE ? `<button class="pick pick-rel" data-rel="1"><span class="avatar">+</span><span><div class="nm">Authorized relative</div><div class="sb">Not listed? Type your name</div></span></button>` : '');
     $$('#guardians .pick').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.rel) {
+        $('#rel-form').classList.remove('hidden');
+        $('#rel-error').classList.add('hidden');
+        $('#rel-name').value = ''; $('#rel-rel').value = '';
+        setTimeout(() => $('#rel-name').focus(), 60);
+        return;
+      }
       S.guardian = list[+b.dataset.i];
       S.tile.type === 'pickup' ? openMaterial() : openAction();
     }));
   }
+
+  $('#rel-go').addEventListener('click', () => {
+    const name = $('#rel-name').value.trim().replace(/\s+/g, ' ');
+    if (name.length < 3 || !/\s/.test(name)) {
+      $('#rel-error').textContent = 'Please type your first and last name.';
+      $('#rel-error').classList.remove('hidden');
+      return;
+    }
+    S.guardian = { id: -1, typed: true, name, relationship: $('#rel-rel').value.trim() || 'Authorized relative' };
+    S.tile.type === 'pickup' ? openMaterial() : openAction();
+  });
+  $('#rel-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#rel-go').click(); });
+  $('#rel-rel').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#rel-go').click(); });
+  const relFields = () => (S.guardian && S.guardian.typed ? { relative_name: S.guardian.name, relative_relationship: S.guardian.relationship } : {});
 
   // ---- Step 4a: sign in / out, with only the valid choice enabled
   function openAction() {
@@ -224,7 +248,7 @@
 
   $$('.action').forEach((b) => b.addEventListener('click', () => submit('action', {
     tile_id: S.tile.id, person_id: S.person.id, guardian_id: S.guardian ? S.guardian.id : 0,
-    action: b.dataset.action, date: S.day, time: pastTime('action'),
+    action: b.dataset.action, date: S.day, time: pastTime('action'), ...relFields(),
   }, b)));
 
   $('#mat-submit').addEventListener('click', (e) => {
@@ -233,7 +257,7 @@
     if (!items.length && !other) return fail('material', 'Please choose at least one item.');
     submit('material', {
       tile_id: S.tile.id, person_id: S.person.id, guardian_id: S.guardian ? S.guardian.id : 0,
-      materials: items, other, date: S.day, time: pastTime('material'),
+      materials: items, other, date: S.day, time: pastTime('material'), ...relFields(),
     }, e.currentTarget);
   });
 

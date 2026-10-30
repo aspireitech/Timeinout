@@ -2,11 +2,39 @@
 // Daily / weekly / monthly summaries, used by the Reports page and the
 // scheduled email job.
 
-/** @return array{0:string,1:string,2:string} [from, to, label] */
-/** Longest on-demand (custom) range: 6 months. */
+/** Longest on-demand (custom) range: 6 months (12 on plans with unlimited report history). */
 const REPORT_MAX_MONTHS = 6;
 
+function report_max_months(): int
+{
+    return function_exists('tenant') && tenant() && (tenant_plan()['report_days'] ?? 0) === null ? 12 : REPORT_MAX_MONTHS;
+}
+
+/** Earliest date the current portal's plan can report on (null = no limit). */
+function report_earliest(): ?string
+{
+    if (!function_exists('tenant') || !tenant()) {
+        return null;
+    }
+    $days = tenant_plan()['report_days'] ?? null;
+    return $days ? tenant_now()->modify('-' . (int) $days . ' days')->format('Y-m-d') : null;
+}
+
+/** @return array{0:string,1:string,2:string} [from, to, label], starting no earlier than the plan's report history */
 function report_period(string $period, string $anchor, ?string $end = null): array
+{
+    [$from, $to, $label] = report_period_raw($period, $anchor, $end);
+    $min = report_earliest();
+    if ($min && $from < $min) {
+        $GLOBALS['report_clamped'] = $min;
+        $from = $min;
+        $to = max($to, $min);
+        $label = date('M j, Y', strtotime($from)) . ' – ' . date('M j, Y', strtotime($to));
+    }
+    return [$from, $to, $label];
+}
+
+function report_period_raw(string $period, string $anchor, ?string $end = null): array
 {
     $d = new DateTime($anchor);
     switch ($period) {
@@ -15,7 +43,7 @@ function report_period(string $period, string $anchor, ?string $end = null): arr
             if ($e < $d) {
                 [$d, $e] = [$e, $d];
             }
-            $max = (clone $d)->modify('+' . REPORT_MAX_MONTHS . ' months')->modify('-1 day');
+            $max = (clone $d)->modify('+' . report_max_months() . ' months')->modify('-1 day');
             if ($e > $max) {
                 $e = $max;
             }

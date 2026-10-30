@@ -30,7 +30,7 @@
         <td>
           <form method="post" action="<?= e(base_path() . '/super/tenants/' . $t['id']) ?>" class="inline-form">
             <?= csrf_field() ?>
-            <select name="plan" style="width:auto"><?php foreach (cfg('plans') as $k => $p): ?><option value="<?= e($k) ?>" <?= $t['plan'] === $k ? 'selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select>
+            <select name="plan" style="width:auto"><?php foreach (plans() as $k => $p): ?><option value="<?= e($k) ?>" <?= $t['plan'] === $k ? 'selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select>
             <select name="status" style="width:auto"><?php foreach (['trial', 'active', 'suspended', 'cancelled'] as $s): ?><option <?= $t['status'] === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select>
             <button class="btn btn-sm">Save</button>
           </form>

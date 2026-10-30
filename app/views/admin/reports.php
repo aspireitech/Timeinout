@@ -15,6 +15,9 @@
     </details>
   </div>
 </div>
+<?php if (!empty($GLOBALS['report_clamped'])): $pl = tenant_plan(); ?>
+  <div class="flash info"><?= icon('chart', 18) ?> <span>Your <?= e($pl['name'] ?? '') ?> plan includes reports for the last <?= (int) ($pl['report_days'] ?? 0) ?> days, so this report starts on <?= e(date('M j, Y', strtotime($GLOBALS['report_clamped']))) ?>. <a href="<?= e(url('/admin/billing')) ?>">Upgrade for longer history</a>.</span></div>
+<?php endif; ?>
 
 <div class="card" style="margin-bottom:18px">
   <form class="inline-form" method="get">
@@ -30,7 +33,7 @@
       <div class="field" style="flex:0 1 180px"><label>From</label><input type="date" name="date" value="<?= e($from) ?>"></div>
       <div class="field" style="flex:0 1 180px"><label>To</label><input type="date" name="to" value="<?= e($to) ?>"></div>
       <button class="btn btn-sm btn-primary">Show</button>
-      <span class="muted small">Up to <?= REPORT_MAX_MONTHS ?> months per report.</span>
+      <span class="muted small">Up to <?= report_max_months() ?> months per report<?= report_earliest() ? ", from " . e(date('M j, Y', strtotime(report_earliest()))) . " on" : '' ?>.</span>
     <?php else: ?>
     <div class="field" style="flex:0 1 200px"><label>Date in period</label><input type="date" name="date" value="<?= e($date) ?>" onchange="this.form.submit()"></div>
     <?php

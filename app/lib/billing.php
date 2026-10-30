@@ -11,18 +11,17 @@ const GRACE_DAYS = 7; // days after a trial ends before the portal locks
 
 function plans(): array
 {
-    $plans = cfg('plans', []);
-    $rename = ['School' => 'Business', 'Campus' => 'Enterprise']; // older configs used school names
-    foreach ($plans as $k => &$p) {
-        $p['name'] = $rename[$p['name'] ?? ''] ?? ($p['name'] ?? ucfirst($k));
-        $p['limit'] = str_replace(' students', ' people', (string) ($p['limit'] ?? ''));
-        $p['amount'] = (float) ($p['amount'] ?? preg_replace('/[^0-9.]/', '', explode('/', (string) ($p['price'] ?? '0'))[0]));
-        $p += PLAN_DETAILS[$k] ?? [];
-        // People limit: config 'max_people', else the number in 'limit' ("Up to 50 people"); none means unlimited
-        if (!array_key_exists('max_people', $p)) {
-            $p['max_people'] = preg_match('/(\d[\d,]*)/', $p['limit'], $m) ? (int) str_replace(',', '', $m[1]) : null;
+    // Prices and contents live in PLAN_CATALOG below, so an update changes them everywhere.
+    // config.php may still adjust a plan with 'plan_overrides' => ['starter' => ['amount' => 45]].
+    $plans = PLAN_CATALOG;
+    foreach ((array) cfg('plan_overrides', []) as $k => $o) {
+        if (isset($plans[$k]) && is_array($o)) {
+            $plans[$k] = array_merge($plans[$k], $o);
         }
-        $p += ['max_logins' => null, 'tagline' => '', 'features' => [], 'popular' => false];
+    }
+    foreach ($plans as $k => &$p) {
+        $p['price'] = '$' . number_format((float) $p['amount'], 0) . '/mo';
+        $p += ['max_people' => null, 'max_logins' => null, 'report_days' => null, 'tagline' => '', 'features' => [], 'popular' => false];
         $p['annual'] = (float) ($p['annual'] ?? round($p['amount'] * annual_months(), 2));
     }
     return $plans;
@@ -34,19 +33,23 @@ function annual_months(): int
     return max(1, min(12, (int) cfg('annual_months', 10)));
 }
 
-/** What each plan includes, by plan key (the people limit is shown from 'limit'). Config 'plans' entries can override any of these.
- *  Enforced: max_people (students + staff) and max_logins. The rest are service promises. */
-const PLAN_DETAILS = [
-    'starter' => ['max_logins' => 3, 'tagline' => 'For one front desk getting started.', 'features' => [
-        '3 staff logins', 'Check-in kiosk on any tablet or phone', 'Safe pickups with approved guardians',
-        'Live attendance and daily email report', 'PDF & CSV reports, spreadsheet import', 'Email support',
+/** The plans. Enforced: max_people (active students + staff), max_logins and report_days (how far back reports go).
+ *  The other lines are service promises shown on the pricing page. */
+const PLAN_CATALOG = [
+    'starter' => ['name' => 'Starter', 'amount' => 39, 'limit' => 'Up to 75 people', 'max_people' => 75, 'max_logins' => 3, 'report_days' => 90,
+        'tagline' => 'For one front desk getting started.', 'features' => [
+        '3 staff logins', 'Check-in kiosk on any tablet or phone', 'Safe pickups with parents, guardians and authorized relatives',
+        'Live attendance and daily email report', 'Reports for the last 90 days (PDF & CSV)', 'Spreadsheet import', 'Email support',
     ]],
-    'school' => ['max_logins' => null, 'popular' => true, 'tagline' => 'For busy schools, centers and offices.', 'features' => [
-        'Everything in Starter, plus:', 'Unlimited staff logins', 'Help importing your first spreadsheet', 'Priority email support (same business day)', 'Early access to new features',
+    'school' => ['name' => 'Business', 'amount' => 79, 'limit' => 'Up to 500 people', 'max_people' => 500, 'max_logins' => null, 'report_days' => 180,
+        'popular' => true, 'tagline' => 'For busy schools, centers and offices.', 'features' => [
+        'Everything in Starter, plus:', 'Unlimited staff logins', 'Reports for the last 180 days',
+        'Done-for-you setup: we import your list and set up the kiosk and staff logins', 'Priority email support (same business day)', 'Early access to new features',
     ]],
-    'campus' => ['max_logins' => null, 'tagline' => 'For large or multi-site organizations.', 'features' => [
-        'Everything in Business, plus:', 'Your own private database', 'Done-for-you setup and data import',
-        'Onboarding call and staff training', 'Phone support and a named contact', 'Custom terms and invoicing',
+    'campus' => ['name' => 'Enterprise', 'amount' => 149, 'limit' => 'Unlimited people', 'max_people' => null, 'max_logins' => null, 'report_days' => null,
+        'tagline' => 'For large or multi-site organizations.', 'features' => [
+        'Everything in Business, plus:', 'Unlimited report history', 'Your own private database', 'Onboarding calls and staff training',
+        'Phone support and a named contact', 'Multiple locations: talk to us', 'Custom terms and invoicing',
     ]],
 ];
 

@@ -1,8 +1,7 @@
 <?php $me = current_user(); ?>
 <div class="topbar"><div><h1>Users</h1><div class="muted">Admins manage the school (with an emailed sign-in code). Staff can only open the kiosk and can sign in with a user ID.</div></div></div>
-<div class="grid c2">
-  <div class="card">
-    <table class="table">
+<div class="card" style="margin-bottom:18px">
+    <div class="table-wrap"><table class="table">
       <tr><th>Name</th><th>Role</th><th>Last sign-in</th><th></th></tr>
       <?php foreach ($users as $u): $canReset = $u['role'] !== 'owner' || $u['id'] == $me['id']; ?>
         <tr>
@@ -29,8 +28,11 @@
           </td>
         </tr>
       <?php endforeach; ?>
-    </table>
-    <h3 style="margin-top:20px">Add a user</h3>
+    </table></div>
+</div>
+<div class="grid c2">
+  <div class="card">
+    <h3>Add a user</h3>
     <form method="post" action="<?= e(url('/admin/users')) ?>">
       <?= csrf_field() ?>
       <div class="grid c2">

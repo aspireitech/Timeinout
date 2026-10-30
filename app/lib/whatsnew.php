@@ -4,6 +4,7 @@
 
 /** Shipped features, newest first: [date (Y-m-d), title, description, icon, tag]. */
 const WHATS_NEW = [
+    ['2026-10-30', '"Authorized relative" at the kiosk', 'Besides the parents and guardians on file, the kiosk always offers "Authorized relative": the person types their name and relationship, and it is saved with the entry. Turn it off in Branding & settings.', 'users', 'Kiosk'],
     ['2026-10-28', 'Request a feature from your portal', 'Send us your ideas from Admin → What\'s new, with the details that matter to you, and follow each request\'s status and our reply.', 'spark', 'Product'],
     ['2026-10-28', 'Email through Microsoft 365', 'Sign-in codes, reports and notices are delivered through Microsoft 365 for reliable, on-brand email from our own domain.', 'mail', 'Reliability'],
     ['2026-10-26', '"Self" check-in for adults', 'Adult learners and members with no guardian on file can sign themselves in and out. Children still need a listed guardian.', 'users', 'Kiosk'],

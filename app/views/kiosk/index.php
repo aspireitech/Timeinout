@@ -3,7 +3,7 @@ $t = tenant();
 $min = tenant_now()->modify('-' . (int) $t['allow_past_days'] . ' days')->format('Y-m-d');
 $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
 ?>
-<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>">
+<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>" data-relative="<?= (int) ($t['allow_typed_relative'] ?? 1) ?>">
   <header class="k-top">
     <div class="k-org">
       <?php if ($t['logo_path']): ?><img src="<?= e(upload_url($t['logo_path'])) ?>" alt=""><?php else: ?><span class="logo-mark"><?= e(initials($t['name'])) ?></span><?php endif; ?>
@@ -59,6 +59,12 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <div class="who" id="who-g"></div>
         <h2 id="guardian-title">Who is with them?</h2>
         <div class="pick-grid" id="guardians"></div>
+        <div class="rel-form hidden" id="rel-form">
+          <div class="field"><label for="rel-name">Your full name</label><input type="text" id="rel-name" maxlength="80" autocomplete="off" placeholder="e.g. Rose Martin"></div>
+          <div class="field"><label for="rel-rel">Relationship (optional)</label><input type="text" id="rel-rel" maxlength="40" autocomplete="off" placeholder="e.g. Grandmother, Uncle, Neighbor"></div>
+          <div class="k-error hidden" id="rel-error"></div>
+          <button class="btn btn-primary btn-lg btn-block" id="rel-go" type="button"><?= icon('check') ?> Continue</button>
+        </div>
       </div>
     </section>
 
