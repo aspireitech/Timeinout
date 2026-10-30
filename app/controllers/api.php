@@ -65,6 +65,14 @@ function api_search(): void
     ], $list));
 }
 
+/** Items currently shown on the kiosk (hidden ones are left out). */
+function api_materials(): void
+{
+    api_guard();
+    json_out(array_map(fn($m) => ['id' => (int) $m['id'], 'name' => $m['name']],
+        rows('SELECT id, name FROM materials WHERE tenant_id = ? AND active = 1 ORDER BY sort_order, name', [tid()])));
+}
+
 /** Only the guardians linked to the chosen student. */
 function api_guardians(): void
 {

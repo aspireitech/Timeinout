@@ -89,7 +89,7 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <button class="k-back" id="mat-back"><?= icon('back', 18) ?> Back</button>
         <div class="who" id="who-m"></div>
         <h2>What are you picking up?</h2>
-        <div class="mat-grid">
+        <div class="mat-grid" id="mat-grid">
           <?php foreach ($materials as $m): ?>
             <label class="mat"><input type="checkbox" name="mat" value="<?= (int) $m['id'] ?>"> <?= e($m['name']) ?></label>
           <?php endforeach; ?>

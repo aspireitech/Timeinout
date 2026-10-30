@@ -192,6 +192,11 @@
     $$('input[name=mat]').forEach((c) => { c.checked = false; });
     $('#mat-other').value = '';
     show('material');
+    // Fetch the current list, so items shown or hidden by an admin apply without reloading the kiosk
+    getJSON('/materials').then((list) => {
+      if (!Array.isArray(list)) return;
+      $('#mat-grid').innerHTML = list.map((m) => `<label class="mat"><input type="checkbox" name="mat" value="${+m.id}"> ${esc(m.name)}</label>`).join('');
+    }).catch(() => {});
   }
 
   // ---- Visitors

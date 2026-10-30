@@ -95,6 +95,7 @@ function tenant_routes(string $path): void
         ['GET',      '/api/guardians',             'api_guardians'],
         ['GET',      '/api/status',                'api_status'],
         ['GET',      '/api/visitors',              'api_visitors'],
+        ['GET',      '/api/materials',             'api_materials'],
         ['POST',     '/api/record',                'api_record'],
         // Admin portal (owners and admins only)
         ['GET',      '/admin',                     'admin_dashboard'],
