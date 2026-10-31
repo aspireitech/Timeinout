@@ -150,27 +150,24 @@ still comes from contact@ and reports@, through Microsoft's servers, so SPF/DKIM
 
 `https://clockinoutapp.com/super/login`
 
-- **Password login**: `super_admin` email + password from `app/config.php`.
-- **Sign in with Google** (optional): appears when `google_oauth` is filled in.
-- **Both are always followed by a 6-digit code emailed to the super_admin address.**
-  If Google is down or misconfigured, the password login is always on the same page.
-- If email itself breaks, someone with server access can set `'super_otp' => false` in
-  `app/config.php`, sign in, fix email in `/super → Settings`, then set it back to `true`.
+Sign-in options, in this order:
 
-### Remove the password from config.php (recommended)
+1. **Sign in with Google** (first choice): one click, protected by your Google account's
+   2-Step Verification. Appears once `google_oauth` is filled in (below). To also require the
+   emailed code after Google, add `'super_google_code' => true` to `app/config.php`.
+2. **Email code** when Google is down: enter the provider email, get a 6-digit code.
+3. **Break-glass** when Google and email are both down: the break-glass password **plus** one
+   one-time recovery code. Every use is logged and emailed to you.
+4. **Server last resort** (SSH): `php cron/super_password.php --recovery` sets a new break-glass
+   password in the database and prints new recovery codes.
 
-1. Sign in, open **`/super` → Sign-in**, and under **Change password** set a new password
-   (14+ characters). It is stored **hashed in the database**.
-2. Delete the `'password' => '…'` line from `super_admin` in `app/config.php` (keep the email).
-3. On the same page click **Create recovery codes** and save the 10 codes in your password
-   manager. If the sign-in code email ever fails, the code page offers **"Use a recovery code"**;
-   each code works once, and you get an email whenever one is used.
-4. Last resort, if Google, email and recovery codes all fail (needs server/SSH access):
-   `php cron/super_password.php --recovery` sets a new password in the database and prints new
-   recovery codes.
+### Set up break-glass (do this once)
 
-Order of sign-in options: **Google → emailed code**, or **password → emailed code**, with
-**recovery codes** replacing the emailed code when email is down.
+1. Sign in, open **`/super` → Sign-in**, set the **break-glass password** (14+ characters). It is
+   stored hashed in the database; then delete the `'password' => '…'` line from `super_admin` in
+   `app/config.php` (keep the email).
+2. On the same page click **Create recovery codes** and save the 10 codes with the password in
+   your password manager.
 
 ### Turn on Sign in with Google
 
@@ -208,6 +205,18 @@ Order of sign-in options: **Google → emailed code**, or **password → emailed
 - **Yearly billing:** customers pay for 10 months and get 12 (change with `'annual_months' => 10` in config). For card payments, create a **yearly** recurring price for each plan in Stripe (Products → your plan → Add price → Yearly) and paste its ID under `/super → Settings → Yearly price ID`. Wave invoices need nothing extra: yearly invoices use the same product at the yearly amount.
 
 ---
+
+### Search engines (Google)
+
+- `robots.txt` and `sitemap.xml` are generated automatically; customer portals and `/super` are
+  kept out of search results.
+- **Google Search Console**: add the property `https://clockinoutapp.com/`, choose **HTML tag**,
+  paste it in **`/super` → Settings → Google Search Console**, click Verify, then submit
+  `https://clockinoutapp.com/sitemap.xml`.
+- **Google Analytics 4** (optional): paste the `G-…` ID in the same place. It runs on the public
+  website only.
+- Share links that open the home page tagged by channel: `/linkedin`, `/facebook`, `/email`,
+  `/web`, `/friend` (sign-ups and demo requests show the source in `/super`).
 
 ## 5. Create a customer portal (example: utsjkumon.clockinoutapp.com)
 

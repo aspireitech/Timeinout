@@ -45,11 +45,15 @@ function platform_routes(string $path): void
     if (preg_match('#^/for/([a-z-]+)$#', $path, $m) && isset(CAMPAIGNS[$m[1]])) {
         platform_campaign($m[1]);
     }
+    if (isset(SHARE_LINKS[ltrim($path, '/')])) { // /linkedin, /facebook, /email, /web, /friend
+        redirect(base_path() . '/?src=' . SHARE_LINKS[ltrim($path, '/')]);
+    }
     dispatch($path, [
         ['GET',      '/',                    'platform_home'],
         ['GET|POST', '/signup',              'platform_signup'],
         ['GET|POST', '/demo',                'platform_demo'],
         ['GET',      '/whats-new',           'platform_whats_new'],
+        ['GET',      '/sitemap.xml',         'seo_sitemap'],
         ['GET|POST', '/report-activity',     'platform_report_activity'],
         ['GET',      '/check-address',       'platform_check_slug'],
         ['GET|POST', '/login',               'platform_find_login'],

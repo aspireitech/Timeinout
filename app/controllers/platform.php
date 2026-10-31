@@ -115,16 +115,21 @@ function super_login(): void
     if (input('timeout') === '1') {
         $error = 'You were signed out after 30 minutes without activity.';
     }
+    $mode = (string) input('mode');
     if (is_post()) {
-        $error = super_check((string) input('email'), (string) ($_POST['password'] ?? ''));
-        if ($error === null) {
-            redirect(base_path() . '/super?li=1');
-        }
-        if ($error === 'otp') {
-            redirect(base_path() . '/super/verify');
+        if ($mode === 'breakglass') { // 3rd: Google and email both down
+            $error = super_breakglass((string) input('email'), (string) ($_POST['password'] ?? ''), (string) input('recovery'));
+            if ($error === null) {
+                redirect(base_path() . '/super?li=1');
+            }
+        } else { // 2nd: Google down, emailed code
+            $error = super_email_code_start((string) input('email'));
+            if ($error === 'otp') {
+                redirect(base_path() . '/super/verify');
+            }
         }
     }
-    view('platform/super_login', ['error' => $error, 'google' => google_ready()], 'platform');
+    view('platform/super_login', ['error' => $error, 'google' => google_ready(), 'mode' => $mode], 'platform');
 }
 
 function super_verify(): void
@@ -138,7 +143,7 @@ function super_verify(): void
         $info = 'The sign-in code email could not be sent. Use one of your recovery codes below.';
     }
     if (is_post()) {
-        if (input('recovery') !== '') {
+        if (input('recovery') !== '' && ($o['who']['via'] ?? '') !== 'code') {
             $who = $o['who'];
             if (login_blocked('super-recovery', $who['email'])) {
                 $error = 'Too many wrong recovery codes. Please wait 15 minutes.';
@@ -160,13 +165,13 @@ function super_verify(): void
         } elseif (!empty($o['mail_failed'])) {
             $error = 'No code was emailed. Use a recovery code.';
         } elseif (($error = otp_check('super', (string) input('code'))) === null) {
-            super_complete($o['who']['email']);
+            super_complete($o['who']['email'], ($o['who']['via'] ?? '') === 'code' ? 'Email code' : 'Google + email code');
             redirect(base_path() . '/super?li=1');
         } elseif (!otp_pending('super')) {
             redirect(base_path() . '/super/login');
         }
     }
-    view('auth/verify', ['error' => $error, 'info' => $info, 'email' => $o['who']['email'], 'demoCode' => null, 'recovery' => true,
+    view('auth/verify', ['error' => $error, 'info' => $info, 'email' => $o['who']['email'], 'demoCode' => null, 'recovery' => ($o['who']['via'] ?? '') !== 'code',
         'action' => base_path() . '/super/verify', 'back' => base_path() . '/super/login'], 'platform');
 }
 
@@ -305,6 +310,14 @@ function super_settings(): void
             }
         }
         setting_set('wave_business_id', mb_substr(trim((string) input('wave_business_id')), 0, 190));
+        // Google Search Console verification (the content="..." value) and Google Analytics 4 ID (G-XXXXXXX)
+        $gsv = trim((string) input('google_site_verification'));
+        if (preg_match('/content="([^"]+)"/', $gsv, $mm)) {
+            $gsv = $mm[1]; // the whole <meta> tag was pasted
+        }
+        setting_set('google_site_verification', preg_match('/^[A-Za-z0-9_-]{10,100}$/', $gsv) ? $gsv : '');
+        $ga = strtoupper(trim((string) input('ga4_id')));
+        setting_set('ga4_id', preg_match('/^G-[A-Z0-9]{4,20}$/', $ga) ? $ga : '');
         foreach (array_keys(plans()) as $pk) {
             setting_set('stripe_price_' . $pk, mb_substr(trim((string) input('stripe_price_' . $pk)), 0, 120));
             setting_set('stripe_price_' . $pk . '_annual', mb_substr(trim((string) input('stripe_price_' . $pk . '_annual')), 0, 120));
@@ -851,4 +864,33 @@ function lead_source(): ?string
 {
     $s = strtolower(substr((string) input('src'), 0, 40));
     return preg_match('/^[a-z0-9][a-z0-9_-]*$/', $s) ? $s : null;
+}
+
+// ---------- Search engines ----------
+/** robots.txt: the main site is open to search engines; customer portals are not. */
+function seo_robots(bool $mainSite): void
+{
+    header('Content-Type: text/plain; charset=utf-8');
+    if (!$mainSite) {
+        exit("User-agent: *\nDisallow: /\n");
+    }
+    exit("User-agent: *\nAllow: /\nDisallow: /super\nDisallow: /login\nDisallow: /check-address\nDisallow: /report-activity\nDisallow: /cron\nDisallow: /webhooks\n\n"
+        . 'Sitemap: https://' . cfg('base_domain') . base_path() . "/sitemap.xml\n");
+}
+
+/** sitemap.xml: the public pages, for Google Search Console. */
+function seo_sitemap(): void
+{
+    $base = 'https://' . cfg('base_domain') . base_path();
+    $pages = [['/', '1.0'], ['/signup', '0.8'], ['/demo', '0.8'], ['/whats-new', '0.6']];
+    foreach (array_keys(CAMPAIGNS) as $k) {
+        $pages[] = ['/for/' . $k, '0.9'];
+    }
+    $mod = date('Y-m-d', (int) @filemtime(APP_DIR . '/lib/campaigns.php') ?: time());
+    header('Content-Type: application/xml; charset=utf-8');
+    echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+    foreach ($pages as [$p, $prio]) {
+        echo '  <url><loc>' . e($base . $p) . '</loc><lastmod>' . $mod . '</lastmod><priority>' . $prio . "</priority></url>\n";
+    }
+    exit("</urlset>\n");
 }

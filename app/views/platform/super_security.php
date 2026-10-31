@@ -1,17 +1,17 @@
 <div style="max-width:760px;margin:10px auto 60px">
   <div class="card" style="margin-bottom:18px">
     <h2><?= icon('shield') ?> Provider sign-in</h2>
-    <p class="muted">How you get into this console, strongest first. Every sign-in is confirmed with a code emailed to <?= e(cfg('super_admin')['email'] ?? '') ?>.</p>
+    <p class="muted">How you get into this console, in this order:</p>
     <ol>
-      <li><b>Sign in with Google</b> — <?= google_ready() ? '<span class="badge in">on</span>' : '<span class="badge warn">off: add google_oauth to app/config.php</span>' ?></li>
-      <li><b>Email and password</b> — <?= $dbPassword ? '<span class="badge in">password stored hashed in the database</span>' : ($configPassword ? '<span class="badge warn">still read from app/config.php: set it below</span>' : '<span class="badge gray">not set</span>') ?></li>
-      <li><b>Recovery codes</b> when the code email cannot be sent — <?= $left ? '<span class="badge in">' . (int) $left . ' left</span>' : '<span class="badge warn">none yet: create them below</span>' ?></li>
-      <li><b>Last resort</b> (server access): <code>php cron/super_password.php</code> sets a new password in the database.</li>
+      <li><b>Sign in with Google</b> (first choice) — <?= google_ready() ? '<span class="badge in">on</span>' : '<span class="badge warn">off: add google_oauth to app/config.php</span>' ?>. Turn on 2-Step Verification for that Google account.</li>
+      <li><b>Email code</b> when Google is not available: a 6-digit code sent to <?= e(cfg('super_admin')['email'] ?? '') ?>.</li>
+      <li><b>Break-glass</b> when Google and email are both down: the password below plus one recovery code — <?= $dbPassword ? '<span class="badge in">password set</span>' : ($configPassword ? '<span class="badge warn">password still read from app/config.php: set it below</span>' : '<span class="badge gray">password not set</span>') ?> · <?= $left ? '<span class="badge in">' . (int) $left . ' recovery codes left</span>' : '<span class="badge warn">no recovery codes yet: create them below</span>' ?></li>
+      <li><b>Last resort</b> (server access): <code>php cron/super_password.php --recovery</code> sets a new password and prints new codes.</li>
     </ol>
   </div>
 
   <div class="card" style="margin-bottom:18px">
-    <h3>Change password</h3>
+    <h3>Break-glass password</h3>
     <p class="muted small">Stored hashed in the database. After saving, remove the <code>password</code> line from <code>super_admin</code> in app/config.php.</p>
     <form method="post" action="<?= e(base_path() . '/super/security') ?>">
       <?= csrf_field() ?><input type="hidden" name="action" value="password">
@@ -25,12 +25,12 @@
   </div>
 
   <div class="card">
-    <h3>Recovery codes</h3>
+    <h3>Recovery codes (break-glass)</h3>
     <?php if ($codes): ?>
       <div class="flash info"><?= icon('shield', 18) ?> <span>Save these 10 codes in your password manager now. They are shown only once; each works one time. Old codes no longer work.</span></div>
       <div class="rc-grid"><?php foreach ($codes as $c): ?><code><?= e($c) ?></code><?php endforeach; ?></div>
     <?php else: ?>
-      <p class="muted small">If the sign-in code email ever fails, the sign-in page lets you use one of these instead. Creating new codes replaces the old ones.</p>
+      <p class="muted small">Used together with the break-glass password when Google and email are both down. Each works once. Creating new codes replaces the old ones.</p>
     <?php endif; ?>
     <form method="post" action="<?= e(base_path() . '/super/security') ?>" data-confirm="Create 10 new recovery codes? Any old codes stop working.">
       <?= csrf_field() ?><input type="hidden" name="action" value="recovery">

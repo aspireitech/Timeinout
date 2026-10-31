@@ -45,6 +45,12 @@
       <div class="flash info" style="margin-top:10px"><?= icon('shield', 18) ?> <span><b>Provider console:</b> every sign-in, with a password or with Google, is confirmed by a code emailed to <?= e(cfg('super_admin')['email'] ?? '') ?>.
         <?= google_ready() ? 'Sign in with Google is on.' : 'Sign in with Google is off: add google_oauth to app/config.php to turn it on.' ?></span></div>
       <div style="margin-top:16px"><button class="btn btn-primary">Save settings</button></div>
+      <h3 style="margin-top:14px"><?= icon('search') ?> Google Search Console &amp; Analytics</h3>
+      <p class="muted small">Only on the public website (never in customer portals or here). Search Console: Add property → URL prefix <code>https://<?= e(cfg('base_domain')) ?>/</code> → HTML tag → paste the tag. Then submit the sitemap <code>https://<?= e(cfg('base_domain')) ?>/sitemap.xml</code>.</p>
+      <div class="grid c2">
+        <div class="field"><label for="g-sv">Search Console HTML tag (or its content value)</label><input type="text" id="g-sv" name="google_site_verification" value="<?= e(setting('google_site_verification', '')) ?>" placeholder='<meta name="google-site-verification" content="…">'></div>
+        <div class="field"><label for="g-ga">Google Analytics 4 measurement ID (optional)</label><input type="text" id="g-ga" name="ga4_id" value="<?= e(setting('ga4_id', '')) ?>" placeholder="G-XXXXXXXXXX"></div>
+      </div>
     </form>
   </div>
   <div class="card">

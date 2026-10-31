@@ -63,6 +63,16 @@ try {
 
 $GLOBALS['request_path'] = $path;
 
+// Google Analytics on the public website only (customer portals keep the strict policy above)
+if ($resolved === null && setting('ga4_id', '') !== '') {
+    $ga = ' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com';
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:$ga; connect-src 'self'$ga; frame-ancestors 'self'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com; base-uri 'self'", true);
+}
+
+if ($path === '/robots.txt') {
+    seo_robots($resolved === null); // customer portals and unknown hosts: keep out of search engines
+}
+
 if ($resolved === false) {
     not_found('There is no portal at this address. Check the spelling, or sign up for a new one.');
 }

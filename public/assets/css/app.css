@@ -460,3 +460,8 @@ label.sub { font-size: .78rem; color: var(--muted); font-weight: 600; margin-bot
 .pw-rules li.bad { color: #C62828; } .pw-rules li.bad::before { content: "✗"; }
 .pw-rules li.note { color: var(--ink, inherit); } .pw-rules li.note::before { content: none; }
 .pw-match { font-size: .86rem; margin-top: 6px; font-weight: 600; } .pw-match.ok { color: #037a5c; } .pw-match.bad { color: #B4232A; }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.google-btn .g-ic { background: #fff; border-radius: 6px; width: 26px; height: 26px; display: grid; place-items: center; }
+.signin-alt { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.signin-alt > summary { cursor: pointer; font-weight: 700; color: var(--brand); }
+.signin-alt form { margin-top: 12px; }

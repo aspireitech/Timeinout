@@ -443,17 +443,67 @@ function google_callback(array $query): string
         audit('Provider sign-in (Google)', $email, false, 'This Google account is not allowed', $who);
         return 'The Google account ' . $email . ' is not allowed to open the provider console.';
     }
-    audit('Provider sign-in (Google)', $email, true, 'Google identity confirmed; email code next', $who);
-    return super_second_factor($who) ?? 'done';
+    if (cfg('super_google_code', false)) { // optional: also ask for the emailed code after Google
+        audit('Provider sign-in (Google)', $email, true, 'Google identity confirmed; email code next', $who);
+        return super_second_factor($who) ?? 'done';
+    }
+    super_complete($email, 'Google'); // 1st choice: Google, protected by the account's own 2-Step Verification
+    return 'done';
 }
 
-function super_complete(string $email): void
+function super_complete(string $email, ?string $how = null): void
 {
     session_regenerate_id(true);
     $_SESSION['super'] = true;
     $_SESSION['super_seen'] = time();
     unset($_SESSION['otp']['super']);
-    audit('Provider sign-in', $email, true, null, ['email' => $email, 'name' => 'Service provider', 'provider' => true]);
+    audit('Provider sign-in', $email, true, $how, ['email' => $email, 'name' => 'Service provider', 'provider' => true]);
+}
+
+/**
+ * 2nd choice, when Google is not available: a 6-digit code emailed to the provider address.
+ * @return string 'otp' when the code was sent, otherwise the reason
+ */
+function super_email_code_start(string $email): string
+{
+    $email = strtolower(trim($email));
+    $who = ['email' => $email, 'name' => 'Service provider', 'provider' => true, 'via' => 'code'];
+    if (login_blocked('super', $email)) {
+        audit('Provider sign-in blocked', $email, false, 'Too many failed attempts', $who);
+        return 'Too many failed attempts. Please wait 15 minutes and try again.';
+    }
+    $ok = $email !== '' && in_array($email, super_emails(), true);
+    login_attempt('super', $email, $ok);
+    if (!$ok) {
+        audit('Provider sign-in (email code)', $email, false, 'Not a provider email', $who);
+        return 'That email cannot sign in to the provider console.';
+    }
+    return otp_start('super', $who) ? 'otp' : 'We could not email your code. If email is down too, use break-glass sign-in below.';
+}
+
+/**
+ * 3rd choice, when Google and email are both down: the break-glass password plus one of the
+ * one-time recovery codes. Each use is logged and emailed (when email works).
+ */
+function super_breakglass(string $email, string $password, string $code): ?string
+{
+    $email = strtolower(trim($email));
+    $who = ['email' => $email, 'name' => 'Service provider', 'provider' => true];
+    if (login_blocked('super-breakglass', $email)) {
+        audit('Provider break-glass sign-in blocked', $email, false, 'Too many failed attempts', $who);
+        return 'Too many failed attempts. Please wait 15 minutes and try again.';
+    }
+    $ok = in_array($email, super_emails(), true) && super_password_ok($password) && super_recovery_use($code);
+    login_attempt('super-breakglass', $email, $ok);
+    if (!$ok) {
+        audit('Provider break-glass sign-in', $email, false, 'Wrong email, password or recovery code', $who);
+        return 'Wrong email, password or recovery code.';
+    }
+    super_complete($email, 'Break-glass: password + recovery code (' . super_recovery_left() . ' codes left)');
+    send_mail([(string) (cfg('super_admin')['email'] ?? '')], cfg('app_name') . ': break-glass sign-in used',
+        '<p>The break-glass password and a recovery code were used to sign in to the provider console on ' . gmdate('M j, Y H:i') . ' UTC from '
+        . e(client_ip()) . '. ' . super_recovery_left() . ' recovery codes are left. If this was not you, change the break-glass password and create new recovery codes now.</p>');
+    return null;
 }
 
 function require_super(): void

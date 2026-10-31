@@ -2,6 +2,9 @@
 // Campaign landing pages: /for/<key>. Each page's demo button records ?src=<key> on the lead,
 // so /super → Leads shows which campaign brought it. Edit the copy here.
 
+/** Short links to share anywhere: clockinoutapp.com/<path> opens the home page tagged with that source. */
+const SHARE_LINKS = ['linkedin' => 'linkedin', 'facebook' => 'facebook', 'email' => 'email', 'web' => 'website', 'friend' => 'friend'];
+
 const CAMPAIGNS = [
     'schools' => [
         'nav' => 'Schools & daycares', 'industry' => 'school', 'color' => '#B66A00', 'bg' => '#FFF1DC',
