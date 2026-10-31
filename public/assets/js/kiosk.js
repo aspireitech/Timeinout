@@ -3,7 +3,7 @@
 (function () {
   const root = document.getElementById('kiosk');
   if (!root) return;
-  const API = root.dataset.api, CSRF = root.dataset.csrf, TODAY = root.dataset.today, TZ = root.dataset.tz;
+  const API = root.dataset.api, CSRF = root.dataset.csrf, TODAY = root.dataset.today, TZ = root.dataset.tz, RELATIVE = root.dataset.relative === '1';
   const $ = (s) => root.querySelector(s);
   const $$ = (s) => Array.from(root.querySelectorAll(s));
   const S = { day: TODAY, tile: null, person: null, guardian: null };
@@ -102,7 +102,7 @@
 
   function whoHTML() {
     let sub = S.person.grade || (isStaff() ? S.tile.label : '');
-    if (S.guardian) sub = (sub ? sub + ' · ' : '') + 'with ' + S.guardian.name + (S.guardian.relationship ? ` (${S.guardian.relationship})` : '');
+    if (S.guardian) sub = (sub ? sub + ' · ' : '') + (S.guardian.self ? 'Self' : 'with ' + S.guardian.name + (S.guardian.relationship ? ` (${S.guardian.relationship})` : ''));
     return `<span class="avatar ${isStaff() ? 'teacher' : ''}">${esc(S.person.initials)}</span><div><div style="font-weight:800;font-size:1.15rem">${esc(S.person.name)}</div><div class="muted">${esc(sub)}</div></div>${S.tile.type === 'pickup' ? '' : badge(S.person.status)}`;
   }
 
@@ -113,20 +113,58 @@
     $('#who-g').innerHTML = whoHTML();
     $('#guardian-title').textContent = S.tile.type === 'pickup' ? 'Who is picking up?' : 'Who is with them?';
     $('#guardians').innerHTML = '<div class="spinner"></div>';
+    $('#rel-form').classList.add('hidden');
     show('guardian');
     const list = await getJSON(`/guardians?student_id=${p.id}`);
-    if (!list.length) {
+    if (!list.length && !RELATIVE) {
       $('#guardians').innerHTML = '<div class="k-hint">No contact is on file for this person. Please see the front desk.</div>';
       return;
     }
+    // Listed parents/guardians first; "Authorized relative" (type your name) is always last when the portal allows it
     $('#guardians').innerHTML = list.map((g, i) =>
       `<button class="pick" data-i="${i}"><span class="avatar material">${esc(g.initials)}</span>` +
-      `<span><div class="nm">${esc(g.name)}</div><div class="sb">${esc(g.relationship || 'Contact')}</div></span></button>`).join('');
+      `<span><div class="nm">${esc(g.name)}</div><div class="sb">${esc(g.relationship || 'Contact')}</div></span></button>`).join('') +
+      (RELATIVE ? `<button class="pick pick-rel" data-rel="1"><span class="avatar">+</span><span><div class="nm">Authorized relative</div><div class="sb">Not listed? Type your name</div></span></button>` : '');
     $$('#guardians .pick').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.rel) {
+        $('#rel-form').classList.remove('hidden');
+        $('#rel-error').classList.add('hidden');
+        $('#rel-name').value = ''; $('#rel-other').value = '';
+        $('#rel-other').classList.add('hidden');
+        $$('.rel-chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+        setTimeout(() => $('#rel-name').focus(), 60);
+        return;
+      }
       S.guardian = list[+b.dataset.i];
       S.tile.type === 'pickup' ? openMaterial() : openAction();
     }));
   }
+
+  // Relationship: tap one round button; "Other" opens a text box
+  $$('.rel-chip').forEach((c) => c.addEventListener('click', () => {
+    $$('.rel-chip').forEach((x) => x.setAttribute('aria-pressed', String(x === c)));
+    $('#rel-error').classList.add('hidden');
+    const other = c.dataset.rel === 'Other';
+    $('#rel-other').classList.toggle('hidden', !other);
+    if (other) setTimeout(() => $('#rel-other').focus(), 30);
+  }));
+  $('#rel-go').addEventListener('click', () => {
+    const name = $('#rel-name').value.trim().replace(/\s+/g, ' ');
+    const chip = $$('.rel-chip').find((c) => c.getAttribute('aria-pressed') === 'true');
+    const relationship = chip ? (chip.dataset.rel === 'Other' ? $('#rel-other').value.trim() : chip.dataset.rel) : '';
+    const err = name.length < 3 || !/\s/.test(name) ? 'Please type your first and last name.'
+      : !relationship ? (chip ? 'Please type the relationship.' : 'Please choose your relationship.') : '';
+    if (err) {
+      $('#rel-error').textContent = err;
+      $('#rel-error').classList.remove('hidden');
+      return;
+    }
+    S.guardian = { id: -1, typed: true, name, relationship };
+    S.tile.type === 'pickup' ? openMaterial() : openAction();
+  });
+  $('#rel-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#rel-go').click(); });
+  $('#rel-other').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#rel-go').click(); });
+  const relFields = () => (S.guardian && S.guardian.typed ? { relative_name: S.guardian.name, relative_relationship: S.guardian.relationship } : {});
 
   // ---- Step 4a: sign in / out, with only the valid choice enabled
   function openAction() {
@@ -168,6 +206,11 @@
     $$('input[name=mat]').forEach((c) => { c.checked = false; });
     $('#mat-other').value = '';
     show('material');
+    // Fetch the current list, so items shown or hidden by an admin apply without reloading the kiosk
+    getJSON('/materials').then((list) => {
+      if (!Array.isArray(list)) return;
+      $('#mat-grid').innerHTML = list.map((m) => `<label class="mat"><input type="checkbox" name="mat" value="${+m.id}"> ${esc(m.name)}</label>`).join('');
+    }).catch(() => {});
   }
 
   // ---- Visitors
@@ -224,7 +267,7 @@
 
   $$('.action').forEach((b) => b.addEventListener('click', () => submit('action', {
     tile_id: S.tile.id, person_id: S.person.id, guardian_id: S.guardian ? S.guardian.id : 0,
-    action: b.dataset.action, date: S.day, time: pastTime('action'),
+    action: b.dataset.action, date: S.day, time: pastTime('action'), ...relFields(),
   }, b)));
 
   $('#mat-submit').addEventListener('click', (e) => {
@@ -233,7 +276,7 @@
     if (!items.length && !other) return fail('material', 'Please choose at least one item.');
     submit('material', {
       tile_id: S.tile.id, person_id: S.person.id, guardian_id: S.guardian ? S.guardian.id : 0,
-      materials: items, other, date: S.day, time: pastTime('material'),
+      materials: items, other, date: S.day, time: pastTime('material'), ...relFields(),
     }, e.currentTarget);
   });
 

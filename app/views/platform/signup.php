@@ -3,7 +3,7 @@
     <h1>Create your space</h1>
     <p class="muted">Takes about a minute. Your kiosk is ready the moment you finish.</p>
     <form method="post" action="<?= e(base_path() . '/signup') ?>" id="signup-form" novalidate>
-      <?= csrf_field() ?>
+      <?= csrf_field() ?><?php if ($old['src']): ?><input type="hidden" name="src" value="<?= e($old['src']) ?>"><?php endif; ?>
       <div class="field">
         <label for="org_name">Business name</label>
         <input type="text" id="org_name" name="org_name" value="<?= e($old['org_name']) ?>" placeholder="South Jordan Kumon" required autofocus>
@@ -22,21 +22,31 @@
       </div>
 
       <div class="field">
-        <label>Your web address</label>
-        <div class="addr-grid">
+        <label>Location</label>
+        <div class="grid c2" style="gap:10px">
           <div><label for="state" class="sub">State</label>
             <select id="state" name="state" required>
               <option value="">Choose…</option>
               <?php foreach (US_STATES as $code => $name): ?><option value="<?= $code ?>" <?= $old['state'] === $code ? 'selected' : '' ?>><?= e($name) ?></option><?php endforeach; ?>
-              <option value="XX" <?= $old['state'] === 'XX' ? 'selected' : '' ?>>Outside the US (no prefix)</option>
+              <option value="XX" <?= $old['state'] === 'XX' ? 'selected' : '' ?>>Outside the US</option>
             </select></div>
-          <div><label for="city" class="sub">City <span class="muted">(optional)</span></label><input type="text" id="city" name="city" value="<?= e($old['city']) ?>" maxlength="15" placeholder="Sandy"></div>
-          <div><label for="short" class="sub">Short name, 3–10 letters</label><input type="text" id="short" name="short" value="<?= e($old['short']) ?>" maxlength="10" placeholder="sjkumon" required></div>
+          <div><label for="city" class="sub">City <span class="muted">(optional)</span></label><input type="text" id="city" name="city" value="<?= e($old['city']) ?>" maxlength="40" placeholder="Sandy"></div>
         </div>
-        <div class="addr-preview" id="addr-preview" data-check="<?= e(base_path() . '/check-address') ?>"><?= icon('globe', 16) ?> <span>Choose a state and a short name to see your address.</span></div>
         <?php if (isset($errors['state'])): ?><div class="err"><?= e($errors['state']) ?></div><?php endif; ?>
-        <?php if (isset($errors['short'])): ?><div class="err"><?= e($errors['short']) ?></div><?php endif; ?>
-        <div class="hint">The state prefix is fixed once your space is created.</div>
+      </div>
+
+      <?php $suffix = cfg('tenant_url_mode') === 'subdomain' ? '.' . cfg('base_domain') : ''; $prefix = $suffix ? '' : cfg('base_domain') . '/s/'; ?>
+      <div class="field">
+        <label for="slug">Your web address</label>
+        <div class="addr-preview" id="addr-preview" data-check="<?= e(base_path() . '/check-address') ?>"><?= icon('globe', 16) ?> <span id="addr-text">Type your business name to see your address.</span></div>
+        <button type="button" class="addr-change <?= ($old['slug'] || isset($errors['slug'])) ? 'hidden' : '' ?>" id="addr-edit">Don't like this address? Click here to choose your own →</button>
+        <div class="addr-custom <?= ($old['slug'] || isset($errors['slug'])) ? '' : 'hidden' ?>" id="addr-custom">
+          <?php if ($prefix): ?><span class="muted"><?= e($prefix) ?></span><?php endif; ?>
+          <input type="text" id="slug" name="slug" value="<?= e($old['slug']) ?>" maxlength="30" autocomplete="off" spellcheck="false" placeholder="yourname" aria-describedby="addr-hint">
+          <?php if ($suffix): ?><span class="muted"><?= e($suffix) ?></span><?php endif; ?>
+        </div>
+        <?php if (isset($errors['slug'])): ?><div class="err"><?= e($errors['slug']) ?></div><?php endif; ?>
+        <div class="hint" id="addr-hint"><?= $suffix ? 'Your portal address always ends with <b>' . e($suffix) . '</b>.' : 'Your portal address always starts with <b>' . e($prefix) . '</b>.' ?> Use 3–30 letters, numbers or dashes. It can't be changed later.</div>
       </div>
 
       <div class="grid c2">
@@ -53,8 +63,8 @@
       </div>
       <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" minlength="10" required>
-        <?php if (isset($errors['password'])): ?><div class="err"><?= e($errors['password']) ?></div><?php else: ?><div class="hint">At least 10 characters, with letters and a number.</div><?php endif; ?>
+        <input type="password" id="password" name="password" minlength="10" autocomplete="new-password" required data-pw-min="10">
+        <?php if (isset($errors['password'])): ?><div class="err"><?= e($errors['password']) ?></div><?php endif; ?>
       </div>
       <div class="grid c2">
         <div class="field">

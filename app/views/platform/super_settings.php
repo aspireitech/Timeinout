@@ -8,7 +8,7 @@
       <?= csrf_field() ?>
       <div class="grid c2">
         <div class="field"><label for="s-driver">Send with</label>
-          <select id="s-driver" name="driver"><option value="smtp" <?= $mail ? '' : 'selected' ?>>SMTP server (recommended)</option><option value="mail" <?= $mail ? 'selected' : '' ?>>PHP mail() (often lands in spam)</option></select></div>
+          <select id="s-driver" name="driver"><option value="graph" <?= ($m['driver'] ?? '') === 'graph' ? 'selected' : '' ?>>Microsoft 365 (Graph API, set up in config.php)</option><option value="smtp" <?= ($m['driver'] ?? '') === 'smtp' ? 'selected' : '' ?>>SMTP server</option><option value="mail" <?= $mail ? 'selected' : '' ?>>PHP mail() (often lands in spam)</option></select></div>
         <div class="field"><label for="s-host">SMTP host</label><input type="text" id="s-host" name="host" value="<?= e($m['host'] ?? '') ?>" placeholder="mail.yourdomain.com"></div>
         <div class="field"><label for="s-port">Port</label><input type="number" id="s-port" name="port" value="<?= e($m['port'] ?? 587) ?>"><div class="hint">587 with TLS, or 465 with SSL.</div></div>
         <div class="field"><label for="s-secure">Encryption</label>
@@ -26,7 +26,8 @@
         <div class="field"><label for="s-sk">Secret key</label><input type="password" id="s-sk" name="stripe_secret" autocomplete="off" placeholder="<?= secret('stripe_secret') ? 'Saved. Leave empty to keep it' : 'sk_live_…' ?>"></div>
         <div class="field"><label for="s-wh">Webhook signing secret</label><input type="password" id="s-wh" name="stripe_webhook_secret" autocomplete="off" placeholder="<?= secret('stripe_webhook_secret') ? 'Saved. Leave empty to keep it' : 'whsec_…' ?>"></div>
         <?php foreach (plans() as $pk => $pl): ?>
-          <div class="field"><label for="sp-<?= e($pk) ?>">Price ID for <?= e($pl['name']) ?> (<?= e($pl['price']) ?>)</label><input type="text" id="sp-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>" value="<?= e(setting('stripe_price_' . $pk, '')) ?>" placeholder="price_…"></div>
+          <div class="field"><label for="sp-<?= e($pk) ?>">Monthly price ID for <?= e($pl['name']) ?> ($<?= e(number_format($pl['amount'], 0)) ?>/month)</label><input type="text" id="sp-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>" value="<?= e(setting('stripe_price_' . $pk, '')) ?>" placeholder="price_…"></div>
+          <div class="field"><label for="spa-<?= e($pk) ?>">Yearly price ID for <?= e($pl['name']) ?> ($<?= e(number_format($pl['annual'], 0)) ?>/year)</label><input type="text" id="spa-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>_annual" value="<?= e(setting('stripe_price_' . $pk . '_annual', '')) ?>" placeholder="price_… (optional)"></div>
         <?php endforeach; ?>
       </div>
       <h3 style="margin-top:14px"><?= icon('mail') ?> Wave (invoices)</h3>
@@ -41,9 +42,15 @@
       <h3 style="margin-top:10px"><?= icon('shield') ?> Sign-in security</h3>
       <label class="check"><input type="checkbox" name="admin_otp" value="1" <?= setting('admin_otp', '1') === '1' ? 'checked' : '' ?>>
         <span><b>School admins need an emailed code</b> to sign in (recommended)<br><span class="muted small">Turn off only if email delivery is not working yet, otherwise admins cannot sign in.</span></span></label>
-      <label class="check" style="margin-top:10px"><input type="checkbox" name="super_otp" value="1" <?= setting('super_otp', '0') === '1' ? 'checked' : '' ?>>
-        <span><b>Provider console needs an emailed code</b> too<br><span class="muted small">Send a test email first. The code goes to the super_admin email in config.php.</span></span></label>
+      <div class="flash info" style="margin-top:10px"><?= icon('shield', 18) ?> <span><b>Provider console:</b> every sign-in, with a password or with Google, is confirmed by a code emailed to <?= e(cfg('super_admin')['email'] ?? '') ?>.
+        <?= google_ready() ? 'Sign in with Google is on.' : 'Sign in with Google is off: add your Google keys in /super → Sign-in.' ?></span></div>
       <div style="margin-top:16px"><button class="btn btn-primary">Save settings</button></div>
+      <h3 style="margin-top:14px"><?= icon('search') ?> Google Search Console &amp; Analytics</h3>
+      <p class="muted small">Only on the public website (never in customer portals or here). Search Console: Add property → URL prefix <code>https://<?= e(cfg('base_domain')) ?>/</code> → HTML tag → paste the tag. Then submit the sitemap <code>https://<?= e(cfg('base_domain')) ?>/sitemap.xml</code>.</p>
+      <div class="grid c2">
+        <div class="field"><label for="g-sv">Search Console HTML tag (or its content value)</label><input type="text" id="g-sv" name="google_site_verification" value="<?= e(setting('google_site_verification', '')) ?>" placeholder='<meta name="google-site-verification" content="…">'></div>
+        <div class="field"><label for="g-ga">Google Analytics 4 measurement ID (optional)</label><input type="text" id="g-ga" name="ga4_id" value="<?= e(setting('ga4_id', '')) ?>" placeholder="G-XXXXXXXXXX"></div>
+      </div>
     </form>
   </div>
   <div class="card">
@@ -51,6 +58,9 @@
     <form method="post" class="inline-form">
       <?= csrf_field() ?><input type="hidden" name="action" value="test">
       <div class="field"><label for="s-test">Send to</label><input type="email" id="s-test" name="test_to" value="<?= e(cfg('super_admin')['email'] ?? '') ?>"></div>
+      <div class="field"><label for="s-sender">Send from</label><select id="s-sender" name="sender">
+        <option value="contact"><?= e(mail_config('contact')['from_email'] ?? '') ?> (sign-in codes, notices)</option>
+        <option value="reports"><?= e(mail_config('reports')['from_email'] ?? '') ?> (reports)</option></select></div>
       <button class="btn btn-accent">Send test email</button>
     </form>
   </div>

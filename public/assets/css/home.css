@@ -1,5 +1,5 @@
 
-/* TimeInOut homepage (approved concept, docs/mockup/home-v2.html).
+/* ClockInOut homepage (approved concept, docs/mockup/home-v2.html).
    Layout: marketing page — split hero (copy | animated time clock), industry icon grid, steps, flows, security band, pricing.
    One committed light visual world (a product homepage), so colors are set explicitly rather than theme-switched. */
 :root {
@@ -8,7 +8,7 @@
   --paper: #F5F6FB;      /* page ground, faint cool grey */
   --card: #FFFFFF;
   --line: #E4E6F1;
-  --brand: #5B4CE0;      /* TimeInOut violet, kept from the current site */
+  --brand: #5B4CE0;      /* ClockInOut violet, kept from the current site */
   --in: #0FA97A;         /* clock-in green */
   --out: #E8613C;        /* clock-out coral */
   --amber: #F2A93B;      /* punch-card stamp */
@@ -132,6 +132,17 @@ section.block { padding-block: 70px 0; }
 .price .amt small { font-size: .95rem; color: var(--muted); font-weight: 600; }
 .price ul { list-style: none; padding: 0; margin: 6px 0 14px; display: grid; gap: 6px; color: var(--muted); font-size: .92rem; }
 .price li::before { content: "✓"; color: var(--in); font-weight: 800; margin-right: 8px; }
+.price li.plus { color: var(--ink); font-weight: 700; } .price li.plus::before { content: none; }
+.price { position: relative; } .price .tagline { margin: 0; color: var(--muted); font-size: .92rem; }
+.price .note { color: var(--muted); font-size: .85rem; margin-top: -4px; }
+.badge-pop { position: absolute; top: -13px; left: 24px; background: var(--brand); color: #fff; font-size: .75rem; font-weight: 700; padding: 5px 12px; border-radius: 999px; }
+.cyc { position: absolute; opacity: 0; pointer-events: none; }
+.cycle { display: flex; gap: 4px; width: max-content; max-width: 100%; margin: 0 auto 26px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; }
+.cycle label { padding: 9px 18px; border-radius: 999px; font-weight: 700; font-size: .92rem; cursor: pointer; color: var(--muted); }
+.cycle em { font-style: normal; font-size: .75rem; background: #E3F7F0; color: #0E8A66; padding: 3px 8px; border-radius: 999px; margin-left: 4px; }
+#cyc-m:checked ~ .cycle label[for="cyc-m"], #cyc-y:checked ~ .cycle label[for="cyc-y"] { background: var(--ink); color: #fff; }
+#cyc-m:focus-visible ~ .cycle label[for="cyc-m"], #cyc-y:focus-visible ~ .cycle label[for="cyc-y"] { outline: 2px solid var(--brand); outline-offset: 2px; }
+.price .yr, #cyc-y:checked ~ .prices .mo { display: none; } #cyc-y:checked ~ .prices .yr { display: block; }
 .pay { text-align: center; color: var(--muted); font-size: .88rem; margin-top: 16px; }
 
 .final { margin-block: 80px 40px; text-align: center; display: grid; gap: 16px; justify-items: center; background: var(--amber); border-radius: 28px; padding: 54px 24px; }
@@ -165,3 +176,30 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; padding-bot
 .cred div { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .cred code { font-family: var(--mono); background: #fff; color: var(--ink); padding: 2px 8px; border-radius: 6px; user-select: all; }
 @media (max-width: 960px) { .demo-band { grid-template-columns: 1fr; padding: 28px 22px; } }
+
+/* ---------- Campaign landing pages (/for/<key>) ---------- */
+.camp .eyebrow { color: var(--seg, var(--brand)); }
+.camp-visual { position: relative; display: grid; place-items: center; }
+.camp-visual::before { content: ""; position: absolute; inset: 6% 4%; border-radius: 40px; background: radial-gradient(circle at 70% 25%, var(--seg-bg), transparent 60%), radial-gradient(circle at 20% 80%, #EEEBFD, transparent 55%); }
+.camp-device { position: relative; width: min(440px, 100%); background: #161B36; border-radius: 28px; padding: 18px; box-shadow: 0 30px 70px rgba(22,27,54,.28); display: grid; gap: 10px; }
+.camp-bar { display: flex; align-items: center; gap: 6px; color: #C4C7E0; font-size: .82rem; padding: 0 4px 6px; }
+.camp-bar span { width: 9px; height: 9px; border-radius: 50%; background: #2E3666; } .camp-bar b { margin-left: auto; font-family: var(--mono); font-weight: 700; }
+.camp-ev { display: flex; gap: 12px; align-items: center; background: #fff; border-radius: 16px; padding: 12px 14px; animation: campIn .6s both; }
+.camp-ev b { display: block; font-size: .98rem; } .camp-ev span { color: var(--muted); font-family: var(--mono); font-size: .8rem; }
+.camp-ev i { font-style: normal; font-family: var(--mono); font-weight: 700; font-size: .72rem; color: #fff; border-radius: 10px; padding: 8px 0; width: 48px; text-align: center; flex-shrink: 0; }
+.k-in { background: var(--in); } .k-out { background: var(--out); } .k-pickup { background: var(--amber); }
+.camp-report { display: flex; justify-content: space-between; align-items: center; background: var(--seg, var(--brand)); color: #fff; border-radius: 16px; padding: 14px 16px; font-size: .92rem; }
+.camp-report b { font-family: var(--mono); }
+@keyframes campIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .camp-ev { animation: none; } }
+.camp-pains { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.camp-pain { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; font-weight: 700; display: flex; gap: 12px; align-items: flex-start; }
+.camp-pain span { color: var(--out); font-weight: 800; }
+.camp-feats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.camp-feat { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 24px; display: grid; gap: 8px; align-content: start; transition: transform .15s, box-shadow .15s; }
+.camp-feat:hover { transform: translateY(-3px); box-shadow: 0 16px 36px rgba(22,27,54,.08); }
+.camp-feat p { color: var(--muted); }
+.camp-num { font-family: var(--mono); font-weight: 700; color: var(--seg, var(--brand)); font-size: .85rem; }
+.camp-more { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; }
+.camp-more a { color: var(--brand); font-weight: 600; }
+@media (max-width: 900px) { .camp-pains, .camp-feats { grid-template-columns: 1fr; } }

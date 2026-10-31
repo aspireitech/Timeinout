@@ -19,6 +19,13 @@
       <button class="btn btn-primary">Save</button>
     </form>
   </div>
+  <?php if ($extra = person_extra($student)): ?>
+  <div class="card">
+    <h3><?= icon('badge') ?> Extra info</h3>
+    <p class="muted small">From imported columns. Upload a file with the same columns to update it.</p>
+    <table class="table small"><?php foreach ($extra as $k => $v): ?><tr><th style="width:40%"><?= e($k) ?></th><td><?= e($v) ?></td></tr><?php endforeach; ?></table>
+  </div>
+  <?php endif; ?>
   <div class="card">
     <h3><?= icon('users') ?> <?= e(term('c2')) ?></h3>
     <p class="muted small">Only these people appear on the kiosk when this student is selected.</p>

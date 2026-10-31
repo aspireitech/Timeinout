@@ -2,7 +2,7 @@
 // Subscriptions and payments.
 //   Stripe: card subscriptions through Stripe Checkout + Customer Portal; Stripe tells us
 //           about payments through a signed webhook (POST /webhooks/stripe).
-//   Wave:   monthly invoices created through Wave's GraphQL API and emailed by Wave;
+//   Wave:   monthly or yearly invoices created through Wave's GraphQL API and emailed by Wave;
 //           the hourly cron checks whether they were paid and raises the next one.
 // Keys and IDs are entered in the provider console (/super → Payments) and stored
 // encrypted in the settings table.
@@ -11,14 +11,88 @@ const GRACE_DAYS = 7; // days after a trial ends before the portal locks
 
 function plans(): array
 {
-    $plans = cfg('plans', []);
-    $rename = ['School' => 'Business', 'Campus' => 'Enterprise']; // older configs used school names
+    // Prices and contents live in PLAN_CATALOG below, so an update changes them everywhere.
+    // config.php may still adjust a plan with 'plan_overrides' => ['starter' => ['amount' => 45]].
+    $plans = PLAN_CATALOG;
+    foreach ((array) cfg('plan_overrides', []) as $k => $o) {
+        if (isset($plans[$k]) && is_array($o)) {
+            $plans[$k] = array_merge($plans[$k], $o);
+        }
+    }
     foreach ($plans as $k => &$p) {
-        $p['name'] = $rename[$p['name'] ?? ''] ?? ($p['name'] ?? ucfirst($k));
-        $p['limit'] = str_replace(' students', ' people', (string) ($p['limit'] ?? ''));
-        $p['amount'] = (float) ($p['amount'] ?? preg_replace('/[^0-9.]/', '', explode('/', (string) ($p['price'] ?? '0'))[0]));
+        $p['price'] = '$' . number_format((float) $p['amount'], 0) . '/mo';
+        $p += ['max_people' => null, 'max_logins' => null, 'report_days' => null, 'tagline' => '', 'features' => [], 'popular' => false];
+        $p['annual'] = (float) ($p['annual'] ?? round($p['amount'] * annual_months(), 2));
     }
     return $plans;
+}
+
+/** Months charged for a year when paying yearly (10 = two months free). Config: 'annual_months'. */
+function annual_months(): int
+{
+    return max(1, min(12, (int) cfg('annual_months', 10)));
+}
+
+/** The plans. Enforced: max_people (active students + staff), max_logins and report_days (how far back reports go).
+ *  The other lines are service promises shown on the pricing page. */
+const PLAN_CATALOG = [
+    'starter' => ['name' => 'Starter', 'amount' => 39, 'limit' => 'Up to 75 people', 'max_people' => 75, 'max_logins' => 3, 'report_days' => 90,
+        'tagline' => 'For one front desk getting started.', 'features' => [
+        '3 staff logins', 'Check-in kiosk on any tablet or phone', 'Safe pickups with parents, guardians and authorized relatives',
+        'Live attendance and daily email report', 'Reports for the last 90 days (PDF & CSV)', 'Spreadsheet import', 'Email support',
+    ]],
+    'school' => ['name' => 'Business', 'amount' => 79, 'limit' => 'Up to 500 people', 'max_people' => 500, 'max_logins' => null, 'report_days' => 180,
+        'popular' => true, 'tagline' => 'For busy schools, centers and offices.', 'features' => [
+        'Everything in Starter, plus:', 'Unlimited staff logins', 'Reports for the last 180 days',
+        'Done-for-you setup: we import your list and set up the kiosk and staff logins', 'Priority email support (same business day)', 'Early access to new features',
+    ]],
+    'campus' => ['name' => 'Enterprise', 'amount' => 149, 'limit' => 'Unlimited people', 'max_people' => null, 'max_logins' => null, 'report_days' => null,
+        'tagline' => 'For large or multi-site organizations.', 'features' => [
+        'Everything in Business, plus:', 'Unlimited report history', 'Your own private database', 'Onboarding calls and staff training',
+        'Phone support and a named contact', 'Multiple locations: talk to us', 'Custom terms and invoicing',
+    ]],
+];
+
+/** The current portal's plan (empty array if unknown). */
+function tenant_plan(?array $t = null): array
+{
+    $t ??= tenant();
+    return plans()[$t['plan'] ?? ''] ?? [];
+}
+
+/** Active students and staff in this portal (visitors do not count). */
+function people_count(): int
+{
+    return (int) val('SELECT COUNT(*) FROM students WHERE tenant_id = ? AND active = 1', [tid()])
+        + (int) val('SELECT COUNT(*) FROM teachers WHERE tenant_id = ? AND active = 1', [tid()]);
+}
+
+/** How many more people the plan allows; null means no limit. */
+function people_room(): ?int
+{
+    $max = tenant_plan()['max_people'] ?? null;
+    return $max === null ? null : max(0, (int) $max - people_count());
+}
+
+/** Message shown when a plan limit is reached. */
+function plan_limit_message(string $what): string
+{
+    $p = tenant_plan();
+    $max = $what === 'logins' ? ($p['max_logins'] ?? 0) : ($p['max_people'] ?? 0);
+    return 'Your ' . ($p['name'] ?? '') . ' plan includes up to ' . number_format((int) $max) . ' ' . ($what === 'logins' ? 'staff logins' : 'people')
+        . '. Upgrade in Admin → Billing to add more.';
+}
+
+/** true when another login can be added. */
+function login_room(): bool
+{
+    $max = tenant_plan()['max_logins'] ?? null;
+    return $max === null || (int) val('SELECT COUNT(*) FROM users WHERE tenant_id = ?', [tid()]) < (int) $max;
+}
+
+function cycle_input(): string
+{
+    return input('cycle') === 'annual' ? 'annual' : 'monthly';
 }
 
 function secret(string $key): string
@@ -124,15 +198,15 @@ function stripe_request(string $method, string $path, array $params = []): array
 
 function owner_email(array $t): ?string
 {
-    return val("SELECT email FROM users WHERE tenant_id = ? AND role = 'owner' ORDER BY id LIMIT 1", [$t['id']]);
+    return tenant_owner($t)['email'] ?? null; // read from the portal's own database when it has one
 }
 
 /** Stripe Checkout page for a plan. Returns the URL to send the admin to. */
-function stripe_checkout_url(array $t, string $plan): string
+function stripe_checkout_url(array $t, string $plan, string $cycle = 'monthly'): string
 {
-    $price = (string) setting('stripe_price_' . $plan, '');
+    $price = (string) setting('stripe_price_' . $plan . ($cycle === 'annual' ? '_annual' : ''), '');
     if ($price === '') {
-        throw new RuntimeException('This plan has no Stripe price yet. Ask your service provider to add it.');
+        throw new RuntimeException('This plan has no Stripe price ' . ($cycle === 'annual' ? 'for yearly billing ' : '') . 'yet. Ask your service provider to add it.');
     }
     $params = [
         'mode' => 'subscription',
@@ -140,8 +214,8 @@ function stripe_checkout_url(array $t, string $plan): string
         'success_url' => tenant_url($t, '/admin/billing?paid=1'),
         'cancel_url' => tenant_url($t, '/admin/billing'),
         'client_reference_id' => (string) $t['id'],
-        'metadata' => ['tenant_id' => (string) $t['id'], 'plan' => $plan],
-        'subscription_data' => ['metadata' => ['tenant_id' => (string) $t['id'], 'plan' => $plan]],
+        'metadata' => ['tenant_id' => (string) $t['id'], 'plan' => $plan, 'cycle' => $cycle],
+        'subscription_data' => ['metadata' => ['tenant_id' => (string) $t['id'], 'plan' => $plan, 'cycle' => $cycle]],
         'allow_promotion_codes' => 'true',
     ];
     if ($t['stripe_customer_id']) {
@@ -185,11 +259,14 @@ function stripe_signature_ok(string $payload, string $header, string $secret): b
     return false;
 }
 
-function plan_for_price(?string $priceId): ?string
+/** [plan, cycle] for a Stripe price ID, or null. */
+function plan_for_price(?string $priceId): ?array
 {
     foreach (array_keys(plans()) as $k) {
-        if ($priceId && setting('stripe_price_' . $k) === $priceId) {
-            return $k;
+        foreach (['monthly' => '', 'annual' => '_annual'] as $cycle => $suffix) {
+            if ($priceId && setting('stripe_price_' . $k . $suffix) === $priceId) {
+                return [$k, $cycle];
+            }
         }
     }
     return null;
@@ -230,16 +307,17 @@ function stripe_handle_event(array $event): string
         case 'checkout.session.completed':
             update('tenants', ['billing_provider' => 'stripe', 'stripe_customer_id' => $obj['customer'] ?? null,
                 'stripe_subscription_id' => $obj['subscription'] ?? null, 'subscription_status' => 'active', 'status' => 'active',
-                'plan' => isset(plans()[$obj['metadata']['plan'] ?? '']) ? $obj['metadata']['plan'] : $t['plan']], 'id = ?', [$t['id']]);
+                'plan' => isset(plans()[$obj['metadata']['plan'] ?? '']) ? $obj['metadata']['plan'] : $t['plan'],
+                'billing_cycle' => ($obj['metadata']['cycle'] ?? '') === 'annual' ? 'annual' : 'monthly'], 'id = ?', [$t['id']]);
             return "$name subscribed by card";
         case 'customer.subscription.created':
         case 'customer.subscription.updated':
             $s = (string) ($obj['status'] ?? '');
             $end = $obj['current_period_end'] ?? ($obj['items']['data'][0]['current_period_end'] ?? null);
-            $plan = plan_for_price($obj['items']['data'][0]['price']['id'] ?? null) ?? $t['plan'];
+            [$plan, $cycle] = plan_for_price($obj['items']['data'][0]['price']['id'] ?? null) ?? [$t['plan'], $t['billing_cycle'] ?? 'monthly'];
             $status = in_array($s, ['active', 'trialing', 'past_due'], true) ? 'active' : ($s === 'canceled' || $s === 'unpaid' ? 'cancelled' : $t['status']);
             update('tenants', ['stripe_subscription_id' => $obj['id'], 'stripe_customer_id' => $obj['customer'] ?? $t['stripe_customer_id'],
-                'subscription_status' => $s ?: null, 'status' => $status, 'plan' => $plan, 'billing_provider' => 'stripe',
+                'subscription_status' => $s ?: null, 'status' => $status, 'plan' => $plan, 'billing_cycle' => $cycle, 'billing_provider' => 'stripe',
                 'current_period_end' => $end ? gmdate('Y-m-d H:i:s', (int) $end) : $t['current_period_end']], 'id = ?', [$t['id']]);
             return "$name subscription $s ($plan)" . (!empty($obj['cancel_at_period_end']) ? ', cancels at period end' : '');
         case 'customer.subscription.deleted':
@@ -298,9 +376,10 @@ function wave_check(array $result, string $what): array
     return $result;
 }
 
-/** Creates (or reuses) the Wave customer, then creates, approves and emails a one-month invoice. */
-function wave_send_invoice(array $t, string $plan): array
+/** Creates (or reuses) the Wave customer, then creates, approves and emails a one-month or one-year invoice. */
+function wave_send_invoice(array $t, string $plan, ?string $cycle = null): array
 {
+    $cycle = ($cycle ?? $t['billing_cycle'] ?? 'monthly') === 'annual' ? 'annual' : 'monthly';
     $plans = plans();
     $product = (string) setting('wave_product_' . $plan, '');
     if ($product === '' || !isset($plans[$plan])) {
@@ -316,20 +395,22 @@ function wave_send_invoice(array $t, string $plan): array
         update('tenants', ['wave_customer_id' => $customer], 'id = ?', [$t['id']]);
     }
     $start = gmdate('Y-m-d');
-    $end = gmdate('Y-m-d', strtotime('+1 month'));
+    $end = gmdate('Y-m-d', strtotime($cycle === 'annual' ? '+1 year' : '+1 month'));
+    $amount = $cycle === 'annual' ? $plans[$plan]['annual'] : $plans[$plan]['amount'];
+    $label = $plans[$plan]['name'] . ' plan' . ($cycle === 'annual' ? ' (yearly, ' . (12 - annual_months()) . ' months free)' : '');
     $r = wave_check(wave_gql('mutation ($input: InvoiceCreateInput!) { invoiceCreate(input: $input) { didSucceed inputErrors { message } invoice { id viewUrl status } } }',
         ['input' => ['businessId' => $business, 'customerId' => $customer, 'status' => 'DRAFT',
-            'memo' => cfg('app_name') . ' ' . $plans[$plan]['name'] . " plan, $start to $end",
-            'items' => [['productId' => $product, 'quantity' => 1, 'unitPrice' => number_format($plans[$plan]['amount'], 2, '.', '')]]]])['invoiceCreate'] ?? [], 'create the invoice');
+            'memo' => cfg('app_name') . ' ' . $label . ", $start to $end",
+            'items' => [['productId' => $product, 'quantity' => 1, 'unitPrice' => number_format($amount, 2, '.', '')]]]])['invoiceCreate'] ?? [], 'create the invoice');
     $invoice = $r['invoice'];
     wave_check(wave_gql('mutation ($input: InvoiceApproveInput!) { invoiceApprove(input: $input) { didSucceed inputErrors { message } } }',
         ['input' => ['invoiceId' => $invoice['id']]])['invoiceApprove'] ?? [], 'approve the invoice');
     wave_check(wave_gql('mutation ($input: InvoiceSendInput!) { invoiceSend(input: $input) { didSucceed inputErrors { message } } }',
         ['input' => ['invoiceId' => $invoice['id'], 'to' => [$email], 'attachPDF' => true,
             'subject' => cfg('app_name') . ' subscription invoice', 'message' => 'Thank you for using ' . cfg('app_name') . '. Pay online with the link in this email.']])['invoiceSend'] ?? [], 'email the invoice');
-    update('tenants', ['billing_provider' => 'wave', 'wave_invoice_id' => $invoice['id'], 'plan' => $plan], 'id = ?', [$t['id']]);
-    record_payment(['tenant_id' => $t['id'], 'provider' => 'wave', 'external_id' => $invoice['id'], 'amount_cents' => (int) round($plans[$plan]['amount'] * 100),
-        'status' => 'open', 'description' => $plans[$plan]['name'] . ' plan invoice', 'invoice_url' => $invoice['viewUrl'] ?? null,
+    update('tenants', ['billing_provider' => 'wave', 'wave_invoice_id' => $invoice['id'], 'plan' => $plan, 'billing_cycle' => $cycle], 'id = ?', [$t['id']]);
+    record_payment(['tenant_id' => $t['id'], 'provider' => 'wave', 'external_id' => $invoice['id'], 'amount_cents' => (int) round($amount * 100),
+        'status' => 'open', 'description' => $label . ' invoice', 'invoice_url' => $invoice['viewUrl'] ?? null,
         'period_start' => $start, 'period_end' => $end]);
     return $invoice;
 }

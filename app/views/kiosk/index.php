@@ -3,7 +3,7 @@ $t = tenant();
 $min = tenant_now()->modify('-' . (int) $t['allow_past_days'] . ' days')->format('Y-m-d');
 $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
 ?>
-<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>">
+<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>" data-relative="<?= (int) ($t['allow_typed_relative'] ?? 1) ?>">
   <header class="k-top">
     <div class="k-org">
       <?php if ($t['logo_path']): ?><img src="<?= e(upload_url($t['logo_path'])) ?>" alt=""><?php else: ?><span class="logo-mark"><?= e(initials($t['name'])) ?></span><?php endif; ?>
@@ -59,6 +59,18 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <div class="who" id="who-g"></div>
         <h2 id="guardian-title">Who is with them?</h2>
         <div class="pick-grid" id="guardians"></div>
+        <div class="rel-form hidden" id="rel-form">
+          <div class="field"><label for="rel-name">Your full name</label><input type="text" id="rel-name" maxlength="80" autocomplete="off" placeholder="e.g. Rose Martin"></div>
+          <div class="field"><label id="rel-label">Relationship</label>
+            <div class="rel-chips" role="group" aria-labelledby="rel-label">
+              <?php foreach (['Grandmother', 'Grandfather', 'Aunt', 'Uncle', 'Sister', 'Brother', 'Cousin', 'Stepparent', 'Nanny / babysitter', 'Family friend', 'Neighbor', 'Other'] as $rel): ?>
+                <button type="button" class="rel-chip" aria-pressed="false" data-rel="<?= e($rel) ?>"><?= e($rel) ?></button>
+              <?php endforeach; ?>
+            </div>
+            <input type="text" id="rel-other" class="hidden" maxlength="40" autocomplete="off" placeholder="Type the relationship" style="margin-top:10px"></div>
+          <div class="k-error hidden" id="rel-error"></div>
+          <button class="btn btn-primary btn-lg btn-block" id="rel-go" type="button"><?= icon('check') ?> Submit</button>
+        </div>
       </div>
     </section>
 
@@ -83,7 +95,7 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <button class="k-back" id="mat-back"><?= icon('back', 18) ?> Back</button>
         <div class="who" id="who-m"></div>
         <h2>What are you picking up?</h2>
-        <div class="mat-grid">
+        <div class="mat-grid" id="mat-grid">
           <?php foreach ($materials as $m): ?>
             <label class="mat"><input type="checkbox" name="mat" value="<?= (int) $m['id'] ?>"> <?= e($m['name']) ?></label>
           <?php endforeach; ?>
@@ -132,7 +144,7 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
 
   <footer class="k-foot">
     <?php if (is_admin()): ?><a href="<?= e(url('/admin')) ?>"><?= icon('settings', 14) ?> Admin</a>
-    <?php elseif ($ku = current_user()): ?><span class="muted">Kiosk signed in as <?= e($ku['name']) ?></span> · <a href="<?= e(url('/logout')) ?>">Sign out</a>
+    <?php elseif ($ku = current_user()): ?><span class="muted">Kiosk signed in as <?= e($ku['name']) ?></span> · <a href="<?= e(url('/account/password')) ?>">Change password</a> · <a href="<?= e(url('/logout')) ?>">Sign out</a>
     <?php else: ?><a href="<?= e(url('/login')) ?>">Staff login</a><?php endif; ?>
   </footer>
 </div>

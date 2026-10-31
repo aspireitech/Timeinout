@@ -3,5 +3,6 @@
 <head><?php require APP_DIR . '/views/partials/head.php'; ?><title>Sign in · <?= e(tenant()['name']) ?></title></head>
 <body>
 <div class="auth-wrap"><?= $content ?></div>
+<script src="<?= asset('js/app.js') ?>"></script>
 </body>
 </html>

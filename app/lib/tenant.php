@@ -7,7 +7,7 @@
 //   3. custom    https://checkin.xyzschool.org/... (tenants.custom_domain)
 // Anything else (abc.com, www.abc.com, localhost) is the marketing/platform site.
 
-const RESERVED_SLUGS = ['www', 'admin', 'api', 'app', 'mail', 'ftp', 'cpanel', 'webmail', 'super', 's', 'static', 'assets', 'support', 'help', 'billing', 'demo', 'demo-admin'];
+const RESERVED_SLUGS = ['www', 'dev', 'staging', 'test', 'contact', 'leads', 'admin', 'api', 'app', 'mail', 'ftp', 'cpanel', 'webmail', 'super', 's', 'static', 'assets', 'support', 'help', 'billing', 'demo', 'demo-admin'];
 
 /**
  * @return array|null|false  tenant row, null for the platform site, false for an unknown tenant
@@ -158,6 +158,37 @@ function tenant_url(array $t, string $path = '/'): string
     return scheme() . '://' . ($_SERVER['HTTP_HOST'] ?? cfg('base_domain')) . base_path() . '/s/' . $t['slug'] . $path;
 }
 
+/** Lowercase letters, numbers and single dashes, as typed in "Choose your own address". */
+function clean_slug(string $s): string
+{
+    $s = preg_replace('/[^a-z0-9-]+/', '-', strtolower(trim($s)));
+    return substr(trim(preg_replace('/-+/', '-', $s), '-'), 0, 30);
+}
+
+/** A free address made from the business name ("South Jordan Kumon" → southjordankumon). */
+function suggest_slug(string $org, string $state = ''): string
+{
+    $words = preg_split('/[^a-z0-9]+/', strtolower($org), -1, PREG_SPLIT_NO_EMPTY);
+    $words = array_values(array_filter($words, fn($w) => !in_array($w, ['llc', 'inc', 'ltd', 'co', 'corp', 'the', 'and', 'of', 'pllc', 'lp'], true))) ?: ['my', 'space'];
+    $base = substr(implode('', $words), 0, 24);
+    if (strlen($base) < 3) {
+        $base = str_pad($base, 3, '0');
+    }
+    $try = [$base];
+    if ($state !== '' && isset(US_STATES[strtoupper($state)])) {
+        $try[] = $base . strtolower($state);
+    }
+    for ($i = 2; $i <= 99; $i++) {
+        $try[] = $base . $i;
+    }
+    foreach ($try as $s) {
+        if (!slug_problem($s)) {
+            return $s;
+        }
+    }
+    return $base . bin2hex(random_bytes(2));
+}
+
 function slug_problem(string $slug): ?string
 {
     if (!preg_match('/^[a-z0-9]([a-z0-9-]{1,28})[a-z0-9]$/', $slug)) {
@@ -173,48 +204,94 @@ function slug_problem(string $slug): ?string
 }
 
 /**
- * Create a new subscriber portal: tenant row, owner login, default
- * materials, and (optionally) demo people so they can try it immediately.
+ * Create a new subscriber portal: tenant row, owner login, default materials and
+ * kiosk tiles, and (optionally) demo people so they can try it immediately.
+ * $d['status'] / $d['trial_days'] override the trial; $d['db'] (host, port, name,
+ * user, pass) puts the portal's data in its own, empty database.
  */
 function provision_tenant(array $d): array
 {
-    $pdo = db();
-    $pdo->beginTransaction();
+    $dbc = $d['db'] ?? null;
+    $data = [
+        'name'          => $d['org_name'],
+        'slug'          => $d['slug'],
+        'plan'          => $d['plan'],
+        'status'        => $d['status'] ?? 'trial',
+        'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+' . (int) ($d['trial_days'] ?? cfg('trial_days', 7)) . ' days')),
+        'timezone'      => $d['timezone'],
+        'welcome_title' => 'Welcome to ' . $d['org_name'],
+        'welcome_text'  => 'Tap a button below to sign in or out.',
+        'report_emails' => $d['email'],
+        'industry'      => $d['industry'],
+        'state'         => $d['state'] ?: null,
+        'city'          => $d['city'] ?: null,
+    ];
+    if ($dbc) {
+        $data += ['db_host' => $dbc['host'] ?: 'localhost', 'db_port' => (int) ($dbc['port'] ?: 3306), 'db_name' => $dbc['name'],
+                  'db_user' => $dbc['user'], 'db_pass' => encrypt_pii($dbc['pass'])];
+    }
+    $tenantId = insert('tenants', $data);
+    $t = row('SELECT * FROM tenants WHERE id = ?', [$tenantId]);
     try {
-        $tenantId = insert('tenants', [
-            'name'          => $d['org_name'],
-            'slug'          => $d['slug'],
-            'plan'          => $d['plan'],
-            'status'        => 'trial',
-            'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+' . (int) cfg('trial_days', 30) . ' days')),
-            'timezone'      => $d['timezone'],
-            'welcome_title' => 'Welcome to ' . $d['org_name'],
-            'welcome_text'  => 'Tap a button below to sign in or out.',
-            'report_emails' => $d['email'],
-            'industry'      => $d['industry'],
-            'state'         => $d['state'] ?: null,
-            'city'          => $d['city'] ?: null,
-        ]);
-        seed_tiles($tenantId, $d['industry']);
-        insert('users', [
-            'tenant_id'     => $tenantId,
-            'name'          => $d['admin_name'],
-            'email'         => strtolower($d['email']),
-            'password_hash' => password_hash($d['password'], PASSWORD_DEFAULT),
-            'role'          => 'owner',
-        ]);
-        foreach (industry($d['industry'])['items'] as $i => $m) {
-            insert('materials', ['tenant_id' => $tenantId, 'name' => $m, 'sort_order' => $i]);
+        if ($dbc) {
+            tenant_db_install($t);
         }
-        if (!empty($d['demo'])) {
-            seed_demo_people($tenantId, $d['industry']);
-        }
-        $pdo->commit();
+        with_tenant_db($t, function () use ($tenantId, $d) {
+            $pdo = db();
+            $pdo->beginTransaction();
+            try {
+                seed_tiles($tenantId, $d['industry']);
+                insert('users', [
+                    'tenant_id'     => $tenantId,
+                    'name'          => $d['admin_name'],
+                    'email'         => strtolower($d['email']),
+                    'password_hash' => password_hash($d['password'], PASSWORD_DEFAULT),
+                    'role'          => 'owner',
+                ]);
+                foreach (industry($d['industry'])['items'] as $i => $m) {
+                    insert('materials', ['tenant_id' => $tenantId, 'name' => $m, 'sort_order' => $i]);
+                }
+                if (!empty($d['demo'])) {
+                    seed_demo_people($tenantId, $d['industry']);
+                }
+                $pdo->commit();
+            } catch (Throwable $ex) {
+                $pdo->rollBack();
+                throw $ex;
+            }
+        });
     } catch (Throwable $ex) {
-        $pdo->rollBack();
+        q('DELETE FROM tenants WHERE id = ?', [$tenantId]); // nothing half-made is left behind
         throw $ex;
     }
-    return row('SELECT * FROM tenants WHERE id = ?', [$tenantId]);
+    return $t;
+}
+
+/** Checks a dedicated database before a portal is put in it. Returns the problem, or null when it can be used. */
+function tenant_db_problem(array $c): ?string
+{
+    if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', $c['name']) || $c['user'] === '') {
+        return 'Enter the database name (letters, numbers and _ only) and its user.';
+    }
+    if (val('SELECT id FROM tenants WHERE db_name = ? AND COALESCE(db_host, \'localhost\') = ?', [$c['name'], $c['host'] ?: 'localhost'])
+        || ($c['name'] === (cfg('db')['name'] ?? '') && ($c['host'] ?: 'localhost') === (cfg('db')['host'] ?? 'localhost'))) {
+        return 'That database is already in use. Each portal needs its own, new database.';
+    }
+    try {
+        $pdo = pdo_connect($c);
+    } catch (Throwable $e) {
+        return 'Could not connect to that database: ' . $e->getMessage();
+    }
+    if ((int) $pdo->query('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()')->fetchColumn() > 0) {
+        return 'That database is not empty. Create a new, empty database for this portal.';
+    }
+    return null;
+}
+
+/** The owner login of a portal, read from the portal's own database. */
+function tenant_owner(array $t): ?array
+{
+    return with_tenant_db($t, fn() => row("SELECT * FROM users WHERE tenant_id = ? AND role = 'owner' ORDER BY id LIMIT 1", [$t['id']]));
 }
 
 function seed_demo_people(int $tenantId, string $industry = 'school'): void
@@ -239,4 +316,73 @@ function seed_demo_people(int $tenantId, string $industry = 'school'): void
     foreach ([['T001', 'Hannah', 'Lee'], ['T002', 'Robert', 'Miller'], ['T003', 'Aisha', 'Khan']] as [$code, $fn, $ln]) {
         insert('teachers', ['tenant_id' => $tenantId, 'employee_code' => $code, 'first_name' => $fn, 'last_name' => $ln]);
     }
+}
+
+// ---------- Deleting a portal ----------
+/** Days a deleted portal's data is kept so it can be restored. */
+const DELETE_GRACE_DAYS = 30;
+
+/** Close a portal now; its data stays for DELETE_GRACE_DAYS and it can be restored until then. */
+function tenant_soft_delete(array $t): void
+{
+    update('tenants', ['deleted_at' => gmdate('Y-m-d H:i:s')], 'id = ?', [$t['id']]);
+}
+
+function tenant_restore(array $t): void
+{
+    update('tenants', ['deleted_at' => null], 'id = ?', [$t['id']]);
+}
+
+/**
+ * Removes a portal for good: its people, attendance, logins, logs and logo. A portal with its own
+ * database is first saved to backups/deleted/, then all its tables are dropped (the empty
+ * database itself is removed in hPanel). Payments are kept for your accounts.
+ * @return string what was done
+ */
+function tenant_purge(array $t): string
+{
+    $note = '';
+    if (tenant_db_config($t)) {
+        $dir = ROOT_DIR . '/backups/deleted';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0700, true);
+            file_put_contents(ROOT_DIR . '/backups/.htaccess', "Require all denied\n");
+        }
+        $file = $dir . '/' . $t['slug'] . '_' . $t['db_name'] . '_' . gmdate('Y-m-d_Hi') . '.sql.gz';
+        dump_database(tenant_pdo($t), $file);
+        with_tenant_db($t, fn() => without_routing(function () {
+            db()->exec('SET FOREIGN_KEY_CHECKS=0');
+            foreach (db()->query('SHOW FULL TABLES WHERE Table_type = "BASE TABLE"')->fetchAll(PDO::FETCH_NUM) as [$table]) {
+                db()->exec("DROP TABLE IF EXISTS `$table`");
+            }
+            db()->exec('SET FOREIGN_KEY_CHECKS=1');
+        }));
+        $note = 'own database ' . $t['db_name'] . ' emptied (copy saved as backups/deleted/' . basename($file) . '); remove the empty database in hPanel';
+    } else {
+        q('DELETE FROM audit_log WHERE tenant_id = ?', [$t['id']]);
+        $note = 'data removed from the shared database';
+    }
+    if (!empty($t['logo_path']) && is_file(PUBLIC_DIR . '/' . $t['logo_path'])) {
+        @unlink(PUBLIC_DIR . '/' . $t['logo_path']);
+    }
+    q('DELETE FROM tenants WHERE id = ?', [$t['id']]); // people, attendance, users, tiles… follow (ON DELETE CASCADE)
+    return $note;
+}
+
+/** Cron: remove portals deleted more than DELETE_GRACE_DAYS ago. */
+function purge_expired_tenants(): array
+{
+    $log = [];
+    $GLOBALS['audit_system'] = true;
+    foreach (rows('SELECT * FROM tenants WHERE deleted_at IS NOT NULL AND deleted_at < ?', [gmdate('Y-m-d H:i:s', time() - DELETE_GRACE_DAYS * 86400)]) as $t) {
+        try {
+            $note = tenant_purge($t);
+            audit('Portal removed permanently', $t['name'] . ' (' . $t['slug'] . ')', true, DELETE_GRACE_DAYS . ' days after deletion; ' . $note);
+            $log[] = $t['slug'] . ': removed permanently';
+        } catch (Throwable $e) {
+            audit('Portal removed permanently', $t['name'] . ' (' . $t['slug'] . ')', false, $e->getMessage());
+            $log[] = $t['slug'] . ': removal FAILED ' . $e->getMessage();
+        }
+    }
+    return $log;
 }

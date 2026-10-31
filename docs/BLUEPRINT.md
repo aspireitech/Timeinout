@@ -1,4 +1,4 @@
-# TimeInOut — Functional & Technical Blueprint
+# ClockInOut — Functional & Technical Blueprint
 
 Companion to [MASTER_PLAN.md](MASTER_PLAN.md) (the why) and [ARCHITECTURE.md](ARCHITECTURE.md) (the diagrams).
 

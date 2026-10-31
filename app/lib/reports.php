@@ -2,11 +2,52 @@
 // Daily / weekly / monthly summaries, used by the Reports page and the
 // scheduled email job.
 
-/** @return array{0:string,1:string,2:string} [from, to, label] */
-function report_period(string $period, string $anchor): array
+/** Longest on-demand (custom) range: 6 months (12 on plans with unlimited report history). */
+const REPORT_MAX_MONTHS = 6;
+
+function report_max_months(): int
+{
+    return function_exists('tenant') && tenant() && (tenant_plan()['report_days'] ?? 0) === null ? 12 : REPORT_MAX_MONTHS;
+}
+
+/** Earliest date the current portal's plan can report on (null = no limit). */
+function report_earliest(): ?string
+{
+    if (!function_exists('tenant') || !tenant()) {
+        return null;
+    }
+    $days = tenant_plan()['report_days'] ?? null;
+    return $days ? tenant_now()->modify('-' . (int) $days . ' days')->format('Y-m-d') : null;
+}
+
+/** @return array{0:string,1:string,2:string} [from, to, label], starting no earlier than the plan's report history */
+function report_period(string $period, string $anchor, ?string $end = null): array
+{
+    [$from, $to, $label] = report_period_raw($period, $anchor, $end);
+    $min = report_earliest();
+    if ($min && $from < $min) {
+        $GLOBALS['report_clamped'] = $min;
+        $from = $min;
+        $to = max($to, $min);
+        $label = date('M j, Y', strtotime($from)) . ' – ' . date('M j, Y', strtotime($to));
+    }
+    return [$from, $to, $label];
+}
+
+function report_period_raw(string $period, string $anchor, ?string $end = null): array
 {
     $d = new DateTime($anchor);
     switch ($period) {
+        case 'custom':
+            $e = new DateTime($end ?: $anchor);
+            if ($e < $d) {
+                [$d, $e] = [$e, $d];
+            }
+            $max = (clone $d)->modify('+' . report_max_months() . ' months')->modify('-1 day');
+            if ($e > $max) {
+                $e = $max;
+            }
+            return [$d->format('Y-m-d'), $e->format('Y-m-d'), $d->format('M j, Y') . ' – ' . $e->format('M j, Y')];
         case 'weekly':
             $from = (clone $d)->modify('monday this week');
             $to = (clone $from)->modify('+6 days');
@@ -261,11 +302,11 @@ function report_csv_rows(array $r): array
  * Daily reports attach the student attendance sheet; weekly/monthly attach the summary.
  * @return array{0:bool,1:?string} [sent?, error]
  */
-function report_send(array $t, string $period, string $anchor, string $trigger): array
+function report_send(array $t, string $period, string $anchor, string $trigger, ?string $end = null): array
 {
-    [$from, $to, $label] = report_period($period, $anchor);
+    [$from, $to, $label] = report_period($period, $anchor, $end);
     $r = report_build((int) $t['id'], $from, $to);
-    $title = ucfirst($period) . ' report — ' . $label;
+    $title = ($period === 'custom' ? 'Report' : ucfirst($period) . ' report') . ' — ' . $label;
     $attach = [];
     $want = array_map('trim', explode(',', (string) ($t['report_attach'] ?? 'pdf,csv')));
     if ($period === 'daily') {
@@ -285,8 +326,10 @@ function report_send(array $t, string $period, string $anchor, string $trigger):
         }
     }
     $recipients = array_filter(array_map('trim', explode(',', (string) $t['report_emails'])));
-    $link = tenant_url($t, '/admin/reports?period=' . $period . '&date=' . $from);
-    $ok = $recipients && send_mail($recipients, $t['name'] . ': ' . $title, report_email_html($t, $title, $r, $link), $attach);
+    $link = tenant_url($t, '/admin/reports?period=' . $period . '&date=' . $from . ($period === 'custom' ? '&to=' . $to : ''));
+    // Sent from the reports mailbox, with a hidden copy to the provider (config 'report_bcc', false = none)
+    $bcc = cfg('report_bcc', contact_email());
+    $ok = $recipients && send_mail($recipients, $t['name'] . ': ' . $title, report_email_html($t, $title, $r, $link), $attach, 'reports', $bcc ? (array) $bcc : []);
     $error = $recipients ? $GLOBALS['mail_error'] : 'No report email addresses are set.';
     if ($ok && $trigger === 'scheduled') {
         q('INSERT IGNORE INTO report_log (tenant_id, period, period_start) VALUES (?,?,?)', [$t['id'], $period, $from]);
@@ -306,9 +349,16 @@ function run_scheduled_reports(bool $force = false): array
 {
     $log = [];
     $GLOBALS['audit_system'] = true; // entries show as "Scheduled job"
-    $tenants = rows("SELECT * FROM tenants WHERE status IN ('trial','active') AND report_emails IS NOT NULL AND report_emails <> ''");
+    $tenants = rows("SELECT * FROM tenants WHERE status IN ('trial','active') AND deleted_at IS NULL AND report_emails IS NOT NULL AND report_emails <> ''");
     foreach ($tenants as $t) {
         $GLOBALS['tenant'] = $t;
+        try {
+            tenant_db_migrate($t);
+            use_tenant_db($t); // portals with their own database are read from there
+        } catch (Throwable $e) {
+            $log[] = $t['slug'] . ': database not reachable: ' . $e->getMessage();
+            continue;
+        }
         $now = tenant_now();
         if (!$force && (int) $now->format('G') < (int) ($t['report_hour'] ?? 7)) {
             continue;
@@ -335,5 +385,6 @@ function run_scheduled_reports(bool $force = false): array
         }
     }
     unset($GLOBALS['tenant']);
+    use_tenant_db(null);
     return $log;
 }

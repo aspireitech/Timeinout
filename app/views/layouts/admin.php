@@ -27,13 +27,16 @@ $nav = function (string $path, string $ico, string $label) use ($here) {
       <?= $nav('/admin/students', 'users', term('a2') . (uses_contacts() ? ' & ' . strtolower(term('c2')) : '')) ?>
       <?= $nav('/admin/teachers', 'teacher', term('b2')) ?>
       <?= $nav('/admin/materials', 'box', 'Pickup ' . strtolower(term('items'))) ?>
-      <?= $nav('/admin/import', 'upload', 'Import CSV') ?>
+      <?= $nav('/admin/import', 'upload', 'Import') ?>
       <div class="nav-label">Setup</div>
       <?= $nav('/admin/tiles', 'grid', 'Kiosk tiles') ?>
       <?= $nav('/admin/settings', 'settings', 'Branding & settings') ?>
       <?= $nav('/admin/billing', 'card', 'Billing') ?>
       <?= $nav('/admin/users', 'shield', 'Users') ?>
       <?= $nav('/admin/audit', 'list', 'Audit log') ?>
+      <div class="nav-label">Help</div>
+      <?= $nav('/admin/help', 'help', 'Help & FAQ') ?>
+      <?= $nav('/admin/whats-new', 'spark', "What's new") ?>
       <a href="<?= e(url('/logout')) ?>"><?= icon('logout') ?><span class="t">Log out</span></a>
     </nav>
     <div class="foot">

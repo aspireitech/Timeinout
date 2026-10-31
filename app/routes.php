@@ -42,18 +42,40 @@ function dispatch(string $path, array $routes): void
 
 function platform_routes(string $path): void
 {
+    if (preg_match('#^/for/([a-z-]+)$#', $path, $m) && isset(CAMPAIGNS[$m[1]])) {
+        platform_campaign($m[1]);
+    }
+    if (isset(SHARE_LINKS[ltrim($path, '/')])) { // /linkedin, /facebook, /email, /web, /friend
+        redirect(base_path() . '/?src=' . SHARE_LINKS[ltrim($path, '/')]);
+    }
     dispatch($path, [
         ['GET',      '/',                    'platform_home'],
         ['GET|POST', '/signup',              'platform_signup'],
+        ['GET|POST', '/demo',                'platform_demo'],
+        ['GET',      '/whats-new',           'platform_whats_new'],
+        ['GET',      '/sitemap.xml',         'seo_sitemap'],
+        ['GET|POST', '/report-activity',     'platform_report_activity'],
         ['GET',      '/check-address',       'platform_check_slug'],
         ['GET|POST', '/login',               'platform_find_login'],
         ['GET|POST', '/super/login',         'super_login'],
         ['GET|POST', '/super/verify',        'super_verify'],
         ['GET',      '/super/logout',        'super_logout'],
+        ['GET',      '/super/google',        'super_google_start'],
+        ['GET',      '/super/google/callback', 'super_google_callback'],
+        ['GET|POST', '/super/portals/new',   'super_portal_new'],
+        ['GET',      '/super/portals/created', 'super_portal_created'],
+        ['POST',     '/super/tenants/{id}/password', 'super_owner_password', 'Reset portal owner password'],
+        ['GET|POST', '/super/tenants/{id}/delete', 'super_tenant_delete'],
+        ['POST',     '/super/tenants/{id}/restore', 'super_tenant_restore', 'Restored deleted portal'],
+        ['GET',      '/super/leads',         'super_leads'],
+        ['GET',      '/super/requests',      'super_requests'],
+        ['POST',     '/super/requests/{id}', 'super_request_update', 'Updated feature request'],
+        ['POST',     '/super/leads/{id}',    'super_lead_update',   'Updated lead'],
         ['GET',      '/super',               'super_tenants'],
         ['POST',     '/super/tenants/{id}',  'super_update_tenant', 'Changed subscriber plan/status'],
         ['POST',     '/super/demo',          'super_seed_demo',     'Rebuilt demo portal'],
         ['GET|POST', '/super/settings',      'super_settings'],
+        ['GET|POST', '/super/security',      'super_security',      'Changed provider sign-in security'],
         ['GET',      '/super/audit',         'super_audit'],
         ['GET|POST', '/super/payments',      'super_payments'],
         ['POST',     '/webhooks/stripe',     'webhook_stripe'],
@@ -64,6 +86,7 @@ function platform_routes(string $path): void
 function tenant_routes(string $path): void
 {
     billing_gate($path);
+    enforce_password_change($path);
     // A 4th item names the change for the audit log; those posts are logged automatically.
     dispatch($path, [
         // Kiosk (the screen students, parents and teachers use)
@@ -71,10 +94,12 @@ function tenant_routes(string $path): void
         ['GET|POST', '/login',                     'login_page'],
         ['GET|POST', '/login/verify',              'login_verify'],
         ['GET',      '/logout',                    'logout_action'],
+        ['GET|POST', '/account/password',          'account_password',      'Changed own password'],
         ['GET',      '/api/search',                'api_search'],
         ['GET',      '/api/guardians',             'api_guardians'],
         ['GET',      '/api/status',                'api_status'],
         ['GET',      '/api/visitors',              'api_visitors'],
+        ['GET',      '/api/materials',             'api_materials'],
         ['POST',     '/api/record',                'api_record'],
         // Admin portal (owners and admins only)
         ['GET',      '/admin',                     'admin_dashboard'],
@@ -94,7 +119,9 @@ function tenant_routes(string $path): void
         ['POST',     '/admin/materials',           'admin_materials',       'Changed materials'],
         ['POST',     '/admin/materials/{id}/delete', 'admin_material_delete', 'Deleted material'],
         ['GET',      '/admin/import',              'admin_import'],
-        ['POST',     '/admin/import',              'admin_import',          'Imported CSV'],
+        ['POST',     '/admin/import',              'admin_import'],
+        ['GET|POST', '/admin/import/map',          'admin_import_map',      'Imported spreadsheet'],
+        ['POST',     '/admin/import/undo',         'admin_import_undo',     'Undid import'],
         ['GET',      '/admin/import/sample-students.csv', 'admin_sample_students'],
         ['GET',      '/admin/import/sample-teachers.csv', 'admin_sample_teachers'],
         ['GET',      '/admin/attendance',          'admin_attendance'],
@@ -119,6 +146,9 @@ function tenant_routes(string $path): void
         ['POST',     '/admin/tiles/{id}/delete',   'admin_tile_delete',     'Deleted kiosk tile'],
         ['POST',     '/admin/tiles/reset',         'admin_tiles_reset',     'Reset kiosk tiles to industry defaults'],
         ['POST',     '/admin/terms',               'admin_terms_save',      'Changed names used in the app'],
+        ['GET',      '/admin/help',                'admin_help'],
+        ['GET',      '/admin/whats-new',           'admin_whats_new'],
+        ['POST',     '/admin/whats-new',           'admin_feature_request', 'Requested a feature'],
         ['GET',      '/admin/billing',             'admin_billing'],
         ['POST',     '/admin/billing/stripe',      'admin_billing_stripe'],
         ['POST',     '/admin/billing/portal',      'admin_billing_portal'],
