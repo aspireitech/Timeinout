@@ -29,6 +29,7 @@
     document.getElementById('addr-edit').addEventListener('click', () => {
       own = true;
       custom.classList.remove('hidden');
+      document.getElementById('addr-edit').classList.add('hidden');
       slug.focus();
       slug.select();
       check();
@@ -62,7 +63,7 @@
       const v = input.value;
       const blank = v === '' && input.hasAttribute('data-pw-optional');
       list.innerHTML = (blank ? '<li class="note">Leave empty and we will create a strong one.</li>' : '') +
-        rules().map(([label, test, optional]) => `<li class="${test(v) ? 'ok' : (optional ? 'opt' : '')}">${label}</li>`).join('');
+        rules().map(([label, test, optional]) => `<li class="${test(v) ? 'ok' : (optional ? 'opt' : (v ? 'bad' : ''))}">${label}</li>`).join('');
       const bad = !blank && rules().some(([, test, optional]) => !optional && !test(v));
       input.setCustomValidity(bad && v !== '' ? 'Please meet the password rules shown below.' : '');
     };

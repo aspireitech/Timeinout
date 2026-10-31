@@ -38,15 +38,15 @@
       <?php $suffix = cfg('tenant_url_mode') === 'subdomain' ? '.' . cfg('base_domain') : ''; $prefix = $suffix ? '' : cfg('base_domain') . '/s/'; ?>
       <div class="field">
         <label for="slug">Your web address</label>
-        <div class="addr-preview" id="addr-preview" data-check="<?= e(base_path() . '/check-address') ?>"><?= icon('globe', 16) ?> <span id="addr-text">Type your business name to see your address.</span>
-          <button type="button" class="link-btn addr-edit" id="addr-edit">Change</button></div>
+        <div class="addr-preview" id="addr-preview" data-check="<?= e(base_path() . '/check-address') ?>"><?= icon('globe', 16) ?> <span id="addr-text">Type your business name to see your address.</span></div>
+        <button type="button" class="addr-change <?= ($old['slug'] || isset($errors['slug'])) ? 'hidden' : '' ?>" id="addr-edit">Don't like this address? Click here to choose your own →</button>
         <div class="addr-custom <?= ($old['slug'] || isset($errors['slug'])) ? '' : 'hidden' ?>" id="addr-custom">
           <?php if ($prefix): ?><span class="muted"><?= e($prefix) ?></span><?php endif; ?>
           <input type="text" id="slug" name="slug" value="<?= e($old['slug']) ?>" maxlength="30" autocomplete="off" spellcheck="false" placeholder="yourname" aria-describedby="addr-hint">
           <?php if ($suffix): ?><span class="muted"><?= e($suffix) ?></span><?php endif; ?>
         </div>
         <?php if (isset($errors['slug'])): ?><div class="err"><?= e($errors['slug']) ?></div><?php endif; ?>
-        <div class="hint" id="addr-hint">We suggest one from your business name. Don't like it? Tap <b>Change</b> and choose your own: 3–30 letters, numbers or dashes. It can't be changed later.</div>
+        <div class="hint" id="addr-hint"><?= $suffix ? 'Your portal address always ends with <b>' . e($suffix) . '</b>.' : 'Your portal address always starts with <b>' . e($prefix) . '</b>.' ?> Use 3–30 letters, numbers or dashes. It can't be changed later.</div>
       </div>
 
       <div class="grid c2">

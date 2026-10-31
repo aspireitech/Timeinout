@@ -449,12 +449,14 @@ label.sub { font-size: .78rem; color: var(--muted); font-weight: 600; margin-bot
 .rel-chip { border: 2px solid var(--line); background: var(--card, #fff); color: inherit; border-radius: 999px; padding: 11px 18px; font: inherit; font-weight: 700; cursor: pointer; min-height: 46px; }
 .rel-chip:hover { border-color: var(--brand); }
 .rel-chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
-.addr-preview .addr-edit { margin-left: auto; font-weight: 700; color: var(--brand); white-space: nowrap; }
+.addr-change { display: block; margin-top: 8px; background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: #C62828; cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.addr-change:hover { color: #9B1C1C; }
 .addr-custom { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .addr-custom input { flex: 1 1 160px; min-width: 0; }
 .pw-rules { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; font-size: .86rem; color: var(--muted); }
 .pw-rules li::before { content: "○"; display: inline-block; width: 1.3em; font-weight: 800; }
 .pw-rules li.ok { color: #037a5c; } .pw-rules li.ok::before { content: "✓"; }
 .pw-rules li.opt::before { content: "+"; }
+.pw-rules li.bad { color: #C62828; } .pw-rules li.bad::before { content: "✗"; }
 .pw-rules li.note { color: var(--ink, inherit); } .pw-rules li.note::before { content: none; }
 .pw-match { font-size: .86rem; margin-top: 6px; font-weight: 600; } .pw-match.ok { color: #037a5c; } .pw-match.bad { color: #B4232A; }
