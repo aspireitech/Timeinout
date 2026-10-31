@@ -14,7 +14,7 @@
     <tr><th>Organization</th><th>Owner</th><th>People</th><th>Activity 30d</th><th>Billing</th><th>Plan &amp; status</th></tr>
     <?php foreach ($tenants as $t): ?>
       <tr>
-        <td><b><?= e($t['name']) ?></b><br><a class="small" href="<?= e(tenant_url($t, '/admin')) ?>" target="_blank"><?= e(preg_replace('#^https?://#', '', tenant_url($t, ''))) ?></a>
+        <td><b><?= e($t['name']) ?></b><?php if (!empty($t['source'])): ?> <span class="badge gray" title="Signed up from">via <?= e($t['source']) ?></span><?php endif; ?><br><a class="small" href="<?= e(tenant_url($t, '/admin')) ?>" target="_blank"><?= e(preg_replace('#^https?://#', '', tenant_url($t, ''))) ?></a>
           <br><span class="badge <?= tenant_db_config($t) ? 'in' : 'student' ?>"><?= tenant_db_config($t) ? 'Own DB · ' . e($t['db_name']) : 'Shared DB' ?></span>
           <?php if (!empty($t['db_error'])): ?><br><span class="badge danger" title="<?= e($t['db_error']) ?>">database not reachable</span><?php endif; ?>
           <?php if ($t['custom_domain']): ?><br><span class="small muted"><?= e($t['custom_domain']) ?></span><?php endif; ?></td>

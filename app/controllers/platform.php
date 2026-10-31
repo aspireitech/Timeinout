@@ -43,7 +43,7 @@ function platform_signup(): void
 {
     $plans = plans();
     $old = ['org_name' => '', 'industry' => (string) input('industry', 'office'), 'state' => '', 'city' => '', 'slug' => '', 'admin_name' => '',
-        'email' => '', 'plan' => (string) input('plan', array_key_first($plans)), 'timezone' => '', 'demo' => '1'];
+        'email' => '', 'plan' => (string) input('plan', array_key_first($plans)), 'timezone' => '', 'demo' => '1', 'src' => (string) lead_source()];
     $errors = [];
 
     if (is_post()) {
@@ -92,7 +92,10 @@ function platform_signup(): void
         }
         if (!$errors) {
             $t = provision_tenant($d);
-            audit('New sign-up', $t['name'] . ' (' . $t['slug'] . ')', true, industry($d['industry'])['name'] . ', ' . $d['plan'] . ' plan, owner ' . $d['email'],
+            if ($src = lead_source()) {
+                update('tenants', ['source' => $src], 'id = ?', [$t['id']]);
+            }
+            audit('New sign-up', $t['name'] . ' (' . $t['slug'] . ')', true, industry($d['industry'])['name'] . ', ' . $d['plan'] . ' plan, owner ' . $d['email'] . ($src ? ', came from ' . $src : ''),
                 ['email' => $d['email'], 'name' => $d['admin_name'], 'tenant_id' => (int) $t['id']]);
             view('platform/welcome', ['t' => $t, 'email' => $d['email']], 'platform');
         }

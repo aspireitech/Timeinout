@@ -3,7 +3,7 @@
     <h1>Create your space</h1>
     <p class="muted">Takes about a minute. Your kiosk is ready the moment you finish.</p>
     <form method="post" action="<?= e(base_path() . '/signup') ?>" id="signup-form" novalidate>
-      <?= csrf_field() ?>
+      <?= csrf_field() ?><?php if ($old['src']): ?><input type="hidden" name="src" value="<?= e($old['src']) ?>"><?php endif; ?>
       <div class="field">
         <label for="org_name">Business name</label>
         <input type="text" id="org_name" name="org_name" value="<?= e($old['org_name']) ?>" placeholder="South Jordan Kumon" required autofocus>

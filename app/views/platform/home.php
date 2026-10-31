@@ -1,9 +1,10 @@
+<?php $sq = lead_source() ? 'src=' . lead_source() : ''; ?>
 <?php // Homepage (approved concept: docs/mockup/home-v2.html). Uses its own layout: layouts/home.php ?>
 <div class="wrap">
   <nav class="top" aria-label="Main">
     <a class="logo" href="<?= e(base_path()) ?>/"><span class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A93B" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span><?= e(cfg('app_name')) ?></a>
     <div class="nav-links"><a href="#industries">Industries</a><a href="#how">How it works</a><a href="#demo">Live demo</a><a href="#security">Security</a><a href="#pricing">Pricing</a><a href="<?= e(base_path()) ?>/whats-new">What's new</a></div>
-    <div class="nav-cta"><a class="btn btn-ghost" href="<?= e(base_path()) ?>/login">Sign in</a><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a></div>
+    <div class="nav-cta"><a class="btn btn-ghost" href="<?= e(base_path()) ?>/login">Sign in</a><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup<?= $sq ? '?' . $sq : '' ?>">Start free trial</a></div>
   </nav>
 
   <section class="hero">
@@ -11,7 +12,7 @@
       <span class="eyebrow">Time &amp; attendance for any front door</span>
       <h1>Know who's in, who's out, and <span class="tick">exactly when.</span></h1>
       <p class="lead">A simple sign-in and sign-out kiosk for employees, members, students and visitors. Put a tablet at the door, and get live attendance, hours and reports in your inbox.</p>
-      <div class="hero-cta"><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a><a class="btn btn-ghost" href="<?= e(base_path()) ?>/demo">Book a live demo</a></div>
+      <div class="hero-cta"><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup<?= $sq ? '?' . $sq : '' ?>">Start free trial</a><a class="btn btn-ghost" href="<?= e(base_path()) ?>/demo<?= $sq ? '?' . $sq : '' ?>">Book a live demo</a></div>
       <div class="checks"><span>Ready in 60 seconds</span><span>Any tablet or phone</span><span>No credit card</span></div>
     </div>
 
@@ -58,18 +59,18 @@
       <p>Rename the buttons to fit your world: employees, members, students, patients, volunteers or visitors.</p>
     </div>
     <div class="industries">
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=office"><span class="ic" style="background:#EEEBFD;color:#5B4CE0"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2M11 21v-3h2v3"/></svg></span><b>Offices</b><small>Employee time clock</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=school"><span class="ic" style="background:#FFF1DC;color:#B66A00"><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5M22 9v6"/></svg></span><b>Schools &amp; daycare</b><small>Drop-off and pick-up</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=clinic"><span class="ic" style="background:#E3F7F0;color:#0E8A66"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/></svg></span><b>Clinics &amp; care homes</b><small>Staff and visitor log</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=construction"><span class="ic" style="background:#FFE9E2;color:#C2421E"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 18v-3a7 7 0 0 1 14 0v3M10 8.5V12M14 8.5V12"/><path d="M12 8V6"/></svg></span><b>Construction</b><small>Crew on site</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=retail"><span class="ic" style="background:#E6F1FD;color:#1A6FC4"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg></span><b>Retail</b><small>Shift start and end</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=restaurant"><span class="ic" style="background:#FCEBF3;color:#B22B6B"><svg viewBox="0 0 24 24"><path d="M4 9h12v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2M7 4v2M11 4v2"/></svg></span><b>Restaurants &amp; cafés</b><small>Staff hours</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=gym"><span class="ic" style="background:#EEEBFD;color:#5B4CE0"><svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg></span><b>Gyms &amp; studios</b><small>Member check-in</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=warehouse"><span class="ic" style="background:#FFF1DC;color:#B66A00"><svg viewBox="0 0 24 24"><path d="M2 7h11v9H2zM13 10h4l4 3.5V16h-8"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span><b>Warehouses</b><small>Shift and gate log</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=events"><span class="ic" style="background:#E3F7F0;color:#0E8A66"><svg viewBox="0 0 24 24"><path d="M3 5h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4z"/><path d="M14 5v14" stroke-dasharray="2 2.5"/></svg></span><b>Events &amp; venues</b><small>Volunteer and guest sign-in</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=tutoring"><span class="ic" style="background:#FFE9E2;color:#C2421E"><svg viewBox="0 0 24 24"><path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6z"/><path d="M12 6v14.5"/></svg></span><b>Tutoring centers</b><small>Sessions and pickups</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=nonprofit"><span class="ic" style="background:#E6F1FD;color:#1A6FC4"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><b>Nonprofits</b><small>Volunteer hours</small></a>
-      <a class="ind" href="<?= e(base_path()) ?>/signup?industry=field"><span class="ic" style="background:#FCEBF3;color:#B22B6B"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></span><b>Field services</b><small>Clock in at each site</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=office"><span class="ic" style="background:#EEEBFD;color:#5B4CE0"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2M11 21v-3h2v3"/></svg></span><b>Offices</b><small>Employee time clock</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=school"><span class="ic" style="background:#FFF1DC;color:#B66A00"><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5M22 9v6"/></svg></span><b>Schools &amp; daycare</b><small>Drop-off and pick-up</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=clinic"><span class="ic" style="background:#E3F7F0;color:#0E8A66"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/></svg></span><b>Clinics &amp; care homes</b><small>Staff and visitor log</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=construction"><span class="ic" style="background:#FFE9E2;color:#C2421E"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 18v-3a7 7 0 0 1 14 0v3M10 8.5V12M14 8.5V12"/><path d="M12 8V6"/></svg></span><b>Construction</b><small>Crew on site</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=retail"><span class="ic" style="background:#E6F1FD;color:#1A6FC4"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg></span><b>Retail</b><small>Shift start and end</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=restaurant"><span class="ic" style="background:#FCEBF3;color:#B22B6B"><svg viewBox="0 0 24 24"><path d="M4 9h12v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2M7 4v2M11 4v2"/></svg></span><b>Restaurants &amp; cafés</b><small>Staff hours</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=gym"><span class="ic" style="background:#EEEBFD;color:#5B4CE0"><svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg></span><b>Gyms &amp; studios</b><small>Member check-in</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=warehouse"><span class="ic" style="background:#FFF1DC;color:#B66A00"><svg viewBox="0 0 24 24"><path d="M2 7h11v9H2zM13 10h4l4 3.5V16h-8"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span><b>Warehouses</b><small>Shift and gate log</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=events"><span class="ic" style="background:#E3F7F0;color:#0E8A66"><svg viewBox="0 0 24 24"><path d="M3 5h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4z"/><path d="M14 5v14" stroke-dasharray="2 2.5"/></svg></span><b>Events &amp; venues</b><small>Volunteer and guest sign-in</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=tutoring"><span class="ic" style="background:#FFE9E2;color:#C2421E"><svg viewBox="0 0 24 24"><path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6z"/><path d="M12 6v14.5"/></svg></span><b>Tutoring centers</b><small>Sessions and pickups</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=nonprofit"><span class="ic" style="background:#E6F1FD;color:#1A6FC4"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><b>Nonprofits</b><small>Volunteer hours</small></a>
+      <a class="ind" href="<?= e(base_path()) ?>/signup?<?= $sq ? $sq . '&amp;' : '' ?>industry=field"><span class="ic" style="background:#FCEBF3;color:#B22B6B"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></span><b>Field services</b><small>Clock in at each site</small></a>
     </div>
   </section>
 
@@ -94,7 +95,7 @@
   <section class="demo-band" id="demo">
     <div><span class="eyebrow" style="color:#FDE7B5">Live demo</span><h2>Try a real example, right now</h2>
       <p>A sample portal loaded with people, contacts, visitors and six weeks of history. Tell us a little about your team and open it instantly: sign in, open the kiosk and clock someone in yourself.</p>
-      <a class="btn btn-primary" href="<?= e(base_path()) ?>/demo">Get demo access</a></div>
+      <a class="btn btn-primary" href="<?= e(base_path()) ?>/demo<?= $sq ? '?' . $sq : '' ?>">Get demo access</a></div>
     <div class="creds">
       <div class="cred"><b>What you'll see</b><div><span>Kiosk</span><code>clock in &amp; out in seconds</code></div><div><span>Admin</span><code>people, reports, audit log</code></div></div>
       <div class="cred"><b>Takes 30 seconds</b><div><span>Form</span><code>name, email, team size</code></div><div><span>Access</span><code>instant</code></div></div>
@@ -127,7 +128,7 @@
           <div class="note yr">That's $<?= e(number_format($p['annual'] / 12, fmod($p['annual'], 12) == 0 ? 0 : 2)) ?>/month<?php if ($free > 0): ?>, you save $<?= e(number_format($p['amount'] * 12 - $p['annual'], 0)) ?><?php endif; ?>.</div>
           <ul><?php if ($head): ?><li class="plus"><?= e($head) ?></li><?php endif; ?><li><?= e($p['limit']) ?></li>
             <?php foreach ($feat ?: ['Every feature included', 'PDF & CSV reports, audit log'] as $f): ?><li><?= e($f) ?></li><?php endforeach; ?></ul>
-          <a class="btn <?= $p['popular'] ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(base_path() . '/signup?plan=' . urlencode($key)) ?>">Start free trial</a></div>
+          <a class="btn <?= $p['popular'] ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(base_path() . '/signup?plan=' . urlencode($key) . ($sq ? '&' . $sq : '')) ?>">Start free trial</a></div>
       <?php endforeach; ?>
     </div>
     <p class="pay">Start with a <?= (int) cfg('trial_days', 30) ?>-day free trial on any plan. Pay by card with Stripe, or by invoice through Wave. Need more than 500 people or several sites? <a href="<?= e(base_path()) ?>/demo?src=pricing">Talk to us</a>.</p>
@@ -136,7 +137,7 @@
   <section class="final">
     <h2>Your front door, on the clock.</h2>
     <p>Create your space in a minute and put it on a tablet today.</p>
-    <a class="btn btn-primary" href="<?= e(base_path()) ?>/signup">Start free trial</a>
+    <a class="btn btn-primary" href="<?= e(base_path()) ?>/signup<?= $sq ? '?' . $sq : '' ?>">Start free trial</a>
   </section>
   <footer><div class="camp-more">Solutions: <?php foreach (CAMPAIGNS as $k => $x): ?><a href="<?= e(base_path() . '/for/' . $k) ?>"><?= e($x['nav']) ?></a><?php endforeach; ?></div>
     © <?= date('Y') ?> <?= e(cfg('app_name')) ?> · <a href="<?= e(base_path()) ?>/login">Sign in to your space</a></footer>

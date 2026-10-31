@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   kiosk_public    TINYINT(1)   NOT NULL DEFAULT 0,
   allow_past_days TINYINT UNSIGNED NOT NULL DEFAULT 7,
   allow_typed_relative TINYINT(1) NOT NULL DEFAULT 1,
+  source          VARCHAR(40)  NULL,
   -- reports
   report_emails   VARCHAR(500) NULL,
   report_daily    TINYINT(1)   NOT NULL DEFAULT 1,

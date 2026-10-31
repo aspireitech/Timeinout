@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 
 function setting(string $key, $default = null)
 {
@@ -71,6 +71,9 @@ function migrate(): void
         }
         if ($v < 11) {
             migration_11();
+        }
+        if ($v < 12) {
+            migration_12();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -317,5 +320,13 @@ function migration_11(): void
 {
     if (!column_exists('tenants', 'allow_typed_relative')) {
         q('ALTER TABLE tenants ADD COLUMN allow_typed_relative TINYINT(1) NOT NULL DEFAULT 1 AFTER allow_past_days');
+    }
+}
+
+/** V12: where a self sign-up came from (?src=, e.g. linkedin-schools). */
+function migration_12(): void
+{
+    if (!column_exists('tenants', 'source')) {
+        q('ALTER TABLE tenants ADD COLUMN source VARCHAR(40) NULL AFTER industry');
     }
 }
