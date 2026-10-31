@@ -178,14 +178,9 @@ Sign-in options, in this order:
    Authorized redirect URIs:
    - `https://clockinoutapp.com/super/google/callback`
    - `https://dev.clockinoutapp.com/super/google/callback` (if you use dev)
-4. Copy the Client ID and Client secret into `app/config.php`:
-   ```php
-   'google_oauth' => [
-       'client_id'      => '….apps.googleusercontent.com',
-       'client_secret'  => '…',
-       'allowed_emails' => [],   // only you@yourcompany.com (super_admin) by default
-   ],
-   ```
+4. Paste the Client ID and Client secret in **`/super` → Sign-in → 1. Sign in with Google** and
+   save (the secret is stored encrypted). The `google_oauth` block in `app/config.php` still works
+   if you prefer it there.
 
 ### Sections
 

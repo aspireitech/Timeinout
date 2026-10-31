@@ -4,13 +4,17 @@
   <p class="muted">Manage all subscriber portals.</p>
   <?php if ($error): ?><div class="flash error"><?= e($error) ?></div><?php endif; ?>
 
+  <div class="signin-step"><span class="n">1</span><b>Sign in with Google</b> <span class="badge in">recommended</span></div>
   <?php if ($google): ?>
     <a class="btn btn-primary btn-block google-btn" href="<?= e(base_path() . '/super/google') ?>"><span class="g-ic"><?= $gsvg ?></span> Sign in with Google</a>
-    <p class="muted small" style="margin:8px 0 0;text-align:center">Recommended. Uses your Google account and its 2-Step Verification.</p>
+    <p class="muted small" style="margin:8px 0 0">Most secure: uses your Google account and its 2-Step Verification.</p>
+  <?php else: ?>
+    <button class="btn btn-ghost btn-block google-btn" type="button" disabled><span class="g-ic"><?= $gsvg ?></span> Sign in with Google</button>
+    <p class="muted small" style="margin:8px 0 0">Not set up yet. Sign in with an email code below, then add your Google keys in <b>/super → Sign-in</b>.</p>
   <?php endif; ?>
 
   <details class="signin-alt" <?= !$google || $mode === 'code' ? 'open' : '' ?>>
-    <summary><?= $google ? 'Google not working? Sign in with an email code' : 'Sign in with an email code' ?></summary>
+    <summary><span class="n">2</span> <?= $google ? 'Google not working? Sign in with an email code' : 'Sign in with an email code' ?></summary>
     <form method="post" action="<?= e(base_path() . '/super/login') ?>">
       <?= csrf_field() ?><input type="hidden" name="mode" value="code">
       <div class="field"><label for="sl-email">Provider email</label><input type="email" id="sl-email" name="email" autocomplete="username" required></div>
@@ -19,7 +23,7 @@
   </details>
 
   <details class="signin-alt" <?= $mode === 'breakglass' ? 'open' : '' ?>>
-    <summary>Google and email both down? Break-glass sign-in</summary>
+    <summary><span class="n">3</span> Google and email both down? Break-glass sign-in</summary>
     <p class="muted small">Use your break-glass password and one of your one-time recovery codes (both in your password manager). Every use is logged and emailed to you.</p>
     <form method="post" action="<?= e(base_path() . '/super/login') ?>">
       <?= csrf_field() ?><input type="hidden" name="mode" value="breakglass">

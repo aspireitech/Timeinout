@@ -350,14 +350,27 @@ function super_recovery_use(string $code): bool
 /** Emails allowed to open /super: the super_admin email plus any listed in google_oauth.allowed_emails. */
 function super_emails(): array
 {
-    $list = array_merge([(string) (cfg('super_admin')['email'] ?? '')], (array) (cfg('google_oauth')['allowed_emails'] ?? []));
+    $list = array_merge([(string) (cfg('super_admin')['email'] ?? '')], (array) (google_cfg()['allowed_emails'] ?? []));
     return array_values(array_filter(array_map(fn($e) => strtolower(trim((string) $e)), $list)));
 }
 
 // ---------- Sign in with Google (OpenID Connect, authorization code + PKCE) ----------
+/** Google keys: from /super → Sign-in (stored encrypted) or, if not set there, from google_oauth in app/config.php. */
+function google_cfg(): array
+{
+    $g = (array) cfg('google_oauth', []);
+    $id = trim((string) setting('google_client_id', ''));
+    $secret = $id !== '' ? (string) (decrypt_pii((string) setting('google_client_secret', '')) ?? '') : '';
+    if ($id !== '' && $secret !== '') {
+        $g['client_id'] = $id;
+        $g['client_secret'] = $secret;
+    }
+    return $g;
+}
+
 function google_ready(): bool
 {
-    $g = cfg('google_oauth', []);
+    $g = google_cfg();
     return !empty($g['client_id']) && !empty($g['client_secret']);
 }
 
@@ -372,7 +385,7 @@ function google_auth_url(): string
     $verifier = rtrim(strtr(base64_encode(random_bytes(48)), '+/', '-_'), '=');
     $_SESSION['google'] = ['state' => bin2hex(random_bytes(16)), 'verifier' => $verifier, 'at' => time()];
     return 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
-        'client_id'             => cfg('google_oauth')['client_id'],
+        'client_id'             => google_cfg()['client_id'],
         'redirect_uri'          => google_redirect_uri(),
         'response_type'         => 'code',
         'scope'                 => 'openid email profile',
@@ -423,7 +436,7 @@ function google_callback(array $query): string
         return 'Google sign-in expired or did not come from this page. Please try again.';
     }
     $tok = google_http('https://oauth2.googleapis.com/token', [
-        'client_id' => cfg('google_oauth')['client_id'], 'client_secret' => cfg('google_oauth')['client_secret'],
+        'client_id' => google_cfg()['client_id'], 'client_secret' => google_cfg()['client_secret'],
         'code' => (string) ($query['code'] ?? ''), 'code_verifier' => $g['verifier'],
         'grant_type' => 'authorization_code', 'redirect_uri' => google_redirect_uri(),
     ]);

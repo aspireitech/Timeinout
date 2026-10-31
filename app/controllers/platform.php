@@ -181,9 +181,31 @@ function super_security(): void
     require_super();
     $codes = null;
     if (is_post()) {
-        if (input('action') === 'password') {
+        $hasPassword = (string) setting('super_password_hash', '') !== '' || trim((string) (cfg('super_admin')['password'] ?? '')) !== '';
+        if (input('action') === 'google') {
+            $id = trim((string) input('google_client_id'));
+            $secret = trim((string) ($_POST['google_client_secret'] ?? ''));
+            if ($id === '') {
+                setting_set('google_client_id', '');
+                setting_set('google_client_secret', '');
+                audit_note('Sign in with Google', 'Keys removed');
+                flash('success', 'Google keys removed.');
+            } elseif (!preg_match('/^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/', $id)) {
+                flash('error', 'The Client ID should end with .apps.googleusercontent.com.');
+            } elseif ($secret === '' && (string) setting('google_client_secret', '') === '') {
+                flash('error', 'Paste the Client secret too.');
+            } else {
+                setting_set('google_client_id', $id);
+                if ($secret !== '') {
+                    setting_set('google_client_secret', encrypt_pii($secret));
+                }
+                audit_note('Sign in with Google', 'Keys saved (secret encrypted)');
+                flash('success', 'Google keys saved. Sign out and use "Sign in with Google" to test it.');
+            }
+            redirect(base_path() . '/super/security');
+        } elseif (input('action') === 'password') {
             $new = (string) ($_POST['new_password'] ?? '');
-            if (!super_password_ok((string) ($_POST['current_password'] ?? ''))) {
+            if ($hasPassword && !super_password_ok((string) ($_POST['current_password'] ?? ''))) {
                 audit_note('Provider password', 'Not changed: current password wrong');
                 flash('error', 'Your current password is not correct.');
             } elseif ($new !== (string) ($_POST['confirm_password'] ?? '')) {
@@ -201,6 +223,7 @@ function super_security(): void
         }
     }
     view('platform/super_security', ['codes' => $codes, 'left' => super_recovery_left(), 'dbPassword' => (string) setting('super_password_hash', '') !== '',
+        'hasPassword' => $hasPassword ?? ((string) setting('super_password_hash', '') !== '' || trim((string) (cfg('super_admin')['password'] ?? '')) !== ''),
         'configPassword' => trim((string) (cfg('super_admin')['password'] ?? '')) !== ''], 'platform');
 }
 
