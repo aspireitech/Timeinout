@@ -1,3 +1,5 @@
+> **Historical design notes from the first version.** The current reference is [MASTER_GUIDE.md](MASTER_GUIDE.md).
+
 # ClockInOut — Functional & Technical Blueprint
 
 Companion to [MASTER_PLAN.md](MASTER_PLAN.md) (the why) and [ARCHITECTURE.md](ARCHITECTURE.md) (the diagrams).

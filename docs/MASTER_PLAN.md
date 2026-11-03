@@ -1,3 +1,5 @@
+> **Historical design notes from the first version.** The current reference is [MASTER_GUIDE.md](MASTER_GUIDE.md).
+
 # ClockInOut — Master Plan
 
 ## 1. What we are building
