@@ -93,6 +93,7 @@ function platform_signup(): void
         if (!$errors) {
             $t = subdomain_check(provision_tenant($d)); // links use /s/name until name.<domain> really works
             $mailed = welcome_email($t, $d['email'], $d['admin_name']);
+            subdomain_todo_email($t); // you: create name.<domain> in hPanel within 24 hours
             if ($src = lead_source()) {
                 update('tenants', ['source' => $src], 'id = ?', [$t['id']]);
             }

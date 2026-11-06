@@ -202,9 +202,49 @@ function subdomain_recheck(): array
         if ($ok !== (int) $t['subdomain_ok']) {
             update('tenants', ['subdomain_ok' => $ok], 'id = ?', [$t['id']]);
             $log[] = $t['slug'] . ($ok ? ': subdomain is live, links now use it' : ': subdomain not reachable, links use /s/' . $t['slug']);
+            if ($ok) {
+                subdomain_live_email($t);
+            }
         }
     }
     return $log;
+}
+
+/** While name.<domain> is not live: the own address, with the 24-hour note in red (email and welcome page). */
+function subdomain_note_html(array $t): string
+{
+    if (cfg('tenant_url_mode') !== 'subdomain' || (int) ($t['subdomain_ok'] ?? 1) === 1 || !empty($t['custom_domain'])) {
+        return '';
+    }
+    return '<div style="margin-top:8px;font-weight:normal">Your own address: <b>' . e($t['slug'] . '.' . cfg('base_domain')) . '</b><br>'
+        . '<span style="color:#C62828;font-weight:bold">will be live within 24 hours</span>. Until then, use the link above: it works now.</div>';
+}
+
+/** Tells the provider which subdomain to create on the host for a new portal (it was not live at sign-up). */
+function subdomain_todo_email(array $t): void
+{
+    $to = (string) (cfg('contact_email') ?: (cfg('super_admin')['email'] ?? ''));
+    if ($to === '' || (int) ($t['subdomain_ok'] ?? 1) === 1 || cfg('tenant_url_mode') !== 'subdomain') {
+        return;
+    }
+    $host = $t['slug'] . '.' . cfg('base_domain');
+    send_mail([$to], 'To do: create subdomain ' . $host, '<p>New portal <b>' . e($t['name']) . '</b> was promised <b>' . e($host) . '</b> within 24 hours.</p>'
+        . '<ol><li>hPanel → Websites → ' . e(cfg('base_domain')) . ' → Domains → Subdomains</li><li>Subdomain <b>' . e($t['slug']) . '</b>, tick Custom folder and Use public_html directory → Create</li>'
+        . '<li>Security → SSL: make sure ' . e($host) . ' gets a certificate</li></ol>'
+        . '<p>Within an hour of it working, links switch to it and the customer is emailed that it is live. Until then they use ' . e(tenant_url($t, '/')) . '.</p>');
+}
+
+/** Tells the owner their own address now works (sent once, by the hourly check). */
+function subdomain_live_email(array $t): void
+{
+    $email = owner_email($t);
+    if (!$email) {
+        return;
+    }
+    $url = tenant_url(array_merge($t, ['subdomain_ok' => 1]), '/');
+    send_mail([$email], 'Your address ' . $t['slug'] . '.' . cfg('base_domain') . ' is live', '<div style="font-family:Arial,sans-serif;max-width:560px;color:#161B36">'
+        . '<h2 style="margin:0 0 8px">Your own address is live</h2><p><b>' . e($t['name']) . '</b> now opens at <a href="' . e($url) . '" style="color:#5B4CE0">' . e($url) . '</a>.</p>'
+        . '<p>Update the bookmark on your kiosk tablet. Your old link keeps working too.</p></div>');
 }
 
 /** Welcome email to a new portal's owner: address, sign-in, kiosk, trial end and first steps (never the password). */
@@ -220,7 +260,7 @@ function welcome_email(array $t, string $email, string $name): bool
         . '<h2 style="margin:0 0 6px">Welcome to ' . e($app) . ', ' . e($name) . '!</h2>'
         . '<p>Your space <b>' . e($t['name']) . '</b> is ready. Save this email: it has everything you need to get started.</p>'
         . '<table style="border-collapse:collapse;width:100%;background:#F4F5FA;border-radius:12px;margin:14px 0">'
-        . $row('Your address', '<a href="' . e($kiosk) . '" style="color:#5B4CE0">' . e($kiosk) . '</a>')
+        . $row('Your address', '<a href="' . e($kiosk) . '" style="color:#5B4CE0">' . e($kiosk) . '</a>' . subdomain_note_html($t))
         . $row('Admin sign-in', '<a href="' . e($login) . '" style="color:#5B4CE0">' . e(tenant_url($t, '/login')) . '</a>')
         . $row('Your login', e($email) . ' and the password you chose')
         . $row('Plan', e($plan) . ($ends ? ', free trial until ' . e($ends) : ''))

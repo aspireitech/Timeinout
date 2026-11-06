@@ -7,6 +7,7 @@
     <div class="card" style="background:var(--soft);box-shadow:none;margin:18px 0;text-align:left">
       <div class="small muted">Your address</div>
       <div style="font-weight:800;font-size:1.15rem;word-break:break-all"><a href="<?= e($portal) ?>"><?= e($portal) ?></a></div>
+      <?= subdomain_note_html($t) ?>
       <div class="small muted" style="margin-top:6px">Bookmark it: this is the address for your kiosk tablet and your admin sign-in.</div>
     </div>
     <div class="row" style="justify-content:center">

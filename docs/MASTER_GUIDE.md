@@ -193,7 +193,7 @@ flowchart TB
 - **Shared database**: self sign-ups live in the platform database, separated by `tenant_id`.
 - **Encrypted fields** (AES-256-GCM with `app/keys/app.key`): guardian and staff phone numbers and emails, extra imported info, customer database passwords, mailbox/Stripe/Wave/Google secrets.
 - **Schema versions** (`SCHEMA_VERSION` in `app/lib/migrate.php`): 1–7 core and dedicated DBs · 8 feature requests · 9 lead source · 10 yearly billing (`billing_cycle`) · 11 Authorized relative switch · 12 sign-up source · 13 `subdomain_ok`.
-- **Portal addresses.** `name.clockinoutapp.com` needs the subdomain (and its SSL) set up on the host; Hostinger does not accept a `*` wildcard subdomain on the current plan. Every new portal is checked (`subdomain_live()` calls `https://name.clockinoutapp.com/__ping`); until it answers, `tenants.subdomain_ok = 0` and every link and email uses `clockinoutapp.com/s/name`, which always works. The hourly cron re-checks and switches links to the subdomain once it is live. `/super → Subscribers` shows "subdomain not live yet".
+- **Portal addresses.** `name.clockinoutapp.com` needs the subdomain (and its SSL) set up on the host; Hostinger does not accept a `*` wildcard subdomain on the current plan. Every new portal is checked (`subdomain_live()` calls `https://name.clockinoutapp.com/__ping`); until it answers, `tenants.subdomain_ok = 0` and every link and email uses `clockinoutapp.com/s/name`, which always works. The hourly cron re-checks and switches links to the subdomain once it is live. `/super → Subscribers` shows "subdomain not live yet". The welcome email and page show the own address with **"will be live within 24 hours"** in red; you get a "To do: create subdomain …" email at sign-up, and the customer gets "Your address … is live" when the check succeeds.
 
 ---
 
@@ -523,4 +523,5 @@ step must update this guide **in the same commit**:
 | 2026-10-31 | Import into the right list + undo, relationship buttons, custom portal address at sign-up, live password checklist, sign-up source tracking (schema 12), share links, SEO (sitemap, robots, structured data, Search Console, GA4). |
 | 2026-11-01 | Provider sign-in: Google → email code → break-glass; Google keys saved in `/super → Sign-in`. |
 | 2026-11-03 | This master guide. |
+| 2026-11-06 | 24-hour address promise: red note in welcome email/page, provider to-do email, "address is live" email. |
 | 2026-11-06 | Trial sign-up: welcome email, `/s/name` links until the subdomain is live (schema 13, hourly re-check, `/__ping`); bold trial and red ended banners; admin locked to Billing when the trial ends; Billing defaults to Yearly with Business highlighted and every plan selectable ("Choose plan" request when online payment is not set up). |
