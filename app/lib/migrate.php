@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 14;
 
 function setting(string $key, $default = null)
 {
@@ -77,6 +77,9 @@ function migrate(): void
         }
         if ($v < 13) {
             migration_13();
+        }
+        if ($v < 14) {
+            migration_14();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -340,4 +343,15 @@ function migration_13(): void
     if (!column_exists('tenants', 'subdomain_ok')) {
         q('ALTER TABLE tenants ADD COLUMN subdomain_ok TINYINT(1) NOT NULL DEFAULT 1 AFTER custom_domain');
     }
+}
+
+/** V14: which trial follow-up emails, provider alerts and weekly scorecards were already sent. */
+function migration_14(): void
+{
+    q('CREATE TABLE IF NOT EXISTS nurture_log (
+        tenant_id INT UNSIGNED NOT NULL,
+        kind VARCHAR(40) NOT NULL,
+        sent_at DATETIME NOT NULL,
+        PRIMARY KEY (tenant_id, kind)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }

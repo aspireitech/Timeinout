@@ -18,6 +18,13 @@
         <div class="field"><label for="s-from">From email</label><input type="email" id="s-from" name="from_email" value="<?= e($m['from_email'] ?? '') ?>"></div>
         <div class="field"><label for="s-fromname">From name</label><input type="text" id="s-fromname" name="from_name" value="<?= e($m['from_name'] ?? '') ?>"></div>
       </div>
+      <h3 style="margin-top:14px"><?= icon('mail') ?> Trial follow-up</h3>
+      <p class="muted small">The hourly cron emails trial owners who are stuck (no people imported, no check-ins yet, 2 days and 1 day left), alerts you about trials that need a call, and sends you a growth scorecard every Monday morning.</p>
+      <div class="grid c2">
+        <label class="check" style="grid-column:1 / -1"><input type="checkbox" name="nurture_on" value="1" <?= setting('nurture_on', '1') === '1' ? 'checked' : '' ?>>
+          <span>Send trial follow-up emails, alerts and the Monday scorecard</span></label>
+        <div class="field" style="grid-column:1 / -1"><label for="s-promo">Promotion line for the last trial emails (optional)</label><input type="text" id="s-promo" name="trial_promo" maxlength="200" value="<?= e(setting('trial_promo', '')) ?>" placeholder="e.g. Use code FOUNDING25 at checkout for 25% off your first year"></div>
+      </div>
       <h3 style="margin-top:14px"><?= icon('card') ?> Stripe (card subscriptions)</h3>
       <p class="muted small">From Stripe Dashboard → Developers. Create a webhook pointing to <code><?= e(scheme() . '://' . cfg('base_domain') . base_path() . '/webhooks/stripe') ?></code> with the events
         <code>checkout.session.completed</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>, <code>invoice.paid</code> and <code>invoice.payment_failed</code>.

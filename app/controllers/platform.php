@@ -350,6 +350,8 @@ function super_settings(): void
         }
         setting_set('admin_otp', $new['admin_otp']);
         setting_set('stripe_tax', input('stripe_tax') === '1' ? '1' : '0');
+        setting_set('nurture_on', input('nurture_on') === '1' ? '1' : '0');
+        setting_set('trial_promo', mb_substr(trim((string) input('trial_promo')), 0, 200));
         audit_note('Email, security & payment settings', audit_diff($before, $new) . ($passChanged ? '; a password or API key was changed' : ''));
         flash('success', 'Settings saved. Use "Send test email" to check them.');
         redirect(base_path() . '/super/settings');
@@ -396,7 +398,7 @@ function web_cron(): void
         }
         return;
     }
-    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants(), subdomain_recheck())) ?: 'Nothing due.';
+    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants(), subdomain_recheck(), run_nurture(), send_scorecard())) ?: 'Nothing due.';
 }
 
 // ---------- Payments ----------

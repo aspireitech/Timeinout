@@ -32,6 +32,7 @@ require APP_DIR . '/lib/pdf.php';
 require APP_DIR . '/lib/industries.php';
 require APP_DIR . '/lib/billing.php';
 require APP_DIR . '/lib/backup.php';
+require APP_DIR . '/lib/nurture.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', cfg('debug') ? '1' : '0');
