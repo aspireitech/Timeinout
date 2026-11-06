@@ -69,6 +69,11 @@ if ($resolved === null && setting('ga4_id', '') !== '') {
     header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:$ga; connect-src 'self'$ga; frame-ancestors 'self'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com; base-uri 'self'", true);
 }
 
+if ($path === '/__ping') { // lets the app check that a portal's subdomain reaches it (subdomain_live)
+    header('Content-Type: text/plain');
+    exit('clockinout:' . ($resolved['slug'] ?? ($resolved === null ? 'platform' : 'unknown')));
+}
+
 if ($path === '/robots.txt') {
     seo_robots($resolved === null); // customer portals and unknown hosts: keep out of search engines
 }

@@ -9,8 +9,8 @@ recover and move it. Hand this document to anyone who needs to take over the pro
 | Code | GitHub **`aspireitech/Timeinout`** (public), branch **`main`** |
 | Stack | PHP 8.1+ · MySQL 8 / MariaDB 10.4+ · Apache (`.htaccess`) · no framework, no build step |
 | Hosting today | Hostinger shared hosting, code in `public_html` |
-| Schema version | **12** (applied automatically on the first request after an update) |
-| Last updated | 2026-11-03 — see [§18 Change log](#18-change-log) |
+| Schema version | **13** (applied automatically on the first request after an update) |
+| Last updated | 2026-11-06 — see [§18 Change log](#18-change-log) |
 
 > **Never put real passwords, keys or customer data in this file or anywhere in the repository.**
 > The repository is public. Secrets live only on the server (`app/config.php`, `app/keys/app.key`,
@@ -41,7 +41,8 @@ clinic, gym…) gets its own portal at `name.clockinoutapp.com`.
 | **Admin portal** (`/admin`) | Dashboard, today's attendance, activity log, reports (on screen, PDF, CSV, email), students & guardians, staff, pickup materials, import (Excel/CSV with column matching and undo), kiosk tiles, branding & settings, billing, users, audit log, Help & FAQ, What's new, feature requests. |
 | **Provider console** (`/super`) | All portals (create, plan, status, delete/restore, owner password reset), leads, feature requests, payments, audit log, email/payment/Google settings, provider sign-in security. |
 | **Public website** | Home, pricing (monthly/yearly), six campaign pages `/for/<industry>`, `/demo`, `/signup`, `/whats-new`, share links, SEO (sitemap, robots, structured data). |
-| **Automation** | Scheduled reports at 7:00, Wave billing sync, purging of deleted portals after 30 days, daily backups. |
+| **Trial and billing** | Self sign-up → portal live at once, welcome email with the address and first steps. Bold trial banner (orange in the last 2 days). When the trial ends the admin portal opens only Billing (and Help) until a plan is chosen; the kiosk keeps working 7 more days, then pauses. Billing shows Yearly (2 months free) first with Business highlighted; without online payment set up, "Choose plan" emails you to send an invoice. |
+| **Automation** | Scheduled reports at 7:00, Wave billing sync, purging of deleted portals after 30 days, subdomain re-check, daily backups. |
 
 **Plans** (defined in `app/lib/billing.php` → `PLAN_CATALOG`; enforced in the app):
 
@@ -191,7 +192,8 @@ flowchart TB
 - **Dedicated database**: portals created in `/super → New portal` with "Own database" get a separate MySQL database. Its name, user and **encrypted** password are stored in `tenants`. The app switches to it for every request on that portal.
 - **Shared database**: self sign-ups live in the platform database, separated by `tenant_id`.
 - **Encrypted fields** (AES-256-GCM with `app/keys/app.key`): guardian and staff phone numbers and emails, extra imported info, customer database passwords, mailbox/Stripe/Wave/Google secrets.
-- **Schema versions** (`SCHEMA_VERSION` in `app/lib/migrate.php`): 1–7 core and dedicated DBs · 8 feature requests · 9 lead source · 10 yearly billing (`billing_cycle`) · 11 Authorized relative switch · 12 sign-up source.
+- **Schema versions** (`SCHEMA_VERSION` in `app/lib/migrate.php`): 1–7 core and dedicated DBs · 8 feature requests · 9 lead source · 10 yearly billing (`billing_cycle`) · 11 Authorized relative switch · 12 sign-up source · 13 `subdomain_ok`.
+- **Portal addresses.** `name.clockinoutapp.com` needs the subdomain (and its SSL) set up on the host; Hostinger does not accept a `*` wildcard subdomain on the current plan. Every new portal is checked (`subdomain_live()` calls `https://name.clockinoutapp.com/__ping`); until it answers, `tenants.subdomain_ok = 0` and every link and email uses `clockinoutapp.com/s/name`, which always works. The hourly cron re-checks and switches links to the subdomain once it is live. `/super → Subscribers` shows "subdomain not live yet".
 
 ---
 
@@ -216,7 +218,7 @@ sequenceDiagram
   I-->>B: page, PDF, CSV or JSON
 ```
 
-Special paths handled before routing: `/robots.txt` (portals: disallow all), share links `/linkedin /facebook /email /web /friend`, campaign pages `/for/<key>`, `/sitemap.xml`.
+Special paths handled before routing: `/__ping` (answers `clockinout:<portal>`, used by the subdomain check), `/robots.txt` (portals: disallow all), share links `/linkedin /facebook /email /web /friend`, campaign pages `/for/<key>`, `/sitemap.xml`.
 
 ---
 
@@ -319,7 +321,7 @@ Name, logo, colors, welcome text, time zone, kiosk without login, past-day entri
 
 | Job | Schedule | Does |
 |---|---|---|
-| `php /home/USER/domains/clockinoutapp.com/public_html/cron/send_reports.php` | **every hour** | Sends due daily/weekly/monthly reports (at each portal's report hour, default 7:00 local), syncs Wave invoices, purges portals deleted more than 30 days ago. `--force` sends now (testing). |
+| `php /home/USER/domains/clockinoutapp.com/public_html/cron/send_reports.php` | **every hour** | Sends due daily/weekly/monthly reports (at each portal's report hour, default 7:00 local), syncs Wave invoices, purges portals deleted more than 30 days ago, re-checks portals whose subdomain was not live yet. `--force` sends now (testing). |
 | `php /home/USER/domains/clockinoutapp.com/public_html/cron/backup.php` | **daily** (e.g. 02:00) | Dumps the platform database and every customer database to `backups/<date-time>/` as `.sql.gz` with `MANIFEST.txt`; keeps `backup_keep_days`. |
 | `php cron/super_password.php [--recovery]` | by hand, emergencies | Sets a new provider break-glass password; `--recovery` prints new recovery codes. |
 
@@ -464,6 +466,8 @@ Requirements: PHP 8.1+ with `pdo_mysql`, `openssl`, `mbstring`, `zip`, `zlib`, `
 | Task | Where |
 |---|---|
 | Create a customer portal with its own database | `/super → New portal` (create the database in hPanel first; the form suggests names) |
+| Give a portal its `name.clockinoutapp.com` address | hPanel → Domains → Subdomains → create `name`, Custom folder → `public_html`, then install its SSL; links switch automatically within an hour |
+| Customer chose a plan without online payment | You get "… chose the X plan" email → send the invoice → `/super → Subscribers` → status **active** |
 | Change a customer's plan or status | `/super → Subscribers` |
 | Reset a portal owner's password | `/super → Subscribers → Reset owner password` |
 | See where sign-ups came from | `/super → Subscribers` ("via …" badge) and `/super → Leads` |
@@ -483,6 +487,7 @@ Requirements: PHP 8.1+ with `pdo_mysql`, `openssl`, `mbstring`, `zip`, `zlib`, `
 |---|---|
 | "Cannot connect to the database" | Wrong `db` in `config.php`, or database server down. |
 | A portal shows "There is no portal at this address" | Typo in the address, or wildcard DNS/subdomain missing. |
+| `name.clockinoutapp.com` shows "can't provide a secure connection" | Subdomain not set up in hPanel (no SSL for it). Use `clockinoutapp.com/s/name`, or add the subdomain (§15). |
 | Portal opens but errors on its data | Its dedicated database login changed → update `tenants.db_*` with the command in §14 step 4. |
 | Sign-in codes not arriving | §13 E. |
 | Google sign-in "redirect_uri_mismatch" | Add both redirect URIs exactly (§8). |
@@ -518,3 +523,4 @@ step must update this guide **in the same commit**:
 | 2026-10-31 | Import into the right list + undo, relationship buttons, custom portal address at sign-up, live password checklist, sign-up source tracking (schema 12), share links, SEO (sitemap, robots, structured data, Search Console, GA4). |
 | 2026-11-01 | Provider sign-in: Google → email code → break-glass; Google keys saved in `/super → Sign-in`. |
 | 2026-11-03 | This master guide. |
+| 2026-11-06 | Trial sign-up: welcome email, `/s/name` links until the subdomain is live (schema 13, hourly re-check, `/__ping`); bold trial and red ended banners; admin locked to Billing when the trial ends; Billing defaults to Yearly with Business highlighted and every plan selectable ("Choose plan" request when online payment is not set up). |

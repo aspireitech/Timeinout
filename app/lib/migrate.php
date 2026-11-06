@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 function setting(string $key, $default = null)
 {
@@ -74,6 +74,9 @@ function migrate(): void
         }
         if ($v < 12) {
             migration_12();
+        }
+        if ($v < 13) {
+            migration_13();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -328,5 +331,13 @@ function migration_12(): void
 {
     if (!column_exists('tenants', 'source')) {
         q('ALTER TABLE tenants ADD COLUMN source VARCHAR(40) NULL AFTER industry');
+    }
+}
+
+/** V13: is name.<base_domain> reachable yet? 0 = send people to <base_domain>/s/name instead. */
+function migration_13(): void
+{
+    if (!column_exists('tenants', 'subdomain_ok')) {
+        q('ALTER TABLE tenants ADD COLUMN subdomain_ok TINYINT(1) NOT NULL DEFAULT 1 AFTER custom_domain');
     }
 }

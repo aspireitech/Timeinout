@@ -137,20 +137,35 @@ function trial_days_left(?array $t = null): int
     return (int) ceil(((strtotime((string) $t['trial_ends_at']) ?: 0) - time()) / 86400);
 }
 
-/** Lock an expired portal: admins are sent to Billing; the kiosk shows a notice. */
+/** Paths an admin can still open once the trial has ended. */
+const BILLING_OPEN_PATHS = ['/login', '/logout', '/admin/billing', '/admin/password', '/account/password', '/admin/help'];
+
+/** true when the trial or subscription has ended and only Billing is open in the admin portal. */
+function billing_locked(?array $t = null): bool
+{
+    return in_array(billing_state($t), ['grace', 'expired'], true);
+}
+
+/**
+ * Trial over (or subscription ended): admins can only open Billing until they subscribe.
+ * The kiosk keeps working for GRACE_DAYS after the trial so families are not turned away, then pauses.
+ */
 function billing_gate(string $path): void
 {
-    if (billing_state() !== 'expired') {
+    $state = billing_state();
+    if (!in_array($state, ['grace', 'expired'], true)) {
         return;
     }
-    foreach (['/login', '/logout', '/admin/billing', '/admin/audit', '/admin/users', '/admin/password'] as $open) {
-        if ($path === $open || str_starts_with($path, $open . '/') || str_starts_with($path, $open . '?')) {
+    foreach (BILLING_OPEN_PATHS as $open) {
+        if ($path === $open || str_starts_with($path, $open . '/')) {
             return;
         }
     }
     if (str_starts_with($path, '/admin')) {
-        flash('error', 'Your subscription has ended. Choose a plan to continue.');
         redirect(url('/admin/billing'));
+    }
+    if ($state === 'grace') {
+        return;
     }
     http_response_code(402);
     view('partials/error', ['code' => 402, 'message' => 'This portal\'s subscription has ended. An administrator can renew it in Admin → Billing.']);

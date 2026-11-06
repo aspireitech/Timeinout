@@ -153,5 +153,6 @@ function tenant_routes(string $path): void
         ['POST',     '/admin/billing/stripe',      'admin_billing_stripe'],
         ['POST',     '/admin/billing/portal',      'admin_billing_portal'],
         ['POST',     '/admin/billing/wave',        'admin_billing_wave'],
+        ['POST',     '/admin/billing/request',     'admin_billing_request', 'Chose a plan'],
     ]);
 }

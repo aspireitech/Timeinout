@@ -14,7 +14,7 @@ $payStatus = ['paid' => ['Paid', 'in'], 'open' => ['Waiting for payment', 'warn'
     <h2 style="margin:10px 0 4px"><?= e($current['name'] ?? ucfirst((string) $t['plan'])) ?> plan</h2>
     <p class="muted">
       <?php if ($state === 'trial'): ?>Your free trial ends in <b><?= trial_days_left() ?> day<?= trial_days_left() === 1 ? '' : 's' ?></b> (<?= e(date('M j, Y', strtotime((string) $t['trial_ends_at']))) ?>). Choose a plan below to keep going.
-      <?php elseif ($state === 'grace'): ?>Your trial has ended. The portal stays open until <b><?= e(date('M j', strtotime((string) $t['trial_ends_at']) + GRACE_DAYS * 86400)) ?></b>. Choose a plan to avoid interruption.
+      <?php elseif ($state === 'grace'): ?>Your trial has ended. Choose a plan to unlock your portal. Your kiosk keeps working until <b><?= e(date('M j', strtotime((string) $t['trial_ends_at']) + GRACE_DAYS * 86400)) ?></b>.
       <?php elseif ($state === 'expired'): ?>The kiosk is paused until a plan is chosen. Your people and history are safe.
       <?php elseif ($t['billing_provider'] === 'stripe'): ?>Paid by card through Stripe<?= $t['current_period_end'] ? '. Renews on <b>' . e(date('M j, Y', strtotime($t['current_period_end']))) . '</b>' : '' ?><?= $t['subscription_status'] === 'past_due' ? '. <b style="color:var(--danger)">The last payment failed; please update your card.</b>' : '.' ?>
       <?php elseif ($t['billing_provider'] === 'wave'): ?>Paid by invoice through Wave<?= $t['current_period_end'] ? '. Paid through <b>' . e(date('M j, Y', strtotime($t['current_period_end']))) . '</b>; the next invoice is emailed a week before.' : '.' ?>
@@ -32,24 +32,35 @@ $payStatus = ['paid' => ['Paid', 'in'], 'open' => ['Waiting for payment', 'warn'
 <?php endif; ?>
 
 <?php if ($state !== 'active' || !$t['billing_provider']): ?>
-<?php $free = 12 - annual_months(); ?>
-<div class="row" style="margin:24px 0 12px;justify-content:space-between;flex-wrap:wrap;gap:10px">
-  <h2 style="margin:0">Choose a plan</h2>
-  <div class="row" style="gap:6px"><a class="btn btn-sm <?= $cycle === 'monthly' ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(url('/admin/billing')) ?>">Monthly</a><a class="btn btn-sm <?= $cycle === 'annual' ? 'btn-primary' : 'btn-ghost' ?>" href="<?= e(url('/admin/billing?cycle=annual')) ?>">Yearly<?= $free > 0 ? ' · ' . $free . ' months free' : '' ?></a></div>
+<?php $free = 12 - annual_months(); $popular = array_key_first(array_filter($plans, fn($p) => !empty($p['popular']))) ?? array_key_first($plans); ?>
+<div class="row" style="margin:24px 0 16px;justify-content:space-between;flex-wrap:wrap;gap:10px">
+  <h2 style="margin:0">Choose your plan</h2>
+  <div class="cycle-switch" role="group" aria-label="Billing period">
+    <a class="<?= $cycle === 'annual' ? 'on' : '' ?>" href="<?= e(url('/admin/billing')) ?>">Yearly<?= $free > 0 ? '<em>' . $free . ' months free</em>' : '' ?></a>
+    <a class="<?= $cycle === 'monthly' ? 'on' : '' ?>" href="<?= e(url('/admin/billing?cycle=monthly')) ?>">Monthly</a>
+  </div>
 </div>
-<?php if (!$stripe && !$wave): ?><div class="flash info">Online payment is being set up. Please contact your service provider to subscribe.</div><?php endif; ?>
 <div class="grid c3">
-  <?php foreach ($plans as $k => $p): ?>
-    <div class="card price-card <?= $k === $t['plan'] ? 'featured' : '' ?>">
-      <h3><?= e($p['name']) ?></h3>
+  <?php foreach ($plans as $k => $p): $feat = $p['features']; $head = ($feat && str_ends_with($feat[0], ':')) ? array_shift($feat) : null;
+      $card = $stripe && setting('stripe_price_' . $k . ($cycle === 'annual' ? '_annual' : ''));
+      $invoice = $wave && setting('wave_product_' . $k); ?>
+    <div class="card price-card <?= $k === $popular ? 'featured' : '' ?>">
+      <?php if ($k === $popular): ?><span class="pop">Most popular</span><?php endif; ?>
+      <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0"><?= e($p['name']) ?></h3><?php if ($k === $t['plan']): ?><span class="badge gray">Your current plan</span><?php endif; ?></div>
+      <?php if ($p['tagline']): ?><p class="muted small" style="margin:4px 0 0"><?= e($p['tagline']) ?></p><?php endif; ?>
       <div class="price">$<?= e(number_format($cycle === 'annual' ? $p['annual'] : $p['amount'], 0)) ?><span class="muted small">/<?= $cycle === 'annual' ? 'year' : 'month' ?></span></div>
-      <p class="muted"><?= e($p['limit']) ?><?= $p['max_logins'] ? ' · ' . (int) $p['max_logins'] . ' staff logins' : ' · unlimited logins' ?><?= $cycle === 'annual' && $free > 0 ? '<br>You save $' . e(number_format($p['amount'] * 12 - $p['annual'], 0)) . ' a year' : '' ?></p>
+      <?php if ($cycle === 'annual' && $free > 0): ?><span class="save">Save $<?= e(number_format($p['amount'] * 12 - $p['annual'], 0)) ?> · <?= $free ?> months free</span>
+      <?php else: ?><span class="muted small">or $<?= e(number_format($p['annual'], 0)) ?>/year with <?= $free ?> months free</span><?php endif; ?>
+      <ul class="feat"><?php if ($head): ?><li class="plus"><?= e($head) ?></li><?php endif; ?><li><?= e($p['limit']) ?></li><?php foreach ($feat as $f): ?><li><?= e($f) ?></li><?php endforeach; ?></ul>
       <div class="stack">
-        <?php if ($stripe && setting('stripe_price_' . $k . ($cycle === 'annual' ? '_annual' : ''))): ?>
-          <form method="post" action="<?= e(url('/admin/billing/stripe')) ?>"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><input type="hidden" name="cycle" value="<?= e($cycle) ?>"><button class="btn btn-primary btn-block"><?= icon('card') ?> Pay by card</button></form>
+        <?php if ($card): ?>
+          <form method="post" action="<?= e(url('/admin/billing/stripe')) ?>"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><input type="hidden" name="cycle" value="<?= e($cycle) ?>"><button class="btn <?= $k === $popular ? 'btn-primary' : 'btn-ghost' ?> btn-block"><?= icon('card') ?> Pay by card</button></form>
         <?php endif; ?>
-        <?php if ($wave && setting('wave_product_' . $k)): ?>
-          <form method="post" action="<?= e(url('/admin/billing/wave')) ?>" data-confirm="Email a <?= $cycle === 'annual' ? 'yearly ' : '' ?><?= e($p['name']) ?> plan invoice to <?= e(owner_email($t)) ?>?"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><input type="hidden" name="cycle" value="<?= e($cycle) ?>"><button class="btn btn-ghost btn-block"><?= icon('mail') ?> Pay by invoice (Wave)</button></form>
+        <?php if ($invoice): ?>
+          <form method="post" action="<?= e(url('/admin/billing/wave')) ?>" data-confirm="Email a <?= $cycle === 'annual' ? 'yearly ' : '' ?><?= e($p['name']) ?> plan invoice to <?= e(owner_email($t)) ?>?"><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><input type="hidden" name="cycle" value="<?= e($cycle) ?>"><button class="btn btn-ghost btn-block"><?= icon('mail') ?> Pay by invoice</button></form>
+        <?php endif; ?>
+        <?php if (!$card && !$invoice): ?>
+          <form method="post" action="<?= e(url('/admin/billing/request')) ?>" data-confirm="Choose the <?= e($p['name']) ?> plan (<?= $cycle === 'annual' ? 'yearly' : 'monthly' ?>)? We will email your invoice."><?= csrf_field() ?><input type="hidden" name="plan" value="<?= e($k) ?>"><input type="hidden" name="cycle" value="<?= e($cycle) ?>"><button class="btn <?= $k === $popular ? 'btn-primary' : 'btn-ghost' ?> btn-block">Choose <?= e($p['name']) ?></button></form>
         <?php endif; ?>
       </div>
     </div>

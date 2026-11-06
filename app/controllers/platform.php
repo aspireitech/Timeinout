@@ -91,13 +91,14 @@ function platform_signup(): void
             $d['state'] = '';
         }
         if (!$errors) {
-            $t = provision_tenant($d);
+            $t = subdomain_check(provision_tenant($d)); // links use /s/name until name.<domain> really works
+            $mailed = welcome_email($t, $d['email'], $d['admin_name']);
             if ($src = lead_source()) {
                 update('tenants', ['source' => $src], 'id = ?', [$t['id']]);
             }
             audit('New sign-up', $t['name'] . ' (' . $t['slug'] . ')', true, industry($d['industry'])['name'] . ', ' . $d['plan'] . ' plan, owner ' . $d['email'] . ($src ? ', came from ' . $src : ''),
                 ['email' => $d['email'], 'name' => $d['admin_name'], 'tenant_id' => (int) $t['id']]);
-            view('platform/welcome', ['t' => $t, 'email' => $d['email']], 'platform');
+            view('platform/welcome', ['t' => $t, 'email' => $d['email'], 'mailed' => $mailed], 'platform');
         }
         $old = array_merge($old, $d, ['demo' => $d['demo'] ? '1' : '', 'state' => $d['state'] ?: (input('state') === 'XX' ? 'XX' : '')]);
     }
@@ -393,7 +394,7 @@ function web_cron(): void
         }
         return;
     }
-    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants())) ?: 'Nothing due.';
+    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants(), subdomain_recheck())) ?: 'Nothing due.';
 }
 
 // ---------- Payments ----------
@@ -549,7 +550,7 @@ function super_portal_new(): void
         }
         if (!$errors) {
             try {
-                $t = provision_tenant($d);
+                $t = subdomain_check(provision_tenant($d));
                 audit('Portal created by provider', $t['name'] . ' (' . $t['slug'] . ')', true,
                     industry($d['industry'])['name'] . ', ' . $d['plan'] . ' plan, ' . $d['status'] . ', owner ' . $d['email'] . ', ' . ($mode === 'dedicated' ? 'own database ' . $d['db']['name'] : 'shared database'));
                 $_SESSION['new_portal'] = ['id' => (int) $t['id'], 'email' => $d['email'], 'password' => $d['password']];

@@ -468,3 +468,22 @@ label.sub { font-size: .78rem; color: var(--muted); font-weight: 600; margin-bot
 .signin-step { display: flex; align-items: center; gap: 8px; margin: 18px 0 10px; }
 .signin-step .n, .signin-alt .n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand); color: #fff; font-size: .78rem; font-weight: 800; margin-right: 4px; }
 .google-btn[disabled] { opacity: .55; cursor: not-allowed; }
+.banner.trial, .banner.ended { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 1rem; padding: 14px 18px; border: 2px solid #F2A93B; }
+.banner.trial b, .banner.ended b { font-weight: 800; }
+.banner.trial span, .banner.ended span { flex: 1 1 260px; }
+.banner.trial.soon { background: linear-gradient(90deg, #FFE7C2, #FFD9B3); border-color: #E8613C; color: #7A2E00; }
+.banner.ended { background: #FDECEC; border-color: #D93838; color: #8E1B1B; }
+.banner-btn { background: #161B36; color: #fff; border-radius: 999px; white-space: nowrap; }
+.banner.ended .banner-btn { background: #C62828; }
+.sidebar nav a.locked { opacity: .4; }
+.sidebar nav a.locked:hover { background: none; }
+.price-card { position: relative; }
+.price-card .pop { position: absolute; top: -12px; left: 20px; background: var(--brand); color: #fff; font-size: .75rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+.price-card .save { display: inline-block; background: #E3F7F0; color: #0B5E46; font-weight: 700; font-size: .8rem; padding: 3px 10px; border-radius: 999px; }
+.price-card ul.feat { list-style: none; padding: 0; margin: 10px 0 14px; display: grid; gap: 5px; font-size: .88rem; color: var(--muted); }
+.price-card ul.feat li::before { content: "✓"; color: var(--in); font-weight: 800; margin-right: 6px; }
+.price-card ul.feat li.plus { color: var(--ink, inherit); font-weight: 700; } .price-card ul.feat li.plus::before { content: none; }
+.cycle-switch { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--card, #fff); }
+.cycle-switch a { padding: 7px 16px; border-radius: 999px; font-weight: 700; font-size: .9rem; color: var(--muted); text-decoration: none; }
+.cycle-switch a.on { background: #161B36; color: #fff; }
+.cycle-switch em { font-style: normal; font-size: .75rem; background: #E3F7F0; color: #0B5E46; padding: 2px 8px; border-radius: 999px; margin-left: 4px; }

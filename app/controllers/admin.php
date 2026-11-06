@@ -1037,8 +1037,36 @@ function admin_billing(): void
         flash('success', 'Thank you! Your payment is being confirmed by Stripe; this page updates within a minute.');
         redirect(url('/admin/billing'));
     }
-    admin_view('billing', ['t' => tenant(), 'plans' => plans(), 'payments' => $payments, 'state' => billing_state(), 'cycle' => cycle_input(),
+    $cycle = input('cycle') === 'monthly' ? 'monthly' : 'annual'; // yearly (two months free) is shown first
+    admin_view('billing', ['t' => tenant(), 'plans' => plans(), 'payments' => $payments, 'state' => billing_state(), 'cycle' => $cycle,
         'people' => people_count(), 'logins' => (int) val('SELECT COUNT(*) FROM users WHERE tenant_id = ?', [tid()])]);
+}
+
+/** No online payment set up for this plan yet: the customer picks it and the provider is emailed to send an invoice. */
+function admin_billing_request(): void
+{
+    require_admin();
+    $plan = (string) input('plan');
+    $plans = plans();
+    if (!isset($plans[$plan])) {
+        flash('error', 'Please choose a plan.');
+        redirect(url('/admin/billing'));
+    }
+    $cycle = cycle_input();
+    $t = tenant();
+    $me = current_user();
+    $price = $cycle === 'annual' ? '$' . number_format($plans[$plan]['annual'], 0) . '/year' : '$' . number_format($plans[$plan]['amount'], 0) . '/month';
+    update('tenants', ['plan' => $plan, 'billing_cycle' => $cycle], 'id = ?', [tid()]);
+    audit_note($plans[$plan]['name'] . ' plan, ' . $cycle, 'Requested by ' . ($me['email'] ?? $me['name']) . '; waiting for payment');
+    $to = (string) (cfg('contact_email') ?: cfg('lead_email') ?: (cfg('super_admin')['email'] ?? ''));
+    if ($to !== '') {
+        send_mail([$to], cfg('app_name') . ': ' . $t['name'] . ' chose the ' . $plans[$plan]['name'] . ' plan',
+            '<p><b>' . e($t['name']) . '</b> (' . e(tenant_url($t, '/')) . ') chose the <b>' . e($plans[$plan]['name']) . '</b> plan, billed '
+            . ($cycle === 'annual' ? 'yearly' : 'monthly') . ' (' . e($price) . ').</p><p>Requested by ' . e($me['name'] ?? '') . ' &lt;' . e($me['email'] ?? '') . '&gt;. '
+            . 'Send the invoice, then set the portal to <b>active</b> in /super → Subscribers.</p>');
+    }
+    flash('success', 'Thank you! You chose the ' . $plans[$plan]['name'] . ' plan (' . $price . '). We will email your invoice to ' . (owner_email($t) ?: 'you') . ' shortly.');
+    redirect(url('/admin/billing' . ($cycle === 'monthly' ? '?cycle=monthly' : '')));
 }
 
 function admin_billing_stripe(): void

@@ -153,9 +153,86 @@ function tenant_url(array $t, string $path = '/'): string
         return scheme() . '://' . $t['custom_domain'] . $path;
     }
     if (cfg('tenant_url_mode') === 'subdomain') {
-        return scheme() . '://' . $t['slug'] . '.' . cfg('base_domain') . $path;
+        if ((int) ($t['subdomain_ok'] ?? 1) === 1) {
+            return scheme() . '://' . $t['slug'] . '.' . cfg('base_domain') . $path;
+        }
+        // name.<base_domain> is not set up on the host yet: the /s/name address always works
+        return scheme() . '://' . cfg('base_domain') . base_path() . '/s/' . $t['slug'] . $path;
     }
     return scheme() . '://' . ($_SERVER['HTTP_HOST'] ?? cfg('base_domain')) . base_path() . '/s/' . $t['slug'] . $path;
+}
+
+/** true when https://<slug>.<base_domain> really reaches this app (subdomain and its SSL certificate are set up on the host). */
+function subdomain_live(string $slug): bool
+{
+    if (cfg('tenant_url_mode') !== 'subdomain' || !function_exists('curl_init')) {
+        return true;
+    }
+    $ch = curl_init('https://' . $slug . '.' . cfg('base_domain') . base_path() . '/__ping');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 4, CURLOPT_TIMEOUT => 6,
+        CURLOPT_FOLLOWLOCATION => false, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2]);
+    $body = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+    return $code === 200 && trim((string) $body) === 'clockinout:' . $slug;
+}
+
+/** Checks a portal's subdomain and stores the answer, so links use the subdomain only once it works. */
+function subdomain_check(array $t): array
+{
+    $t['subdomain_ok'] = subdomain_live($t['slug']) ? 1 : 0;
+    update('tenants', ['subdomain_ok' => $t['subdomain_ok']], 'id = ?', [$t['id']]);
+    return $t;
+}
+
+/**
+ * Cron: switch portals on /s/name links to their subdomain as soon as it answers, and catch recent
+ * portals whose subdomain does not work (e.g. created before this check existed).
+ */
+function subdomain_recheck(): array
+{
+    if (cfg('tenant_url_mode') !== 'subdomain') {
+        return [];
+    }
+    $log = [];
+    $list = rows("SELECT * FROM tenants WHERE deleted_at IS NULL AND custom_domain IS NULL AND slug <> ?
+        AND (subdomain_ok = 0 OR created_at > NOW() - INTERVAL 30 DAY) ORDER BY id LIMIT 40", [DEMO_SLUG]);
+    foreach ($list as $t) {
+        $ok = subdomain_live($t['slug']) ? 1 : 0;
+        if ($ok !== (int) $t['subdomain_ok']) {
+            update('tenants', ['subdomain_ok' => $ok], 'id = ?', [$t['id']]);
+            $log[] = $t['slug'] . ($ok ? ': subdomain is live, links now use it' : ': subdomain not reachable, links use /s/' . $t['slug']);
+        }
+    }
+    return $log;
+}
+
+/** Welcome email to a new portal's owner: address, sign-in, kiosk, trial end and first steps (never the password). */
+function welcome_email(array $t, string $email, string $name): bool
+{
+    $app = cfg('app_name');
+    $login = tenant_url($t, '/login?email=' . urlencode($email));
+    $kiosk = tenant_url($t, '/');
+    $ends = !empty($t['trial_ends_at']) ? date('F j, Y', strtotime((string) $t['trial_ends_at'])) : null;
+    $plan = plans()[$t['plan']]['name'] ?? ucfirst((string) $t['plan']);
+    $row = fn($k, $v) => '<tr><td style="padding:8px 12px;color:#6b7090;white-space:nowrap">' . $k . '</td><td style="padding:8px 12px;font-weight:600">' . $v . '</td></tr>';
+    $html = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#161B36">'
+        . '<h2 style="margin:0 0 6px">Welcome to ' . e($app) . ', ' . e($name) . '!</h2>'
+        . '<p>Your space <b>' . e($t['name']) . '</b> is ready. Save this email: it has everything you need to get started.</p>'
+        . '<table style="border-collapse:collapse;width:100%;background:#F4F5FA;border-radius:12px;margin:14px 0">'
+        . $row('Your address', '<a href="' . e($kiosk) . '" style="color:#5B4CE0">' . e($kiosk) . '</a>')
+        . $row('Admin sign-in', '<a href="' . e($login) . '" style="color:#5B4CE0">' . e(tenant_url($t, '/login')) . '</a>')
+        . $row('Your login', e($email) . ' and the password you chose')
+        . $row('Plan', e($plan) . ($ends ? ', free trial until ' . e($ends) : ''))
+        . '</table>'
+        . '<p style="margin:18px 0 6px"><b>Get started in three steps</b></p>'
+        . '<ol style="margin:0 0 14px;padding-left:20px;line-height:1.6">'
+        . '<li>Sign in and add your people: <b>Import</b> uploads your Excel or CSV list.</li>'
+        . '<li>Open your address on the tablet at your front door: that is your kiosk.</li>'
+        . '<li>In <b>Reports</b>, add who should get the daily report at 7:00.</li></ol>'
+        . '<p><a href="' . e($login) . '" style="display:inline-block;background:#5B4CE0;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Sign in to my space</a></p>'
+        . '<p style="color:#6b7090;font-size:13px">Each sign-in is confirmed with a code we email you. Choose a plan any time in Admin → Billing. Questions? Just reply to this email.</p></div>';
+    return send_mail([$email], 'Welcome to ' . $app . ': ' . $t['name'] . ' is ready', $html);
 }
 
 /** Lowercase letters, numbers and single dashes, as typed in "Choose your own address". */

@@ -2,9 +2,12 @@
 $t = tenant();
 $me = current_user();
 $here = $GLOBALS['request_path'] ?? '';
-$nav = function (string $path, string $ico, string $label) use ($here) {
+$locked = billing_locked($t); // trial ended: only Billing (and Help) until a plan is chosen
+$nav = function (string $path, string $ico, string $label) use ($here, $locked) {
     $active = $path === '/admin' ? $here === '/admin' : str_starts_with($here, $path);
-    return '<a class="' . ($active ? 'active' : '') . '" href="' . e(url($path)) . '">' . icon($ico) . '<span class="t">' . e($label) . '</span></a>';
+    $open = !$locked || in_array($path, ['/admin/billing', '/admin/help'], true);
+    return '<a class="' . ($active ? 'active' : '') . ($open ? '' : ' locked') . '" href="' . e(url($open ? $path : '/admin/billing')) . '"'
+        . ($open ? '' : ' title="Choose a plan to unlock" aria-disabled="true"') . '>' . icon($ico) . '<span class="t">' . e($label) . '</span></a>';
 };
 ?>
 <!doctype html>
@@ -45,10 +48,15 @@ $nav = function (string $path, string $ico, string $label) use ($here) {
     </div>
   </aside>
   <main class="main">
-    <?php $bs = billing_state($t); if (in_array($bs, ['trial', 'grace'], true) && !str_starts_with($here, '/admin/billing')): $left = trial_days_left($t); ?>
-      <div class="banner"><?= icon('clock', 16) ?>
-        <?= $bs === 'trial' ? "Free trial: $left day" . ($left === 1 ? '' : 's') . ' left.' : 'Your free trial has ended.' ?>
-        <a href="<?= e(url('/admin/billing')) ?>"><b>Choose a plan →</b></a>
+    <?php $bs = billing_state($t); if ($bs === 'trial' && !str_starts_with($here, '/admin/billing')): $left = max(0, trial_days_left($t)); ?>
+      <div class="banner trial <?= $left <= 2 ? 'soon' : '' ?>"><?= icon('clock', 20) ?>
+        <span><b>Free trial: <?= $left ?> day<?= $left === 1 ? '' : 's' ?> left.</b> Choose a plan to keep your kiosk, people and reports running.</span>
+        <a class="btn btn-sm banner-btn" href="<?= e(url('/admin/billing')) ?>">Choose a plan →</a>
+      </div>
+    <?php elseif ($locked): ?>
+      <div class="banner ended"><?= icon('clock', 20) ?>
+        <span><b><?= $t['status'] === 'cancelled' ? 'Your subscription has ended.' : 'Your free trial has ended.' ?></b> Choose a plan below to unlock your portal.<?= $bs === 'grace' ? ' Your kiosk keeps working until ' . e(date('M j', strtotime((string) $t['trial_ends_at']) + GRACE_DAYS * 86400)) . '.' : ' Your kiosk is paused; your people and history are safe.' ?></span>
+        <?php if (!str_starts_with($here, '/admin/billing')): ?><a class="btn btn-sm banner-btn" href="<?= e(url('/admin/billing')) ?>">Choose a plan →</a><?php endif; ?>
       </div>
     <?php elseif ($t['subscription_status'] === 'past_due'): ?>
       <div class="banner"><?= icon('card', 16) ?> Your last card payment failed. <a href="<?= e(url('/admin/billing')) ?>"><b>Update your card →</b></a></div>
