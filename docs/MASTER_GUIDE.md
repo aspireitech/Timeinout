@@ -528,3 +528,4 @@ step must update this guide **in the same commit**:
 | 2026-11-06 | 24-hour address promise: red note in welcome email/page, provider to-do email, "address is live" email. |
 | 2026-11-06 | Trial sign-up: welcome email, `/s/name` links until the subdomain is live (schema 13, hourly re-check, `/__ping`); bold trial and red ended banners; admin locked to Billing when the trial ends; Billing defaults to Yearly with Business highlighted and every plan selectable ("Choose plan" request when online payment is not set up). |
 | 2026-11-06 | Trial follow-up emails, provider alerts and Monday growth scorecard (schema 14, `nurture_log`); on/off and promotion line in /super → Settings. |
+| 2026-11-06 | `docs/SAAS_BLUEPRINT.md`: reusable multi-tenant SaaS design (demo, trial, lock, billing, shared or own database) for other projects. |
