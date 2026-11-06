@@ -349,6 +349,7 @@ function super_settings(): void
             setting_set('wave_product_' . $pk, mb_substr(trim((string) input('wave_product_' . $pk)), 0, 190));
         }
         setting_set('admin_otp', $new['admin_otp']);
+        setting_set('stripe_tax', input('stripe_tax') === '1' ? '1' : '0');
         audit_note('Email, security & payment settings', audit_diff($before, $new) . ($passChanged ? '; a password or API key was changed' : ''));
         flash('success', 'Settings saved. Use "Send test email" to check them.');
         redirect(base_path() . '/super/settings');

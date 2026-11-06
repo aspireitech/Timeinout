@@ -24,9 +24,11 @@
         Turn on the Customer Portal in Stripe → Settings → Billing.</p>
       <div class="grid c2">
         <div class="field"><label for="s-sk">Secret key</label><input type="password" id="s-sk" name="stripe_secret" autocomplete="off" placeholder="<?= secret('stripe_secret') ? 'Saved. Leave empty to keep it' : 'sk_live_…' ?>"></div>
+        <label class="check" style="grid-column:1 / -1"><input type="checkbox" name="stripe_tax" value="1" <?= setting('stripe_tax', '0') === '1' ? 'checked' : '' ?>>
+          <span>Collect sales tax with <b>Stripe Tax</b><br><span class="muted small">Turn on Stripe Tax in your Stripe dashboard first (add your Utah registration) and set the product tax code to <code>txcd_10103001</code> (SaaS, business use). Checkout then asks for the billing address and adds the tax on top of the price.</span></span></label>
         <div class="field"><label for="s-wh">Webhook signing secret</label><input type="password" id="s-wh" name="stripe_webhook_secret" autocomplete="off" placeholder="<?= secret('stripe_webhook_secret') ? 'Saved. Leave empty to keep it' : 'whsec_…' ?>"></div>
         <?php foreach (plans() as $pk => $pl): ?>
-          <div class="field"><label for="sp-<?= e($pk) ?>">Monthly price ID for <?= e($pl['name']) ?> ($<?= e(number_format($pl['amount'], 0)) ?>/month)</label><input type="text" id="sp-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>" value="<?= e(setting('stripe_price_' . $pk, '')) ?>" placeholder="price_…"></div>
+          <div class="field"><label for="sp-<?= e($pk) ?>">Monthly price ID for <?= e($pl['name']) ?> ($<?= e(number_format($pl['amount'], 0)) ?>/month)</label><input type="text" id="sp-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>" value="<?= e(setting('stripe_price_' . $pk, '')) ?>" placeholder="price_… (not the prod_… product ID)"></div>
           <div class="field"><label for="spa-<?= e($pk) ?>">Yearly price ID for <?= e($pl['name']) ?> ($<?= e(number_format($pl['annual'], 0)) ?>/year)</label><input type="text" id="spa-<?= e($pk) ?>" name="stripe_price_<?= e($pk) ?>_annual" value="<?= e(setting('stripe_price_' . $pk . '_annual', '')) ?>" placeholder="price_… (optional)"></div>
         <?php endforeach; ?>
       </div>

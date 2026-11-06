@@ -233,8 +233,16 @@ function stripe_checkout_url(array $t, string $plan, string $cycle = 'monthly'):
         'subscription_data' => ['metadata' => ['tenant_id' => (string) $t['id'], 'plan' => $plan, 'cycle' => $cycle]],
         'allow_promotion_codes' => 'true',
     ];
+    if (setting('stripe_tax', '0') === '1') { // Stripe Tax: adds the right sales tax from the customer's billing address
+        $params['automatic_tax'] = ['enabled' => 'true'];
+        $params['billing_address_collection'] = 'required';
+        $params['tax_id_collection'] = ['enabled' => 'true'];
+    }
     if ($t['stripe_customer_id']) {
         $params['customer'] = $t['stripe_customer_id'];
+        if (isset($params['automatic_tax'])) {
+            $params['customer_update'] = ['address' => 'auto', 'name' => 'auto'];
+        }
     } elseif ($email = owner_email($t)) {
         $params['customer_email'] = $email;
     }
