@@ -1,4 +1,6 @@
-# TimeInOut — Architecture & Flow Diagrams
+> **Historical design notes from the first version.** The current reference is [MASTER_GUIDE.md](MASTER_GUIDE.md).
+
+# ClockInOut — Architecture & Flow Diagrams
 
 Diagrams are written in Mermaid, which GitHub renders automatically. A visual version with screenshots is in [`docs/mockup/index.html`](mockup/index.html).
 

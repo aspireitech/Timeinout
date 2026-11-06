@@ -31,6 +31,8 @@
         <div class="field"><label>Allow entries for past days</label>
           <select name="allow_past_days"><?php foreach ([0 => 'Today only', 1 => 'Up to 1 day back', 3 => 'Up to 3 days back', 7 => 'Up to 7 days back', 14 => 'Up to 14 days back', 30 => 'Up to 30 days back'] as $n => $l): ?><option value="<?= $n ?>" <?= (int) $t['allow_past_days'] === $n ? 'selected' : '' ?>><?= $l ?></option><?php endforeach; ?></select>
           <div class="hint">Controls the "Yesterday / Other day" buttons on the kiosk.</div></div>
+        <label class="check"><input type="checkbox" name="allow_typed_relative" value="1" <?= ($t['allow_typed_relative'] ?? 1) ? 'checked' : '' ?>>
+          <span>Always offer "Authorized relative"<br><span class="muted small">On the kiosk, after the listed parents and guardians, an "Authorized relative" button lets the person type their name. Their name is saved with the entry. Turn off to allow only the people on file.</span></span></label>
         <label class="check"><input type="checkbox" name="kiosk_public" value="1" <?= $t['kiosk_public'] ? 'checked' : '' ?>>
           <span>Open kiosk without login<br><span class="muted small">Anyone with the link can see student names. Leave off unless the kiosk link is only on your own device.</span></span></label>
       </div>

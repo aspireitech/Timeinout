@@ -1,10 +1,156 @@
 <?php
-// CSV ("flat file") import for students+guardians and teachers.
-// Save from Excel / Google Sheets as CSV. Headers are matched loosely
+// Spreadsheet import for students+guardians and teachers: CSV, or Excel .xlsx
+// (first sheet) read directly with no extra packages. Headers are matched loosely
 // (case, spaces and dashes are ignored). Re-importing the same file is safe:
 // existing people are matched by ID (or by name) and updated, not duplicated.
 
+/** Reads an uploaded CSV or .xlsx file into header-keyed rows. */
+function sheet_read(string $file, string $originalName): array
+{
+    return sheet_rows(sheet_table($file, $originalName));
+}
+
+/** Reads an uploaded CSV or .xlsx file as a plain table: list of rows, the first row being the headers. */
+function sheet_table(string $file, string $originalName): array
+{
+    $head = (string) file_get_contents($file, false, null, 0, 4);
+    if ($head === "PK\x03\x04" || str_ends_with(strtolower($originalName), '.xlsx')) {
+        return xlsx_table($file);
+    }
+    if ($head === "\xD0\xCF\x11\xE0") {
+        throw new RuntimeException('This is an old Excel .xls file. In Excel choose File → Save As → Excel Workbook (.xlsx) or CSV, then upload again.');
+    }
+    return csv_table($file);
+}
+
+/** Header row + data rows → the same shape csv_read() returns. */
+function sheet_rows(array $table): array
+{
+    $header = null;
+    $out = [];
+    foreach ($table as $r) {
+        if (implode('', array_map('strval', $r)) === '') {
+            continue;
+        }
+        if ($header === null) {
+            $header = array_map(fn($h) => preg_replace('/[^a-z0-9]/', '', strtolower((string) $h)), $r);
+            continue;
+        }
+        $row = [];
+        foreach ($header as $i => $h) {
+            if ($h !== '') {
+                $row[$h] = trim((string) ($r[$i] ?? ''));
+            }
+        }
+        $out[] = $row;
+    }
+    return $out;
+}
+
+function xlsx_read(string $file): array
+{
+    return sheet_rows(xlsx_table($file));
+}
+
+/** First worksheet of an .xlsx workbook (Office Open XML), values only, as a table. */
+function xlsx_table(string $file): array
+{
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('This server cannot open .xlsx files (PHP zip extension missing). Save the sheet as CSV and upload that.');
+    }
+    $zip = new ZipArchive();
+    if ($zip->open($file) !== true) {
+        throw new RuntimeException('This .xlsx file could not be opened. Save it again in Excel, or upload a CSV.');
+    }
+    $xml = function (string $name) use ($zip): ?SimpleXMLElement {
+        $raw = $zip->getFromName($name);
+        if ($raw === false) {
+            return null;
+        }
+        $prev = libxml_use_internal_errors(true);
+        $x = simplexml_load_string($raw, 'SimpleXMLElement', LIBXML_NONET);
+        libxml_use_internal_errors($prev);
+        return $x ?: null;
+    };
+    // Shared strings (most text cells point into this list)
+    $strings = [];
+    if ($ss = $xml('xl/sharedStrings.xml')) {
+        foreach ($ss->si as $si) {
+            $t = isset($si->t) ? (string) $si->t : '';
+            foreach ($si->r as $run) { // rich text: several runs
+                $t .= (string) $run->t;
+            }
+            $strings[] = $t;
+        }
+    }
+    // First sheet in workbook order
+    $sheetPath = 'xl/worksheets/sheet1.xml';
+    $wb = $xml('xl/workbook.xml');
+    $rels = $xml('xl/_rels/workbook.xml.rels');
+    if ($wb && $rels && isset($wb->sheets->sheet[0])) {
+        $rid = (string) $wb->sheets->sheet[0]->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')['id'];
+        foreach ($rels->Relationship as $rel) {
+            if ((string) $rel['Id'] === $rid) {
+                $target = ltrim((string) $rel['Target'], '/');
+                $sheetPath = str_starts_with($target, 'xl/') ? $target : 'xl/' . $target;
+            }
+        }
+    }
+    $sheet = $xml($sheetPath);
+    $zip->close();
+    if (!$sheet) {
+        throw new RuntimeException('No worksheet found in this .xlsx file.');
+    }
+    $table = [];
+    foreach ($sheet->sheetData->row as $r) {
+        $cells = [];
+        $next = 0;
+        foreach ($r->c as $c) {
+            $col = $next;
+            if (preg_match('/^([A-Z]+)/', (string) $c['r'], $m)) {
+                $col = 0;
+                foreach (str_split($m[1]) as $ch) {
+                    $col = $col * 26 + (ord($ch) - 64);
+                }
+                $col--;
+            }
+            $type = (string) $c['t'];
+            if ($type === 's') {
+                $v = $strings[(int) $c->v] ?? '';
+            } elseif ($type === 'inlineStr') {
+                $v = '';
+                if (isset($c->is)) { // empty cells have no <is> element
+                    $v = (string) $c->is->t;
+                    foreach ($c->is->r as $run) {
+                        $v .= (string) $run->t;
+                    }
+                }
+            } elseif ($type === 'b') {
+                $v = ((string) $c->v) === '1' ? 'TRUE' : 'FALSE';
+            } else {
+                $v = (string) $c->v;
+                // Whole numbers such as phone numbers or IDs: no "8015550100.0" or "8.01E+9"
+                if ($type !== 'str' && is_numeric($v) && (float) $v == floor((float) $v) && abs((float) $v) < 1e15) {
+                    $v = number_format((float) $v, 0, '.', '');
+                }
+            }
+            $cells[$col] = $v;
+            $next = $col + 1;
+        }
+        if ($cells) {
+            $row = array_fill(0, max(array_keys($cells)) + 1, '');
+            $table[] = array_replace($row, $cells);
+        }
+    }
+    return $table;
+}
+
 function csv_read(string $file): array
+{
+    return sheet_rows(csv_table($file));
+}
+
+function csv_table(string $file): array
 {
     $raw = file_get_contents($file);
     $raw = preg_replace('/^\xEF\xBB\xBF/', '', (string) $raw); // Excel BOM
@@ -16,35 +162,33 @@ function csv_read(string $file): array
     $fh = fopen('php://temp', 'r+');
     fwrite($fh, $raw);
     rewind($fh);
-    $header = null;
-    $out = [];
+    $table = [];
     while (($r = fgetcsv($fh, 0, $delim, '"', '\\')) !== false) {
         if ($r === [null] || implode('', $r) === '') {
             continue;
         }
-        if ($header === null) {
-            $header = array_map(fn($h) => preg_replace('/[^a-z0-9]/', '', strtolower((string) $h)), $r);
-            continue;
-        }
-        $row = [];
-        foreach ($header as $i => $h) {
-            $row[$h] = trim((string) ($r[$i] ?? ''));
-        }
-        $out[] = $row;
+        $table[] = array_map(fn($v) => (string) $v, $r);
     }
     fclose($fh);
-    return $out;
+    return $table;
 }
 
 /** First non-empty value among several header spellings. */
 function csv_pick(array $row, array $keys): string
 {
     foreach ($keys as $k) {
-        if (($row[$k] ?? '') !== '') {
-            return $row[$k];
+        $v = trim((string) ($row[$k] ?? ''));
+        if ($v !== '' && !is_blank_value($v)) {
+            return $v;
         }
     }
     return '';
+}
+
+/** Cells that mean "nothing here": N/A, NA, none, -, null… are treated as empty. */
+function is_blank_value(string $v): bool
+{
+    return (bool) preg_match('/^(n\/?a|none|null|nil|-+|\.+|tbd|unknown|not available)$/i', trim($v));
 }
 
 function split_name(string $full): array
@@ -97,6 +241,29 @@ function import_students(int $tenantId, array $rows): array
             csv_pick($row, ['phone', 'guardianphone', 'parentphone']),
             csv_pick($row, ['email', 'guardianemail', 'parentemail']),
         ]];
+        // Simple layout: Father / Mother columns (also "Guardian (Father)"), plus authorized relatives
+        foreach (['father' => 'Father', 'mother' => 'Mother'] as $k => $relName) {
+            $guardians[] = [csv_pick($row, [$k, $k . 'name', 'guardian' . $k, $k . 'sname', $k . 'guardian']), $relName,
+                csv_pick($row, [$k . 'phone', $k . 'mobile', 'guardian' . $k . 'phone']), csv_pick($row, [$k . 'email', 'guardian' . $k . 'email'])];
+        }
+        for ($i = 1; $i <= 2; $i++) {
+            $guardians[] = [
+                csv_pick($row, ["relative{$i}name", "relative{$i}", "other{$i}name", "other{$i}", "authorizedrelative{$i}"]),
+                csv_pick($row, ["relative{$i}relationship", "relative{$i}relation", "other{$i}relationship"]) ?: 'Relative',
+                csv_pick($row, ["relative{$i}phone", "other{$i}phone"]),
+                csv_pick($row, ["relative{$i}email", "other{$i}email"]),
+            ];
+        }
+        // "Authorized Relative" column: one or more people separated by ; or new lines,
+        // each optionally with the relationship in brackets: "Rose Martin (Grandmother); Tom Lee (Uncle)"
+        $auth = csv_pick($row, ['authorizedrelative', 'authorizedrelatives', 'authorizedpickup', 'authorizedperson', 'relative', 'relatives']);
+        foreach (preg_split('/\s*[;\n]\s*/', $auth) as $person) {
+            if (preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/', $person, $m)) {
+                $guardians[] = [trim($m[1]), trim($m[2]), '', ''];
+            } elseif (trim($person) !== '') {
+                $guardians[] = [trim($person), 'Authorized relative', '', ''];
+            }
+        }
         for ($i = 1; $i <= 4; $i++) {
             $guardians[] = [
                 csv_pick($row, ["guardian{$i}name", "guardian{$i}", "parent{$i}name", "parent{$i}"]),
