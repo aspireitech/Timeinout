@@ -95,6 +95,10 @@ function platform_signup(): void
             $mailed = welcome_email($t, $d['email'], $d['admin_name']);
             subdomain_todo_email($t); // you: create name.<domain> in hPanel within 24 hours
             prospect_converted($d['email'], 'signed_up'); // no more outreach emails
+            provider_alert('New sign-up: ' . $t['name'] . (lead_source() ? ' (via ' . lead_source() . ')' : ''),
+                '<p><b>' . e($t['name']) . '</b> started a free trial.</p><p>Owner: ' . e($d['admin_name']) . ' &lt;' . e($d['email']) . '&gt;<br>Industry: '
+                . e(industry($d['industry'])['name']) . '<br>Plan: ' . e($plans[$d['plan']]['name'] ?? $d['plan']) . '<br>Address: <a href="' . e(tenant_url($t, '/')) . '">' . e(tenant_url($t, '/')) . '</a>'
+                . (lead_source() ? '<br>Came from: ' . e(lead_source()) : '') . '</p><p>A quick welcome call in the first two days helps them get started.</p>');
             if ($src = lead_source()) {
                 update('tenants', ['source' => $src], 'id = ?', [$t['id']]);
             }
@@ -156,7 +160,7 @@ function super_verify(): void
                 super_complete($who['email']);
                 send_mail([(string) (cfg('super_admin')['email'] ?? '')], cfg('app_name') . ': a recovery code was used',
                     '<p>A recovery code was used to sign in to the provider console on ' . gmdate('M j, Y H:i') . ' UTC from ' . e(client_ip()) . '. '
-                    . super_recovery_left() . ' codes are left. If this was not you, change the provider password and create new recovery codes now.</p>');
+                    . super_recovery_left() . ' codes are left. If this was not you, change the provider password and create new recovery codes now.</p>', [], 'contact', alert_copies());
                 redirect(base_path() . '/super?li=1');
             } else {
                 login_attempt('super-recovery', $who['email'], false);
@@ -352,6 +356,8 @@ function super_settings(): void
         setting_set('admin_otp', $new['admin_otp']);
         setting_set('stripe_tax', input('stripe_tax') === '1' ? '1' : '0');
         setting_set('nurture_on', input('nurture_on') === '1' ? '1' : '0');
+        $copies = array_filter(preg_split('/[\s,;]+/', strtolower((string) input('alert_emails')), -1, PREG_SPLIT_NO_EMPTY), fn($x) => filter_var($x, FILTER_VALIDATE_EMAIL));
+        setting_set('alert_emails', implode(', ', array_slice(array_unique($copies), 0, 5)));
         setting_set('trial_promo', mb_substr(trim((string) input('trial_promo')), 0, 200));
         audit_note('Email, security & payment settings', audit_diff($before, $new) . ($passChanged ? '; a password or API key was changed' : ''));
         flash('success', 'Settings saved. Use "Send test email" to check them.');
@@ -709,7 +715,7 @@ function lead_notify(array $d): bool
         . e(industry($d['industry'])['name']) . ' · ' . e(EMPLOYEE_RANGES[$d['employees']] ?? '') . ' people</div></div>'
         . '<div style="padding:18px 22px"><table style="width:100%;border-collapse:collapse">' . $tr . '</table>' . $msg
         . '<p style="margin:20px 0 4px;color:#6b7090;font-size:12px">Requested ' . gmdate('M j, Y H:i') . ' UTC · see all leads in the provider console.</p></div></div></div>';
-    return send_mail([lead_inbox()], 'Leads: ' . $d['company'] . ' — ' . $d['name'] . ' (' . (EMPLOYEE_RANGES[$d['employees']] ?? '') . ')', $html);
+    return send_mail([lead_inbox()], 'Leads: ' . $d['company'] . ' — ' . $d['name'] . ' (' . (EMPLOYEE_RANGES[$d['employees']] ?? '') . ')', $html, [], 'contact', alert_copies());
 }
 
 function super_leads(): void
@@ -767,7 +773,7 @@ function platform_report_activity(): void
                 . 'Someone received a sign-in code they say they did not request.</div>'
                 . '<table style="width:100%;border-collapse:collapse;margin-top:14px">' . $tr . '</table>'
                 . '<p style="font-size:13px;color:#6b7090">Suggested: contact the account owner, reset their password (provider console → Subscribers → Reset owner password), and check the audit log for this IP.</p></div>';
-            $ok = send_mail([contact_email()], 'Suspicious activity reported — ' . $d['e'], $html);
+            $ok = send_mail([contact_email()], 'Suspicious activity reported — ' . $d['e'], $html, [], 'contact', alert_copies());
             audit('Suspicious activity reported', $d['e'], $ok, 'Portal ' . $d['p'] . ', attempt from ' . $d['ip'] . ($ok ? '' : '; email failed: ' . ($GLOBALS['mail_error'] ?? '')),
                 ['email' => $d['e'], 'name' => 'Account holder']);
             $_SESSION[$key] = true;

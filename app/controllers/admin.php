@@ -1063,7 +1063,7 @@ function admin_billing_request(): void
         send_mail([$to], cfg('app_name') . ': ' . $t['name'] . ' chose the ' . $plans[$plan]['name'] . ' plan',
             '<p><b>' . e($t['name']) . '</b> (' . e(tenant_url($t, '/')) . ') chose the <b>' . e($plans[$plan]['name']) . '</b> plan, billed '
             . ($cycle === 'annual' ? 'yearly' : 'monthly') . ' (' . e($price) . ').</p><p>Requested by ' . e($me['name'] ?? '') . ' &lt;' . e($me['email'] ?? '') . '&gt;. '
-            . 'Send the invoice, then set the portal to <b>active</b> in /super → Subscribers.</p>');
+            . 'Send the invoice, then set the portal to <b>active</b> in /super → Subscribers.</p>', [], 'contact', alert_copies());
     }
     flash('success', 'Thank you! You chose the ' . $plans[$plan]['name'] . ' plan (' . $price . '). We will email your invoice to ' . (owner_email($t) ?: 'you') . ' shortly.');
     redirect(url('/admin/billing' . ($cycle === 'monthly' ? '?cycle=monthly' : '')));
@@ -1190,7 +1190,7 @@ function admin_feature_request(): void
         . $row('Area', e(FEATURE_CATEGORIES[$d['category']])) . $row('Importance', e(FEATURE_PRIORITIES[$d['priority']])) . $row('People affected', e($d['people'] ?: '—'))
         . $row('What it should do', nl2br(e($d['details']))) . $row('Problem it solves', nl2br(e($d['problem'] ?: '—')))
         . '</table><p style="color:#6b7090;font-size:12px;margin-top:16px">Reply and set a status in the provider console → Requests.</p></div></div></div>';
-    send_mail([contact_email()], 'Feature request: ' . $d['title'] . ' — ' . $t['name'], $html);
+    send_mail([contact_email()], 'Feature request: ' . $d['title'] . ' — ' . $t['name'], $html, [], 'contact', alert_copies());
     flash('success', 'Thank you! Your request was sent to our team. You can follow its status below.');
     redirect(url('/admin/whats-new#mine'));
 }

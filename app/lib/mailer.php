@@ -40,6 +40,23 @@ function contact_email(): string
     return (string) (cfg('contact_email') ?: cfg('lead_email') ?: 'contact@' . cfg('base_domain'));
 }
 
+/** Extra addresses that get a copy of every provider alert (/super → Settings → "Also send alerts to"). */
+function alert_copies(): array
+{
+    try {
+        $list = preg_split('/[\s,;]+/', (string) setting('alert_emails', ''), -1, PREG_SPLIT_NO_EMPTY);
+    } catch (Throwable $e) {
+        return [];
+    }
+    return array_values(array_filter(array_map('strtolower', $list), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL)));
+}
+
+/** An email to you, the provider (contact mailbox), with a copy to the extra alert addresses. */
+function provider_alert(string $subject, string $html): bool
+{
+    return send_mail([contact_email()], $subject, '<div style="font-family:Arial,sans-serif;max-width:600px;color:#161B36">' . $html . '</div>', [], 'contact', alert_copies());
+}
+
 $GLOBALS['mail_error'] = null;
 
 /**

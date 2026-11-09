@@ -18,6 +18,9 @@
         <div class="field"><label for="s-from">From email</label><input type="email" id="s-from" name="from_email" value="<?= e($m['from_email'] ?? '') ?>"></div>
         <div class="field"><label for="s-fromname">From name</label><input type="text" id="s-fromname" name="from_name" value="<?= e($m['from_name'] ?? '') ?>"></div>
       </div>
+      <h3 style="margin-top:14px"><?= icon('mail') ?> Alerts to you</h3>
+      <p class="muted small">Alerts go to <b><?= e(contact_email()) ?></b>: new sign-ups, payments received or failed, cancellations, demo requests, invoice requests, subdomain to-dos, trials that need a call, sign-in warnings and the Monday scorecard. Add more addresses to get a copy of every one.</p>
+      <div class="field"><label for="s-alerts">Also send alerts to (up to 5, separated by commas)</label><input type="text" id="s-alerts" name="alert_emails" value="<?= e(setting('alert_emails', '')) ?>" placeholder="you@example.com"></div>
       <h3 style="margin-top:14px"><?= icon('mail') ?> Trial follow-up</h3>
       <p class="muted small">The hourly cron emails trial owners who are stuck (no people imported, no check-ins yet, 2 days and 1 day left), alerts you about trials that need a call, and sends you a growth scorecard every Monday morning.</p>
       <div class="grid c2">

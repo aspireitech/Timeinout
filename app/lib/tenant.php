@@ -231,7 +231,7 @@ function subdomain_todo_email(array $t): void
     send_mail([$to], 'To do: create subdomain ' . $host, '<p>New portal <b>' . e($t['name']) . '</b> was promised <b>' . e($host) . '</b> within 24 hours.</p>'
         . '<ol><li>hPanel → Websites → ' . e(cfg('base_domain')) . ' → Domains → Subdomains</li><li>Subdomain <b>' . e($t['slug']) . '</b>, tick Custom folder and Use public_html directory → Create</li>'
         . '<li>Security → SSL: make sure ' . e($host) . ' gets a certificate</li></ol>'
-        . '<p>Within an hour of it working, links switch to it and the customer is emailed that it is live. Until then they use ' . e(tenant_url($t, '/')) . '.</p>');
+        . '<p>Within an hour of it working, links switch to it and the customer is emailed that it is live. Until then they use ' . e(tenant_url($t, '/')) . '.</p>', [], 'contact', alert_copies());
 }
 
 /** Tells the owner their own address now works (sent once, by the hourly check). */

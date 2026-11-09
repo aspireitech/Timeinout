@@ -515,7 +515,7 @@ function super_breakglass(string $email, string $password, string $code): ?strin
     super_complete($email, 'Break-glass: password + recovery code (' . super_recovery_left() . ' codes left)');
     send_mail([(string) (cfg('super_admin')['email'] ?? '')], cfg('app_name') . ': break-glass sign-in used',
         '<p>The break-glass password and a recovery code were used to sign in to the provider console on ' . gmdate('M j, Y H:i') . ' UTC from '
-        . e(client_ip()) . '. ' . super_recovery_left() . ' recovery codes are left. If this was not you, change the break-glass password and create new recovery codes now.</p>');
+        . e(client_ip()) . '. ' . super_recovery_left() . ' recovery codes are left. If this was not you, change the break-glass password and create new recovery codes now.</p>', [], 'contact', alert_copies());
     return null;
 }
 

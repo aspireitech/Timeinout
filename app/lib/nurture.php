@@ -118,7 +118,7 @@ function run_nurture(): array
                     . '<tr><td style="padding:4px 12px 4px 0;color:#6b7090">People added</td><td>' . $a['people'] . '</td></tr>'
                     . '<tr><td style="padding:4px 12px 4px 0;color:#6b7090">Check-ins</td><td>' . $a['checkins'] . '</td></tr>'
                     . '<tr><td style="padding:4px 12px 4px 0;color:#6b7090">Plan</td><td>' . e(plans()[$t['plan']]['name'] ?? $t['plan']) . (!empty($t['source']) ? ' · came from ' . e($t['source']) : '') . '</td></tr></table>');
-                if (send_mail([$provider], $alert[1], $html)) {
+                if (send_mail([$provider], $alert[1], $html, [], 'contact', alert_copies())) {
                     nurture_mark((int) $t['id'], $alert[0]);
                     $log[] = $t['slug'] . ': alert "' . $alert[0] . '"';
                 }
@@ -188,7 +188,7 @@ function send_scorecard(bool $force = false): array
         $html .= '<p>No trials in progress.</p>';
     }
     $html .= '</div>';
-    if (!send_mail([$to], cfg('app_name') . ' weekly scorecard: ' . count($new) . ' new, $' . number_format($mrr, 0) . ' MRR', $html)) {
+    if (!send_mail([$to], cfg('app_name') . ' weekly scorecard: ' . count($new) . ' new, $' . number_format($mrr, 0) . ' MRR', $html, [], 'contact', alert_copies())) {
         return ['scorecard: email could not be sent'];
     }
     nurture_mark(0, $kind);

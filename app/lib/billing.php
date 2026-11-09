@@ -332,6 +332,8 @@ function stripe_handle_event(array $event): string
                 'stripe_subscription_id' => $obj['subscription'] ?? null, 'subscription_status' => 'active', 'status' => 'active',
                 'plan' => isset(plans()[$obj['metadata']['plan'] ?? '']) ? $obj['metadata']['plan'] : $t['plan'],
                 'billing_cycle' => ($obj['metadata']['cycle'] ?? '') === 'annual' ? 'annual' : 'monthly'], 'id = ?', [$t['id']]);
+            provider_alert('New customer: ' . $name . ' subscribed', '<p><b>' . e($name) . '</b> subscribed by card to the <b>' . e(plans()[$obj['metadata']['plan'] ?? '']['name'] ?? $t['plan']) . '</b> plan ('
+                . (($obj['metadata']['cycle'] ?? '') === 'annual' ? 'yearly' : 'monthly') . ').</p><p>' . e(tenant_url($t, '/')) . '</p>');
             return "$name subscribed by card";
         case 'customer.subscription.created':
         case 'customer.subscription.updated':
@@ -345,6 +347,7 @@ function stripe_handle_event(array $event): string
             return "$name subscription $s ($plan)" . (!empty($obj['cancel_at_period_end']) ? ', cancels at period end' : '');
         case 'customer.subscription.deleted':
             update('tenants', ['subscription_status' => 'canceled', 'status' => 'cancelled'], 'id = ?', [$t['id']]);
+            provider_alert('Cancelled: ' . $name, '<p><b>' . e($name) . '</b> cancelled their subscription. Their admin portal is now limited to Billing. A short call to ask why often wins them back.</p>');
             return "$name subscription cancelled";
         case 'invoice.paid':
         case 'invoice.payment_succeeded':
@@ -361,6 +364,9 @@ function stripe_handle_event(array $event): string
                 'paid_at' => $paid ? gmdate('Y-m-d H:i:s', (int) ($obj['status_transitions']['paid_at'] ?? time())) : null,
             ]);
             update('tenants', ['subscription_status' => $paid ? 'active' : 'past_due'] + ($paid ? ['status' => 'active'] : []), 'id = ?', [$t['id']]);
+            $amount = money((int) ($paid ? ($obj['amount_paid'] ?? 0) : ($obj['amount_due'] ?? 0)), strtoupper($obj['currency'] ?? 'usd'));
+            provider_alert(($paid ? 'Payment received: ' : 'ACTION: payment failed: ') . $name . ' ' . $amount,
+                '<p><b>' . e($name) . '</b>: card payment ' . ($paid ? 'of <b>' . e($amount) . '</b> received.' : 'of <b>' . e($amount) . '</b> FAILED. The customer was asked to update their card; Stripe retries automatically. Consider a call.') . '</p>');
             if (!$paid && ($email = owner_email($t))) {
                 send_mail([$email], $name . ': card payment failed', '<p>We could not charge your card for your ' . e(cfg('app_name')) . ' subscription. Please update your card in <a href="' . e(tenant_url($t, '/admin/billing')) . '">Admin → Billing</a>.</p>');
             }
