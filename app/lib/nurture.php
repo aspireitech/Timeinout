@@ -169,6 +169,7 @@ function send_scorecard(bool $force = false): array
         . '<table style="border-spacing:8px"><tr>' . $big('New sign-ups', count($new)) . $big('New payments', (int) $paid['n'] . ' · ' . money((int) $paid['c'])) . $big('Paying customers', $paying) . $big('MRR', '$' . number_format($mrr, 0)) . '</tr></table>'
         . '<h3>Where new sign-ups came from</h3><p>' . ($sources ? implode(' · ', array_map(fn($k, $v) => e($k) . ': ' . $v, array_keys($sources), $sources)) : 'No new sign-ups.') . '</p>'
         . '<h3>Demo requests</h3><p>' . ($leads ? implode(' · ', array_map(fn($l) => e($l['s']) . ': ' . $l['n'], $leads)) : 'None this week.') . '</p>'
+        . '<h3>Outreach to prospects</h3><p>' . prospects_week_summary() . '</p>'
         . '<h3>Trials in progress</h3>';
     if ($trials) {
         $html .= '<table style="border-collapse:collapse;font-size:14px"><tr><th align="left" ' . $cell . '>Portal</th><th align="left" ' . $cell . '>Days left</th><th align="left" ' . $cell . '>People added</th><th align="left" ' . $cell . '>Check-ins</th></tr>';

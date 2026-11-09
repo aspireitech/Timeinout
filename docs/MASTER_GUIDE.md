@@ -9,7 +9,7 @@ recover and move it. Hand this document to anyone who needs to take over the pro
 | Code | GitHub **`aspireitech/Timeinout`** (public), branch **`main`** |
 | Stack | PHP 8.1+ · MySQL 8 / MariaDB 10.4+ · Apache (`.htaccess`) · no framework, no build step |
 | Hosting today | Hostinger shared hosting, code in `public_html` |
-| Schema version | **14** (applied automatically on the first request after an update) |
+| Schema version | **15** (applied automatically on the first request after an update) |
 | Last updated | 2026-11-06 — see [§18 Change log](#18-change-log) |
 
 > **Never put real passwords, keys or customer data in this file or anywhere in the repository.**
@@ -43,6 +43,7 @@ clinic, gym…) gets its own portal at `name.clockinoutapp.com`.
 | **Public website** | Home, pricing (monthly/yearly), six campaign pages `/for/<industry>`, `/demo`, `/signup`, `/whats-new`, share links, SEO (sitemap, robots, structured data). |
 | **Trial and billing** | Self sign-up → portal live at once, welcome email with the address and first steps. Bold trial banner (orange in the last 2 days). When the trial ends the admin portal opens only Billing (and Help) until a plan is chosen; the kiosk keeps working 7 more days, then pauses. Billing shows Yearly (2 months free) first with Business highlighted; without online payment set up, "Choose plan" emails you to send an invoice. |
 | **Trial follow-up** | `app/lib/nurture.php`, run hourly. Emails the trial owner once per step, at most one a day: *import* (day 1+, no own people yet), *kiosk* (day 2+, no check-ins), *two-days* and *last-day* (with the optional promotion line). Alerts you when a trial has no check-ins after 2 days or ends tomorrow, with owner, people, check-ins and source. Every Monday (7:00+) emails you a scorecard: new sign-ups, payments, paying customers, MRR, sign-ups and leads by source, open trials. Never emails paying customers or the demo. Sent emails are logged in `nurture_log`. On/off and promotion line in `/super → Settings`. |
+| **Outreach to prospects** | `/super → Prospects` (`app/lib/prospects.php`, `app/controllers/prospects.php`). Prospects are pasted in, or posted by the daily Claude prospect finder to `POST /api/prospects` (header `X-Api-Key`; only its hash is stored; `GET` returns domains already known). Each gets email 1 ("<Org>: who picked up whom, and when?"), a follow-up after 4 days and a last note 5 days later, weekdays 8:00–16:00 in `outreach_tz`, at most `prospects_daily` (20) a day spread over the day, sent from the contact mailbox. Stops when the address or its organization signs up or books a demo, is marked Replied/Bounced/Removed, or unsubscribes (`/unsubscribe?t=…`, button page). Skips k12/.gov addresses, no-reply style addresses, duplicates and a second address at the same organization. Nothing is sent until sending is turned on and a name and postal address are saved. Weekly numbers appear in the Monday scorecard. |
 | **Automation** | Scheduled reports at 7:00, Wave billing sync, purging of deleted portals after 30 days, subdomain re-check, daily backups. |
 
 **Plans** (defined in `app/lib/billing.php` → `PLAN_CATALOG`; enforced in the app):
@@ -193,7 +194,7 @@ flowchart TB
 - **Dedicated database**: portals created in `/super → New portal` with "Own database" get a separate MySQL database. Its name, user and **encrypted** password are stored in `tenants`. The app switches to it for every request on that portal.
 - **Shared database**: self sign-ups live in the platform database, separated by `tenant_id`.
 - **Encrypted fields** (AES-256-GCM with `app/keys/app.key`): guardian and staff phone numbers and emails, extra imported info, customer database passwords, mailbox/Stripe/Wave/Google secrets.
-- **Schema versions** (`SCHEMA_VERSION` in `app/lib/migrate.php`): 1–7 core and dedicated DBs · 8 feature requests · 9 lead source · 10 yearly billing (`billing_cycle`) · 11 Authorized relative switch · 12 sign-up source · 13 `subdomain_ok` · 14 `nurture_log` (trial follow-up emails already sent; platform table).
+- **Schema versions** (`SCHEMA_VERSION` in `app/lib/migrate.php`): 1–7 core and dedicated DBs · 8 feature requests · 9 lead source · 10 yearly billing (`billing_cycle`) · 11 Authorized relative switch · 12 sign-up source · 13 `subdomain_ok` · 14 `nurture_log` (trial follow-up emails already sent; platform table) · 15 `prospects` (outreach; platform table).
 - **Portal addresses.** `name.clockinoutapp.com` needs the subdomain (and its SSL) set up on the host; Hostinger does not accept a `*` wildcard subdomain on the current plan. Every new portal is checked (`subdomain_live()` calls `https://name.clockinoutapp.com/__ping`); until it answers, `tenants.subdomain_ok = 0` and every link and email uses `clockinoutapp.com/s/name`, which always works. The hourly cron re-checks and switches links to the subdomain once it is live. `/super → Subscribers` shows "subdomain not live yet". The welcome email and page show the own address with **"will be live within 24 hours"** in red; you get a "To do: create subdomain …" email at sign-up, and the customer gets "Your address … is live" when the check succeeds.
 
 ---
@@ -219,7 +220,7 @@ sequenceDiagram
   I-->>B: page, PDF, CSV or JSON
 ```
 
-Special paths handled before routing: `/__ping` (answers `clockinout:<portal>`, used by the subdomain check), `/robots.txt` (portals: disallow all), share links `/linkedin /facebook /email /web /friend`, campaign pages `/for/<key>`, `/sitemap.xml`.
+Special paths handled before routing: `/__ping` (answers `clockinout:<portal>`, used by the subdomain check), `/robots.txt` (portals: disallow all), share links `/linkedin /facebook /email /web /friend`, campaign pages `/for/<key>`, `/sitemap.xml`. Main-site routes `/unsubscribe` (outreach opt-out) and `/api/prospects` (prospect finder, key in `X-Api-Key`, no CSRF).
 
 ---
 
@@ -288,6 +289,7 @@ flowchart LR
 | Where | Settings |
 |---|---|
 | `/super → Settings` | Email delivery (driver, server, sender passwords, encrypted), admin sign-in codes on/off (`admin_otp`), Stripe secret key, webhook secret, **monthly and yearly price IDs per plan**, Wave token, business ID and product IDs, Google Search Console tag, GA4 measurement ID, Stripe Tax switch (`stripe_tax`), trial follow-up on/off (`nurture_on`, default on) and promotion line (`trial_promo`). |
+| `/super → Prospects` | Outreach on/off (`prospects_on`, default off), emails per day (`prospects_daily`), signature name and phone (`outreach_name`, `outreach_phone`), postal address (`outreach_address`), time zone (`outreach_tz`), prospect finder key (`prospect_api_key_hash`). |
 | `/super → Sign-in` | Google Client ID and secret, break-glass password (hash), recovery codes (hashes). |
 
 ### 7.3 Settings per customer (`tenants` row, edited in the portal's **Branding & settings**)
@@ -322,7 +324,7 @@ Name, logo, colors, welcome text, time zone, kiosk without login, past-day entri
 
 | Job | Schedule | Does |
 |---|---|---|
-| `php /home/USER/domains/clockinoutapp.com/public_html/cron/send_reports.php` | **every hour** | Sends due daily/weekly/monthly reports (at each portal's report hour, default 7:00 local), syncs Wave invoices, purges portals deleted more than 30 days ago, re-checks portals whose subdomain was not live yet, sends trial follow-up emails and alerts, and the Monday scorecard. `--force` sends reports now, `--scorecard` sends the scorecard now (testing). |
+| `php /home/USER/domains/clockinoutapp.com/public_html/cron/send_reports.php` | **every hour** | Sends due daily/weekly/monthly reports (at each portal's report hour, default 7:00 local), syncs Wave invoices, purges portals deleted more than 30 days ago, re-checks portals whose subdomain was not live yet, sends trial follow-up emails and alerts, outreach emails to prospects, and the Monday scorecard. `--force` sends reports now, `--scorecard` sends the scorecard now (testing). |
 | `php /home/USER/domains/clockinoutapp.com/public_html/cron/backup.php` | **daily** (e.g. 02:00) | Dumps the platform database and every customer database to `backups/<date-time>/` as `.sql.gz` with `MANIFEST.txt`; keeps `backup_keep_days`. |
 | `php cron/super_password.php [--recovery]` | by hand, emergencies | Sets a new provider break-glass password; `--recovery` prints new recovery codes. |
 
@@ -529,3 +531,4 @@ step must update this guide **in the same commit**:
 | 2026-11-06 | Trial sign-up: welcome email, `/s/name` links until the subdomain is live (schema 13, hourly re-check, `/__ping`); bold trial and red ended banners; admin locked to Billing when the trial ends; Billing defaults to Yearly with Business highlighted and every plan selectable ("Choose plan" request when online payment is not set up). |
 | 2026-11-06 | Trial follow-up emails, provider alerts and Monday growth scorecard (schema 14, `nurture_log`); on/off and promotion line in /super → Settings. |
 | 2026-11-06 | `docs/SAAS_BLUEPRINT.md`: reusable multi-tenant SaaS design (demo, trial, lock, billing, shared or own database) for other projects. |
+| 2026-11-09 | Outreach to prospects: `/super → Prospects`, 3-email sequence with automatic stop, unsubscribe page, prospect finder API (schema 15). |

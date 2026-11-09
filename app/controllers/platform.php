@@ -94,6 +94,7 @@ function platform_signup(): void
             $t = subdomain_check(provision_tenant($d)); // links use /s/name until name.<domain> really works
             $mailed = welcome_email($t, $d['email'], $d['admin_name']);
             subdomain_todo_email($t); // you: create name.<domain> in hPanel within 24 hours
+            prospect_converted($d['email'], 'signed_up'); // no more outreach emails
             if ($src = lead_source()) {
                 update('tenants', ['source' => $src], 'id = ?', [$t['id']]);
             }
@@ -398,7 +399,7 @@ function web_cron(): void
         }
         return;
     }
-    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants(), subdomain_recheck(), run_nurture(), send_scorecard())) ?: 'Nothing due.';
+    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants(), subdomain_recheck(), run_nurture(), run_prospects(), send_scorecard())) ?: 'Nothing due.';
 }
 
 // ---------- Payments ----------
@@ -662,6 +663,7 @@ function platform_demo(): void
             if (!$bot) {
                 $id = insert('leads', $d + ['status' => 'new', 'ip' => client_ip(), 'source' => lead_source(), 'created_at' => gmdate('Y-m-d H:i:s')]);
                 $ok = lead_notify($d + ['source' => lead_source()]);
+                prospect_converted($d['email'], 'demo');
                 update('leads', ['emailed' => $ok ? 1 : 0], 'id = ?', [$id]);
                 audit('Demo request', $d['company'] . ' — ' . $d['name'], true, $ok ? 'Emailed to ' . lead_inbox() : 'Saved; email failed: ' . ($GLOBALS['mail_error'] ?? ''),
                     ['email' => $d['email'], 'name' => $d['name']]);

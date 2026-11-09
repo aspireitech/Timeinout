@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 14;
+const SCHEMA_VERSION = 15;
 
 function setting(string $key, $default = null)
 {
@@ -80,6 +80,9 @@ function migrate(): void
         }
         if ($v < 14) {
             migration_14();
+        }
+        if ($v < 15) {
+            migration_15();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -353,5 +356,33 @@ function migration_14(): void
         kind VARCHAR(40) NOT NULL,
         sent_at DATETIME NOT NULL,
         PRIMARY KEY (tenant_id, kind)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** V15: prospects for the automatic outreach emails (platform table). */
+function migration_15(): void
+{
+    q('CREATE TABLE IF NOT EXISTS prospects (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        org VARCHAR(160) NOT NULL,
+        first_name VARCHAR(60) NULL,
+        email VARCHAR(190) NOT NULL,
+        phone VARCHAR(40) NULL,
+        website VARCHAR(255) NULL,
+        city VARCHAR(60) NULL,
+        state VARCHAR(4) NULL,
+        kind VARCHAR(30) NOT NULL DEFAULT \'other\',
+        found_at VARCHAR(255) NULL,
+        status VARCHAR(20) NOT NULL DEFAULT \'new\',
+        step TINYINT UNSIGNED NOT NULL DEFAULT 0,
+        next_at DATETIME NULL,
+        last_sent_at DATETIME NULL,
+        token CHAR(32) NOT NULL,
+        notes TEXT NULL,
+        added_by VARCHAR(20) NOT NULL DEFAULT \'manual\',
+        created_at DATETIME NOT NULL,
+        UNIQUE KEY uq_prospect_email (email),
+        UNIQUE KEY uq_prospect_token (token),
+        KEY ix_prospect_due (status, next_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }

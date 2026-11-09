@@ -14,6 +14,7 @@
       <?php if (!empty($_SESSION['super'])): ?>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super') ?>">Subscribers</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/leads') ?>">Leads</a>
+        <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/prospects') ?>">Prospects</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/requests') ?>">Requests</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/payments') ?>">Payments</a>
         <a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/audit') ?>">Audit log</a>

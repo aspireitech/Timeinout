@@ -4,6 +4,7 @@ require APP_DIR . '/controllers/platform.php';
 require APP_DIR . '/controllers/kiosk.php';
 require APP_DIR . '/controllers/api.php';
 require APP_DIR . '/controllers/admin.php';
+require APP_DIR . '/controllers/prospects.php';
 
 /**
  * Tiny router. Patterns like /admin/students/{id} pass `id` as a named argument.
@@ -68,6 +69,14 @@ function platform_routes(string $path): void
         ['GET|POST', '/super/tenants/{id}/delete', 'super_tenant_delete'],
         ['POST',     '/super/tenants/{id}/restore', 'super_tenant_restore', 'Restored deleted portal'],
         ['GET',      '/super/leads',         'super_leads'],
+        ['GET',      '/super/prospects',     'super_prospects'],
+        ['POST',     '/super/prospects/add', 'super_prospects_add', 'Added prospects'],
+        ['POST',     '/super/prospects/settings', 'super_prospects_settings', 'Changed outreach settings'],
+        ['POST',     '/super/prospects/key', 'super_prospects_key', 'Created prospect finder key'],
+        ['GET',      '/super/prospects/{id}/preview', 'super_prospect_preview'],
+        ['POST',     '/super/prospects/{id}', 'super_prospect_update', 'Updated prospect'],
+        ['GET|POST', '/unsubscribe',         'platform_unsubscribe'],
+        ['GET|POST', '/api/prospects',       'webhook_prospects'],
         ['GET',      '/super/requests',      'super_requests'],
         ['POST',     '/super/requests/{id}', 'super_request_update', 'Updated feature request'],
         ['POST',     '/super/leads/{id}',    'super_lead_update',   'Updated lead'],
