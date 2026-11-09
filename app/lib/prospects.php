@@ -16,6 +16,16 @@ const PROSPECT_KINDS = ['tutoring' => 'Tutoring / learning center', 'daycare' =>
 const PROSPECT_GAPS = [1 => 4, 2 => 5];
 /** Personal mailbox domains: several contacts on these are not the same organization. */
 const FREEMAIL = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'comcast.net', 'me.com'];
+/** Franchise mailbox domains: each center is its own business (e.g. draper@mathnasium.com), so they count like personal mailboxes. */
+const SHARED_DOMAINS = ['ikumon.com', 'kumon.com', 'mathnasium.com', 'sylvanlearning.com', 'huntingtonhelps.com', 'clubztutoring.com', 'tutordoctor.com',
+    'thetutoringcenter.com', 'eyelevel.com', 'goddardschools.com', 'primroseschools.com', 'kiddieacademy.com', 'thelearningexperience.com',
+    'brightfutureskids.com', 'codeninjas.com', 'bestinclass.com', 'jeiamerica.com', 'c2educate.com', 'kidsrkids.com'];
+
+/** true when different addresses on this domain are different organizations. */
+function prospect_shared_domain(string $dom): bool
+{
+    return in_array($dom, FREEMAIL, true) || in_array($dom, SHARED_DOMAINS, true);
+}
 
 function prospect_domain(string $email): string
 {
@@ -42,7 +52,7 @@ function prospect_problem(array $p): ?string
     if (val('SELECT 1 FROM prospects WHERE email = ?', [$email])) {
         return 'already in the list';
     }
-    if (!in_array($dom, FREEMAIL, true) && val('SELECT 1 FROM prospects WHERE email LIKE ?', ['%@' . $dom])) {
+    if (!prospect_shared_domain($dom) && val('SELECT 1 FROM prospects WHERE email LIKE ?', ['%@' . $dom])) {
         return 'organization already in the list';
     }
     if (prospect_customer_state($email)) {
@@ -55,7 +65,7 @@ function prospect_problem(array $p): ?string
 function prospect_customer_state(string $email): ?string
 {
     $dom = prospect_domain($email);
-    $orgWide = !in_array($dom, FREEMAIL, true);
+    $orgWide = !prospect_shared_domain($dom);
     if (val('SELECT 1 FROM tenants WHERE report_emails LIKE ?', ['%' . ($orgWide ? '@' . $dom : $email) . '%'])) {
         return 'signed_up';
     }
@@ -111,9 +121,9 @@ function prospect_converted(string $email, string $status): void
     try {
         $email = strtolower(trim($email));
         $dom = prospect_domain($email);
-        $where = in_array($dom, FREEMAIL, true) ? 'email = ?' : 'email LIKE ?';
-        q("UPDATE prospects SET status = ?, next_at = NULL WHERE $where AND status NOT IN ('signed_up','unsubscribed')",
-            [$status, in_array($dom, FREEMAIL, true) ? $email : '%@' . $dom]);
+        $shared = prospect_shared_domain($dom);
+        q('UPDATE prospects SET status = ?, next_at = NULL WHERE ' . ($shared ? 'email = ?' : 'email LIKE ?') . " AND status NOT IN ('signed_up','unsubscribed')",
+            [$status, $shared ? $email : '%@' . $dom]);
     } catch (Throwable $e) {
         // the prospects table may not exist yet during an update
     }

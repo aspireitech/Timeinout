@@ -143,12 +143,12 @@ function webhook_prospects(): void
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         $domains = [];
         foreach (rows('SELECT email, website FROM prospects') as $r) {
-            $domains[prospect_domain($r['email'])] = true;
+            $domains[prospect_domain($r['email'])] = true; // franchise domains are dropped below; the finder checks those by email
             if ($r['website'] && ($h = parse_url($r['website'], PHP_URL_HOST))) {
                 $domains[preg_replace('/^www\./', '', strtolower($h))] = true;
             }
         }
-        $known = array_keys(array_diff_key($domains, array_flip(FREEMAIL)));
+        $known = array_keys(array_diff_key($domains, array_flip(array_merge(FREEMAIL, SHARED_DOMAINS))));
         json_out(['known_domains' => $known, 'count' => count($known)]);
     }
     $body = json_decode((string) file_get_contents('php://input'), true);
