@@ -35,7 +35,7 @@ $total = array_sum($counts);
       <?= csrf_field() ?>
       <div class="field"><label for="p-lines">Paste one per line: Organization, First name, Email, City, State, Type, Website, Phone</label>
         <textarea id="p-lines" name="lines" rows="4" placeholder="Bright Minds Tutoring, Sarah, sarah@brightminds.com, Draper, UT, tutoring, brightminds.com"></textarea>
-        <span class="muted small">Type: tutoring, daycare, school or other. First name, city, state, type, website and phone may be empty. Copy straight from Excel works too. Public school districts (k12, .gov) are skipped because they block outside email.</span></div>
+        <span class="muted small">Type: clinic, dental, daycare, tutoring, school, office, gym, construction, retail, restaurant or other (it picks the matching email). First name, city, state, type, website and phone may be empty. Copy straight from Excel works too. Public school districts (k12, .gov) are skipped because they block outside email.</span></div>
       <div><button class="btn btn-primary btn-sm">Add prospects</button></div>
     </form>
     <h3 style="margin-top:14px">Daily prospect finder (Claude)</h3>
