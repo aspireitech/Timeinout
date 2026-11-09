@@ -218,8 +218,8 @@ function run_prospects(bool $force = false): array
     $cap = max(1, min(100, (int) setting('prospects_daily', '20')));
     $dayStart = (clone $now)->setTime(0, 0)->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     $sentToday = (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]);
-    // Spread the day's emails over the 8 sending hours instead of sending them all at 8:00
-    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap * ($hour - 7) / 8) - $sentToday);
+    // Spread the day's emails over the 8 sending hours: at most cap/8 per hourly run (3 when the cap is 20)
+    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap / 8));
     if ($room <= 0) {
         return [];
     }
