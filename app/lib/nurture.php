@@ -19,6 +19,17 @@ function trial_activity(array $t): array
     });
 }
 
+/** A customer's own time zone: the portal setting, the kiosk device, their state, or yours. */
+function tenant_local_tz(array $t): DateTimeZone
+{
+    foreach ([$t['timezone'] ?? '', $t['device_timezone'] ?? ''] as $tz) {
+        if (valid_tz((string) $tz)) {
+            return new DateTimeZone($tz);
+        }
+    }
+    return state_tz($t['state'] ?? null);
+}
+
 function nurture_sent(int $tenantId, string $kind): bool
 {
     return (bool) val('SELECT 1 FROM nurture_log WHERE tenant_id = ? AND kind = ?', [$tenantId, $kind]);
@@ -97,14 +108,20 @@ function run_nurture(): array
             $last = val("SELECT MAX(sent_at) FROM nurture_log WHERE tenant_id = ? AND kind NOT LIKE 'alert-%'", [$t['id']]);
             $mail = nurture_customer_email($t, $a, $daysIn, $left);
             $to = $a['owner']['email'] ?? null;
-            if ($mail && $to && !nurture_sent((int) $t['id'], $mail[0]) && (!$last || strtotime($last . ' UTC') < time() - 20 * 3600)) {
+            // Customer emails only 9:00–17:00 in the customer's own time zone, so they are read, not buried
+            $localHour = (int) (new DateTime('now', tenant_local_tz($t)))->format('G');
+            if ($mail && $to && $localHour >= 9 && $localHour < 17 && !nurture_sent((int) $t['id'], $mail[0]) && (!$last || strtotime($last . ' UTC') < time() - 20 * 3600)) {
                 if (send_mail([$to], $mail[1], $mail[2])) {
                     nurture_mark((int) $t['id'], $mail[0]);
                     audit('Trial email sent', $t['name'], true, $mail[0] . ' to ' . $to);
                     $log[] = $t['slug'] . ': trial email "' . $mail[0] . '"';
                 }
             }
-            // To you
+            // To you: only 8:00–18:00 in your own time zone (/super → Prospects → time zone)
+            $myHour = (int) (new DateTime('now', outreach_tz()))->format('G');
+            if ($myHour < 8 || $myHour >= 18) {
+                continue;
+            }
             $alert = null;
             if ($left === 1 && !nurture_sent((int) $t['id'], 'alert-ending')) {
                 $alert = ['alert-ending', $t['name'] . ': trial ends tomorrow', 'The trial ends tomorrow. A quick call often turns it into a sale.'];
@@ -133,10 +150,11 @@ function run_nurture(): array
 /** Monday from 7:00 (server time): last week's numbers to the provider, once per week. */
 function send_scorecard(bool $force = false): array
 {
-    if (setting('nurture_on', '1') !== '1' || (!$force && (date('N') !== '1' || (int) date('G') < 7))) {
+    $mine = new DateTime('now', outreach_tz()); // Monday 8:00 in your own time zone
+    if (setting('nurture_on', '1') !== '1' || (!$force && ($mine->format('N') !== '1' || (int) $mine->format('G') < 8))) {
         return [];
     }
-    $kind = 'scorecard-' . date('o-W');
+    $kind = 'scorecard-' . $mine->format('o-W');
     if (!$force && nurture_sent(0, $kind)) {
         return [];
     }

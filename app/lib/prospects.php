@@ -133,6 +133,47 @@ function prospect_converted(string $email, string $status): void
     }
 }
 
+/** Main time zone of each US state (where most people live), to send at the recipient's local business hours. */
+const STATE_TZ = [
+    'AL' => 'America/Chicago', 'AK' => 'America/Anchorage', 'AZ' => 'America/Phoenix', 'AR' => 'America/Chicago', 'CA' => 'America/Los_Angeles',
+    'CO' => 'America/Denver', 'CT' => 'America/New_York', 'DE' => 'America/New_York', 'DC' => 'America/New_York', 'FL' => 'America/New_York',
+    'GA' => 'America/New_York', 'HI' => 'Pacific/Honolulu', 'ID' => 'America/Boise', 'IL' => 'America/Chicago', 'IN' => 'America/Indiana/Indianapolis',
+    'IA' => 'America/Chicago', 'KS' => 'America/Chicago', 'KY' => 'America/New_York', 'LA' => 'America/Chicago', 'ME' => 'America/New_York',
+    'MD' => 'America/New_York', 'MA' => 'America/New_York', 'MI' => 'America/Detroit', 'MN' => 'America/Chicago', 'MS' => 'America/Chicago',
+    'MO' => 'America/Chicago', 'MT' => 'America/Denver', 'NE' => 'America/Chicago', 'NV' => 'America/Los_Angeles', 'NH' => 'America/New_York',
+    'NJ' => 'America/New_York', 'NM' => 'America/Denver', 'NY' => 'America/New_York', 'NC' => 'America/New_York', 'ND' => 'America/Chicago',
+    'OH' => 'America/New_York', 'OK' => 'America/Chicago', 'OR' => 'America/Los_Angeles', 'PA' => 'America/New_York', 'RI' => 'America/New_York',
+    'SC' => 'America/New_York', 'SD' => 'America/Chicago', 'TN' => 'America/Chicago', 'TX' => 'America/Chicago', 'UT' => 'America/Denver',
+    'VT' => 'America/New_York', 'VA' => 'America/New_York', 'WA' => 'America/Los_Angeles', 'WV' => 'America/New_York', 'WI' => 'America/Chicago',
+    'WY' => 'America/Denver', 'PR' => 'America/Puerto_Rico',
+];
+
+/** The time zone of a US state, or the outreach time zone when the state is unknown. */
+function state_tz(?string $state): DateTimeZone
+{
+    $tz = STATE_TZ[strtoupper((string) $state)] ?? null;
+    return $tz ? new DateTimeZone($tz) : outreach_tz();
+}
+
+/**
+ * Is it a good moment to land in this prospect's inbox? Their local time:
+ * Tue–Thu 9:00–12:00 and 13:00–15:00, Mon 10:00–12:00 and 13:00–15:00 (after the Monday-morning pile), Fri 9:00–12:00. Never weekends or lunch.
+ */
+function prospect_send_window(?string $state, ?DateTime $at = null): bool
+{
+    $local = (clone ($at ?? new DateTime('now')))->setTimezone(state_tz($state));
+    $day = (int) $local->format('N');
+    $h = (int) $local->format('G');
+    if ($day > 5 || $h === 12) {
+        return false;
+    }
+    return match ($day) {
+        1 => $h >= 10 && $h < 15,
+        5 => $h >= 9 && $h < 12,
+        default => $h >= 9 && $h < 15,
+    };
+}
+
 function outreach_tz(): DateTimeZone
 {
     $tz = (string) setting('outreach_tz', 'America/Denver');
@@ -286,21 +327,19 @@ function run_prospects(bool $force = false): array
         return [];
     }
     $now = new DateTime('now', outreach_tz());
-    $hour = (int) $now->format('G');
-    if (!$force && ((int) $now->format('N') > 5 || $hour < 8 || $hour >= 16)) {
-        return []; // weekdays 8:00–16:00 in the outreach time zone
-    }
     $cap = max(1, min(100, (int) setting('prospects_daily', '20')));
     $dayStart = (clone $now)->setTime(0, 0)->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     $sentToday = (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]);
-    // Spread the day's emails over the 8 sending hours: at most cap/8 per hourly run (3 when the cap is 20)
-    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap / 8));
+    // Spread the day's emails: at most cap/5 per hourly run (4 when the cap is 20)
+    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap / 5));
     if ($room <= 0) {
         return [];
     }
     $utc = gmdate('Y-m-d H:i:s');
     $due = rows("SELECT * FROM prospects WHERE (status = 'active' AND next_at <= ?) OR status = 'new'
-                 ORDER BY status = 'new', next_at, id LIMIT " . (int) $room, [$utc]);
+                 ORDER BY status = 'new', next_at, id LIMIT 500", [$utc]);
+    // Only those whose local time is a good moment right now (see prospect_send_window)
+    $due = array_slice(array_values(array_filter($due, fn($p) => $force || prospect_send_window($p['state']))), 0, $room);
     $log = [];
     foreach ($due as $p) {
         if ($state = prospect_customer_state($p['email'])) {
