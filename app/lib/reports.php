@@ -258,7 +258,7 @@ function csv_string(array $rows): string
     fwrite($fh, "\xEF\xBB\xBF"); // so Excel reads UTF-8 names correctly
     foreach ($rows as $r) {
         // Prefix cells that Excel would treat as formulas
-        fputcsv($fh, array_map(fn($v) => is_string($v) && preg_match('/^[=+\-@]/', $v) ? "'" . $v : $v, $r), ',', '"', '\\');
+        fputcsv($fh, array_map(fn($v) => is_string($v) && preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v, $r), ',', '"', '\\');
     }
     rewind($fh);
     $s = stream_get_contents($fh);

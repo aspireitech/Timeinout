@@ -330,7 +330,7 @@ Name, logo, colors, welcome text, time zone, kiosk without login, past-day entri
 | `php cron/super_password.php [--recovery]` | by hand, emergencies | Sets a new provider break-glass password; `--recovery` prints new recovery codes. |
 
 Adjust the path to where the code lives (Hostinger: hPanel → Advanced → Cron Jobs).
-No cron on the host? Call `https://clockinoutapp.com/cron?key=CRON_KEY` hourly from an external pinger (same as `send_reports.php`).
+No cron on the host? Call `https://clockinoutapp.com/run-cron?key=CRON_KEY` hourly from an external pinger (same as `send_reports.php`). Use `/run-cron`, not `/cron`: when the whole project sits in `public_html`, `/cron` is the blocked `cron/` folder.
 
 ---
 
@@ -341,7 +341,8 @@ No cron on the host? Call `https://clockinoutapp.com/cron?key=CRON_KEY` hourly f
 | Transport | HTTPS forced, HSTS, strict Content-Security-Policy, X-Frame-Options, nosniff, Referrer-Policy. GA4 domains are added to the policy only on the public site when an ID is set. |
 | Files | Root `.htaccess` blocks `app/ database/ cron/ docs/ backups/ .git README.md`; `app/.htaccess`, `app/sessions/.htaccess`, `cron/.htaccess`, `database/.htaccess` contain `Require all denied`. |
 | Sign-in | Emailed codes for admins, provider chain (Google → code → break-glass), lockout, idle sign-out, enforced password rules, must-change temporary passwords, "did not request this code? report it" link. |
-| Requests | CSRF token on every POST, prepared SQL statements everywhere, output escaping (`e()`). |
+| Requests | CSRF token on every POST, prepared SQL statements everywhere, output escaping (`e()`), kiosk JavaScript escapes every name. `X-Powered-By` removed. |
+| Abuse limits | Sign-up: hidden bot field, at most 3 per network per hour, 10 per day, 2 per email per day (`signup_abuse()`). Demo form 5 per network per hour. Spreadsheet imports: 5 MB upload, parts over 40 MB unpacked refused (zip bombs), no external XML entities. CSV exports neutralise formulas (`= + - @`, tab, CR). |
 | Data | Customers separated by database or `tenant_id`; AES-256-GCM for contacts and secrets; passwords hashed with `password_hash`. |
 | Privacy | Portals send `noindex` and robots.txt disallows them; no analytics in portals or `/super`. |
 | Audit | Every sign-in, change, import, export and payment event in `audit_log` (portal) and the provider audit log. |
@@ -537,3 +538,4 @@ step must update this guide **in the same commit**:
 | 2026-11-09 | Prospects: all small-business types (clinic, dental, office, gym, construction, retail, restaurant…) with an email written for each. |
 | 2026-11-09 | Provider alerts: copy to extra addresses (/super → Settings), new alerts for sign-ups, card subscriptions, payments and cancellations. |
 | 2026-11-09 | Local-time sending: outreach in each prospect's business hours (by state), trial emails 9–17 customer time, alerts 8–18 and Monday scorecard 8:00 provider time. |
+| 2026-11-10 | Security review: sign-up abuse limits and bot field, zip-bomb guard on .xlsx import, CSV formula guard for tab/CR, `X-Powered-By` hidden, `/run-cron` web cron address. |

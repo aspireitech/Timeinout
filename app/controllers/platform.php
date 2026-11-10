@@ -90,7 +90,11 @@ function platform_signup(): void
         if ($d['state'] === 'XX') {
             $d['state'] = '';
         }
+        if (!$errors && ($why = signup_abuse($d['email']))) {
+            $errors['form'] = $why;
+        }
         if (!$errors) {
+            login_attempt('signup', $d['email'], true); // counts sign-ups per network and per email (signup_abuse)
             $t = subdomain_check(provision_tenant($d)); // links use /s/name until name.<domain> really works
             $mailed = welcome_email($t, $d['email'], $d['admin_name']);
             subdomain_todo_email($t); // you: create name.<domain> in hPanel within 24 hours
@@ -682,6 +686,24 @@ function platform_demo(): void
         'metaTitle' => 'Book a live demo | ' . cfg('app_name'), 'metaDesc' => 'See ClockInOut with your own people: two-tap check-in, safe pickups, live attendance and reports by email.'], 'platform');
 }
 
+/**
+ * Stops scripted mass sign-ups (fake portals, welcome emails sent to strangers):
+ * a hidden field only bots fill in, at most 3 sign-ups per network per hour and 10 per day, 2 per email per day.
+ */
+function signup_abuse(string $email): ?string
+{
+    if ((string) input('website') !== '') {
+        return 'Please try again.';
+    }
+    $ip = client_ip();
+    $count = fn(string $where, array $p, string $since) => (int) val("SELECT COUNT(*) FROM login_attempts WHERE scope = 'signup' AND $where AND created_at > NOW() - INTERVAL $since", $p);
+    if ($count('ip = ?', [$ip], '1 HOUR') >= 3 || $count('ip = ?', [$ip], '1 DAY') >= 10 || $count('email = ?', [strtolower($email)], '1 DAY') >= 2) {
+        audit('Sign-up blocked (too many)', $email, false, 'from ' . $ip, ['email' => $email]);
+        return 'Too many sign-ups from your network today. Please try again tomorrow, or email us and we will set it up for you.';
+    }
+    return null;
+}
+
 function lead_inbox(): string
 {
     return (string) (cfg('lead_email') ?: 'contact@' . cfg('base_domain'));
@@ -910,7 +932,7 @@ function seo_robots(bool $mainSite): void
     if (!$mainSite) {
         exit("User-agent: *\nDisallow: /\n");
     }
-    exit("User-agent: *\nAllow: /\nDisallow: /super\nDisallow: /login\nDisallow: /check-address\nDisallow: /report-activity\nDisallow: /cron\nDisallow: /webhooks\n\n"
+    exit("User-agent: *\nAllow: /\nDisallow: /super\nDisallow: /login\nDisallow: /check-address\nDisallow: /report-activity\nDisallow: /cron\nDisallow: /run-cron\nDisallow: /webhooks\nDisallow: /api/\nDisallow: /unsubscribe\n\n"
         . 'Sitemap: https://' . cfg('base_domain') . base_path() . "/sitemap.xml\n");
 }
 

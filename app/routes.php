@@ -89,6 +89,7 @@ function platform_routes(string $path): void
         ['GET|POST', '/super/payments',      'super_payments'],
         ['POST',     '/webhooks/stripe',     'webhook_stripe'],
         ['GET',      '/cron',                'web_cron'],
+        ['GET',      '/run-cron',            'web_cron'], // use this one when the whole project is in public_html (/cron is the blocked cron/ folder there)
     ]);
 }
 

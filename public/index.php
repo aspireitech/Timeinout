@@ -38,6 +38,7 @@ if (cfg('force_https') && empty($_SERVER['HTTPS']) && ($_SERVER['HTTP_X_FORWARDE
     header('Location: https://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
     exit;
 }
+header_remove('X-Powered-By'); // do not advertise the PHP version
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');

@@ -63,6 +63,10 @@ function xlsx_table(string $file): array
         throw new RuntimeException('This .xlsx file could not be opened. Save it again in Excel, or upload a CSV.');
     }
     $xml = function (string $name) use ($zip): ?SimpleXMLElement {
+        $stat = $zip->statName($name);
+        if ($stat !== false && $stat['size'] > 40 * 1024 * 1024) { // a small file that unpacks to a huge one (zip bomb)
+            throw new RuntimeException('This .xlsx file is too large to import. Save it as CSV and upload that.');
+        }
         $raw = $zip->getFromName($name);
         if ($raw === false) {
             return null;
