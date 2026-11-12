@@ -39,6 +39,8 @@
 <li>Job 1: type <code>public_html/cron/send_reports.php</code>, Common Options <strong>Once Per Hour</strong> (minute 0), Save.</li>
 <li>Job 2: type <code>public_html/cron/backup.php</code>, Minute <strong>0</strong>, Hour <strong>2</strong>, Save.</li>
 <li>Check: the list shows <code>0 * * * *</code> and <code>0 2 * * *</code>. Click <strong>View Output</strong> on job 1 after the next hour: it shows lines such as <code>prospect …: email 1 sent</code> or <code>Nothing due.</code></li>
+<li>Also check the top of <code>/super → Prospects</code>: a green badge "Hourly job last ran …, all good". Red means it has not run in 2 hours.</li>
+<li>If the output says the job runs an old PHP version: edit the job, choose <strong>Custom</strong>, and use a newer PHP path, for example <code>/opt/alt/php83/usr/bin/php /home/&lt;account&gt;/public_html/cron/send_reports.php</code>.</li>
 </ol>
 <table><thead><tr><th>Job</th><th>When</th><th>Does</th></tr></thead><tbody>
 <tr><td><code>cron/send_reports.php</code></td><td>Every hour</td><td>Customer reports at each portal's hour (default 7:00 local), Wave sync, purge of portals deleted 30+ days ago, subdomain re-check, trial emails and alerts, outreach emails, Monday scorecard</td></tr>
