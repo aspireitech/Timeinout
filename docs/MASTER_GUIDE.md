@@ -541,3 +541,4 @@ step must update this guide **in the same commit**:
 | 2026-11-09 | Local-time sending: outreach in each prospect's business hours (by state), trial emails 9–17 customer time, alerts 8–18 and Monday scorecard 8:00 provider time. |
 | 2026-11-10 | Security review: sign-up abuse limits and bot field, zip-bomb guard on .xlsx import, CSV formula guard for tab/CR, `X-Powered-By` hidden, `/run-cron` web cron address. |
 | 2026-11-12 | Confluence space CIO with step-by-step pages and screenshots (`docs/confluence/`), private credentials register, offline documentation copy. |
+| 2026-11-12 | Confluence FAQ page: 56 questions from basic to advanced with screenshots (`docs/confluence/14-faq.html`). |

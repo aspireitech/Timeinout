@@ -32,7 +32,7 @@ def main():
             if p.get('format') == 'markdown':
                 body = '<pre style="white-space:pre-wrap">' + html.escape(open(src).read()) + '</pre>'
             else:
-                body = open(src).read().replace('{{IMGROOT}}', 'img')
+                body = open(src).read().replace('{{IMGROOT}}', 'img').replace(cfg['image_base'], 'img')
             z.writestr(name, page(p['title'], body))
             links.append((p['title'], name))
         for extra in sys.argv[2:]:
