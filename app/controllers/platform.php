@@ -409,7 +409,7 @@ function web_cron(): void
         }
         return;
     }
-    echo implode("\n", array_merge(run_scheduled_reports(), wave_sync(), purge_expired_tenants(), subdomain_recheck(), run_nurture(), run_prospects(), send_scorecard())) ?: 'Nothing due.';
+    echo implode("\n", run_hourly_jobs()) ?: 'Nothing due.';
 }
 
 // ---------- Payments ----------

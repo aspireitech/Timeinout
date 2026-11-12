@@ -8,6 +8,10 @@
 if (PHP_SAPI !== 'cli') {
     exit('Run from the command line.');
 }
+if (PHP_VERSION_ID < 80100) {
+    echo 'This cron job runs PHP ' . PHP_VERSION . ', but ClockInOut needs PHP 8.1 or newer. Use a newer PHP path in the cron job.' . PHP_EOL;
+    exit(1);
+}
 require __DIR__ . '/../app/bootstrap.php';
 ini_set('memory_limit', '512M');
 set_time_limit(0);

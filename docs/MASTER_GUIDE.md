@@ -329,7 +329,7 @@ Name, logo, colors, welcome text, time zone, kiosk without login, past-day entri
 | `php /home/USER/domains/clockinoutapp.com/public_html/cron/backup.php` | **daily** (e.g. 02:00) | Dumps the platform database and every customer database to `backups/<date-time>/` as `.sql.gz` with `MANIFEST.txt`; keeps `backup_keep_days`. |
 | `php cron/super_password.php [--recovery]` | by hand, emergencies | Sets a new provider break-glass password; `--recovery` prints new recovery codes. |
 
-Adjust the path to where the code lives (Hostinger: hPanel → Advanced → Cron Jobs).
+Adjust the path to where the code lives (Hostinger: hPanel → Advanced → Cron Jobs). Each hourly task runs on its own (`run_hourly_jobs()` in `app/lib/jobs.php`), so one failing task never stops the others; the last run time and output show at the top of `/super → Prospects`. The job needs PHP 8.1+: if the cron's PHP is older, its output says so; then use **Custom** with a newer PHP path (for example `/opt/alt/php83/usr/bin/php`).
 No cron on the host? Call `https://clockinoutapp.com/run-cron?key=CRON_KEY` hourly from an external pinger (same as `send_reports.php`). Use `/run-cron`, not `/cron`: when the whole project sits in `public_html`, `/cron` is the blocked `cron/` folder.
 
 ---
@@ -542,3 +542,4 @@ step must update this guide **in the same commit**:
 | 2026-11-10 | Security review: sign-up abuse limits and bot field, zip-bomb guard on .xlsx import, CSV formula guard for tab/CR, `X-Powered-By` hidden, `/run-cron` web cron address. |
 | 2026-11-12 | Confluence space CIO with step-by-step pages and screenshots (`docs/confluence/`), private credentials register, offline documentation copy. |
 | 2026-11-12 | Confluence FAQ page: 56 questions from basic to advanced with screenshots (`docs/confluence/14-faq.html`). |
+| 2026-11-12 | Hourly job: tasks isolated (`run_hourly_jobs()`), last-run status and output in /super → Prospects, clear message when the cron's PHP is older than 8.1. |

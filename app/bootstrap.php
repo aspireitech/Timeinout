@@ -34,6 +34,7 @@ require APP_DIR . '/lib/billing.php';
 require APP_DIR . '/lib/backup.php';
 require APP_DIR . '/lib/nurture.php';
 require APP_DIR . '/lib/prospects.php';
+require APP_DIR . '/lib/jobs.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', cfg('debug') ? '1' : '0');

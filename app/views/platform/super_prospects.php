@@ -10,6 +10,9 @@ $total = array_sum($counts);
       <h2><?= icon('mail') ?> Outreach to prospects</h2>
       <span class="badge <?= $on ? 'in' : 'warn' ?>"><?= $on ? 'Sending is on' : 'Sending is off' ?></span>
     </div>
+    <?php [$jobMsg, $jobCls] = hourly_job_status(); ?>
+    <p style="margin:0 0 10px"><span class="badge <?= e($jobCls) ?>"><?= e($jobMsg) ?></span></p>
+    <?php if (setting('cron_last_log', '') !== ''): ?><details style="margin:0 0 10px"><summary class="small">Last hourly job output</summary><pre class="small" style="white-space:pre-wrap;max-height:220px;overflow:auto"><?= e((string) setting('cron_last_log')) ?></pre></details><?php endif; ?>
     <p class="muted small">Each prospect gets <b>email 1</b>, a <b>follow-up 4 days later</b> and a <b>last note 5 days after that</b>, on weekdays between 8:00 and 16:00, spread over the day.
       Emails stop by themselves when the prospect signs up, books a demo or unsubscribes. When someone replies, set them to <b>Replied</b> below so they get no more automatic emails.
       Sent from your contact mailbox, so replies come to you.</p>
