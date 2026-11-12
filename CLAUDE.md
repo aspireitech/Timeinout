@@ -9,3 +9,7 @@
   `app/config.php` / `app/keys/`.
 - Keep `main` deployable: plain PHP 8, no build step; schema changes go in `app/lib/migrate.php` as a new
   `migration_N()` and must be additive.
+- Documentation is also published to Confluence (space `CIO`) from `docs/confluence/` (see `pages.json` and
+  MASTER_GUIDE §17 step 5). When the Atlassian connector is available, republish the pages a change affects and
+  rebuild the offline copy. The private credentials register lives only in Confluence: it lists where secrets are
+  stored, never their values.

@@ -1,0 +1,63 @@
+<p>Everything that brings and keeps customers without you lifting a finger: trial emails, alerts, the weekly scorecard, automatic outreach to new leads, the daily lead finder, and Facebook posts.</p>
+<h2>Overview</h2>
+<table><thead><tr><th>Automation</th><th>Runs on</th><th>When</th><th>Turn on/off</th></tr></thead><tbody>
+<tr><td>Trial follow-up emails to new customers</td><td>Hostinger hourly cron</td><td>9:00–17:00 customer's time</td><td><code>/super → Settings → Trial follow-up</code></td></tr>
+<tr><td>Alerts to you (sign-ups, payments, trials needing a call)</td><td>The app</td><td>Instantly; trial alerts 8:00–18:00 your time</td><td>Always on; extra addresses in <code>/super → Settings</code></td></tr>
+<tr><td>Weekly scorecard</td><td>Hostinger hourly cron</td><td>Monday 8:00 your time</td><td>Same switch as trial follow-up</td></tr>
+<tr><td>Outreach emails to prospects</td><td>Hostinger hourly cron</td><td>Weekdays, prospect's business hours</td><td><code>/super → Prospects</code></td></tr>
+<tr><td>Daily lead finder</td><td>Claude (cloud)</td><td>5:47 AM Utah time daily</td><td>claude.ai → scheduled tasks</td></tr>
+<tr><td>Facebook posts</td><td>Metricool</td><td>10:00 AM Utah time daily</td><td>Metricool → Planner</td></tr>
+</tbody></table>
+<h2>1. Trial follow-up</h2>
+<ol>
+<li>Day 1+, no own people yet: "Add your people (we can do it for you)".</li>
+<li>Day 2+, nobody signed in yet: "Put your kiosk at the door" (3 steps).</li>
+<li>2 days left, then last day: "Choose a plan" (with the optional promotion line from <code>/super → Settings</code>).</li>
+</ol>
+<p>Each email once, at most one a day, never to paying customers or the demo.</p>
+<h2>2. Alerts to you</h2>
+<p>New sign-up · new card customer · payment received · <strong>ACTION: payment failed</strong> · cancellation · demo request · "chose a plan, send invoice" · subdomain to-do · trial with no check-ins after 2 days · trial ends tomorrow · feature request · suspicious sign-in report · recovery code or break-glass used. Sent to contact@ and every address in "Also send alerts to".</p>
+<h2>3. Weekly scorecard (Monday 8:00)</h2>
+<p>New sign-ups, payments, paying customers, monthly recurring revenue, sign-ups and demo requests by source, outreach numbers (added, emailed, replied, demos, signed up, unsubscribed), and every open trial (red = no check-ins yet: call them).</p>
+<h2>4. Outreach to prospects</h2>
+<img src="{{IMGROOT}}/screens/12-super-prospects.jpg" alt="Prospects page" width="1000">
+<h3>Settings (one time)</h3>
+<ol>
+<li><code>/super → Prospects</code> → your name, phone, <strong>business postal address</strong> (required by US law), emails per day (20), time zone → tick <strong>Send outreach emails automatically</strong> → Save.</li>
+</ol>
+<h3>What each lead receives</h3>
+<ol>
+<li><strong>Email 1</strong>, written for their kind of business (childcare/tutoring/schools, clinics and dental, offices/retail/restaurants, gyms, construction and field crews) with a matching banner. Example subject: "Smile Bright Dental: staff hours without the paper timesheet".</li>
+<li><strong>Follow-up</strong> 4 days later.</li>
+<li><strong>Last note</strong> 5 days after that, then status "No answer".</li>
+</ol>
+<p>Sent from contact@ in the lead's own business hours (by state): Tue–Thu 9–12 and 13–15, Mon 10–12 and 13–15, Fri 9–12; at most 4 per hour and 20 per day. It stops automatically on sign-up, demo request or unsubscribe. <strong>You</strong> set Replied or Bounced. Every email has an unsubscribe link and your postal address. Preview any email with the <em>Preview</em> link on each row.</p>
+<h3>Adding leads by hand</h3>
+<p>Paste one per line: <code>Organization, First name, Email, City, State, Type, Website, Phone</code> (Type: clinic, dental, daycare, tutoring, school, office, gym, construction, retail, restaurant, other). District and government addresses are skipped automatically.</p>
+<h2>5. Daily lead finder (Claude)</h2>
+<ul>
+<li><strong>What:</strong> a Claude scheduled task named <strong>"ClockInOut daily prospect finder"</strong>, every day at 5:47 AM Utah time.</li>
+<li><strong>Where it searches:</strong> one state per day, rotating through Utah, Idaho, Nevada, Colorado, Wyoming, Montana, Washington, Oregon, California, Alaska, Hawaii.</li>
+<li><strong>Who:</strong> small businesses (about 5–150 staff): clinics and dental, daycares, tutoring, offices, gyms, construction and trades. Only emails published on the business's own website.</li>
+<li><strong>How it delivers:</strong> posts to <code>https://clockinoutapp.com/api/prospects</code> with the finder key (header <code>X-Api-Key</code>).</li>
+<li><strong>Runs in:</strong> Claude cloud environment <strong>"Timeinout"</strong> (claude.ai → Settings → Code → Cloud environments), which has web access and holds the key as a protected network secret.</li>
+</ul>
+<h3>Change or pause it</h3>
+<ol><li>Open a Claude Code session and ask "pause the daily prospect finder" or "change the states to …".</li><li>Or claude.ai → scheduled tasks → ClockInOut daily prospect finder → disable.</li></ol>
+<h3>Replace the finder key (if it ever leaks)</h3>
+<ol><li><code>/super → Prospects → Replace finder key</code> → the new key is shown once.</li><li>claude.ai → Settings → Code → Cloud environments → <strong>Timeinout</strong> → network secrets → "ClockInOut prospect finder key" → replace the value (or ask Claude to show the secure form).</li></ol>
+<h2>6. Facebook posts (Metricool)</h2>
+<ul>
+<li>Metricool brand <strong>"ClockinOut"</strong> connected to the ClockInOut Facebook page; time zone America/Denver.</li>
+<li>30 posts scheduled at 10:00 AM daily (Nov 13 – Dec 12, 2026): industry tips, feature highlights, polls, pricing; each links to the matching page with <code>?src=facebook</code> so sign-ups show "via facebook".</li>
+<li>See or edit: <a href="https://app.metricool.com">app.metricool.com</a> → Planner.</li>
+<li><strong>Refill monthly:</strong> around the 8th, ask Claude "schedule the next month of Facebook posts" (Claude reads the best-performing posts first).</li>
+<li>LinkedIn and Google Business Profile need a paid Metricool plan.</li>
+</ul>
+<h2>7. Tracked links (where sign-ups come from)</h2>
+<table><thead><tr><th>Link</th><th>Use for</th></tr></thead><tbody>
+<tr><td><code>clockinoutapp.com/facebook</code>, <code>/linkedin</code>, <code>/email</code>, <code>/web</code>, <code>/friend</code></td><td>Short share links that record the source</td></tr>
+<tr><td><code>clockinoutapp.com/for/schools</code>, <code>/tutoring</code>, <code>/offices</code>, <code>/healthcare</code>, <code>/gyms</code>, <code>/construction</code></td><td>Industry pages; add <code>?src=channel</code></td></tr>
+</tbody></table>
+<h2>8. Search and analytics</h2>
+<p>Google Search Console (site verification tag) and Google Analytics 4 (measurement ID) are set in <code>/super → Settings</code>; analytics run on the public site only, never inside customer portals.</p>

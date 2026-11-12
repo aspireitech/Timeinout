@@ -1,0 +1,47 @@
+<p>Your control room at <a href="https://clockinoutapp.com/super">clockinoutapp.com/super</a>. Every customer, lead, prospect, payment and setting is here.</p>
+<h2>Sign in (3 ways, in order)</h2>
+<img src="{{IMGROOT}}/screens/03-super-login.jpg" alt="Provider sign-in page" width="900">
+<ol>
+<li><strong>Sign in with Google</strong> (recommended): your Google account with 2-Step Verification.</li>
+<li><strong>Email me a sign-in code</strong>: if Google is down, a 6-digit code goes to the provider email.</li>
+<li><strong>Break-glass</strong>: if Google and email are both down: break-glass password plus one unused recovery code.</li>
+<li>Last resort (server access): over SSH run <code>php cron/super_password.php --recovery</code> in the site folder, then create new recovery codes.</li>
+</ol>
+<h3>Set up or change sign-in: /super → Sign-in</h3>
+<img src="{{IMGROOT}}/screens/14-super-signin-security.jpg" alt="Provider sign-in settings" width="900">
+<ol>
+<li><strong>Google keys:</strong> Google Cloud console → APIs &amp; Services → Credentials → OAuth client (Web application) with redirect URIs <code>https://clockinoutapp.com/super/google/callback</code> and <code>https://www.clockinoutapp.com/super/google/callback</code> → paste Client ID and secret → Save Google keys.</li>
+<li><strong>Break-glass password:</strong> 14+ characters → Save. Store it in your password manager.</li>
+<li><strong>Recovery codes:</strong> Create → 10 codes appear once → copy all into your password manager. Each works once.</li>
+</ol>
+<h2>Subscribers (customers)</h2>
+<img src="{{IMGROOT}}/screens/10-super-subscribers.jpg" alt="Subscribers list" width="1000">
+<ul>
+<li>Each row: portal link, owner email, people, activity, billing state, where they came from ("via facebook", "via outreach"), and "subdomain not live yet" if its own address still needs creating.</li>
+<li>Change <strong>plan</strong> or <strong>status</strong> (trial / active / suspended / cancelled) → Save.</li>
+<li><strong>Reset owner password</strong> → a temporary password is shown once; the owner must change it at first sign-in.</li>
+<li><strong>Delete portal</strong> → kept 30 days, restorable under Deleted; after 30 days the hourly job removes it (a copy goes to <code>backups/deleted/</code>).</li>
+<li><strong>Reset demo portal</strong> rebuilds the public demo with fresh sample data.</li>
+</ul>
+<h2>New portal (for a customer you set up yourself)</h2>
+<img src="{{IMGROOT}}/screens/16-super-new-portal.jpg" alt="New portal form" width="900">
+<ol>
+<li>Optional own database: hPanel → Databases → create a new empty database and user first.</li>
+<li><code>/super → New portal</code> → business name, address, industry, time zone, owner name and email, plan, trial or active → database: shared or own (enter the database details) → Create.</li>
+<li>The owner's first password is shown once; send it to them securely.</li>
+</ol>
+<h2>Leads (demo requests)</h2>
+<img src="{{IMGROOT}}/screens/11-super-leads.jpg" alt="Leads page" width="900">
+<p>Every "Book a demo" form lands here and in your email. Set status (New → Contacted → Qualified → Won / Lost), add notes, export CSV.</p>
+<h2>Prospects (automatic outreach)</h2>
+<img src="{{IMGROOT}}/screens/12-super-prospects.jpg" alt="Prospects page" width="1000">
+<p>See page 8 for the full outreach process. Your daily job here: when someone replies, set them to <strong>Replied</strong>; when an email bounces, set <strong>Bounced</strong>.</p>
+<h2>Settings</h2>
+<p>Email delivery and test email, admin sign-in codes, Stripe keys and price IDs, Stripe Tax, Wave, Search Console and Google Analytics, trial follow-up on/off and promotion line, and <strong>Alerts to you</strong> (extra alert addresses).</p>
+<h2>Payments, Requests, Audit log</h2>
+<ul>
+<li><strong>Payments:</strong> every payment, MRR, record a cheque or bank transfer by hand.</li>
+<li><strong>Requests:</strong> feature requests from customers.</li>
+<li><strong>Audit log:</strong> every sign-in and change across all portals, filter and export.</li>
+</ul>
+<img src="{{IMGROOT}}/screens/17-super-audit.jpg" alt="Audit log" width="900">

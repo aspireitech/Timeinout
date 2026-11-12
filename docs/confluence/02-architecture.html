@@ -1,0 +1,50 @@
+<p>How ClockInOut is built, in plain words first, then the details.</p>
+<img src="{{IMGROOT}}/architecture.png" alt="ClockInOut architecture diagram" width="1000">
+<h2>In plain words</h2>
+<ul>
+<li><strong>One codebase, many customers.</strong> The web address decides which customer a request belongs to: <code>name.clockinoutapp.com</code>, or <code>clockinoutapp.com/s/name</code> until the subdomain exists.</li>
+<li><strong>Plain PHP, no build step.</strong> Deploying means copying files. Works on low-cost shared hosting.</li>
+<li><strong>Self-updating database.</strong> After an update, the first page view upgrades the database automatically (current schema version: 15).</li>
+<li><strong>Each customer's data is kept apart:</strong> either in its own MySQL database, or in the shared database tagged with the customer number on every row.</li>
+</ul>
+<h2>Main parts</h2>
+<table><thead><tr><th>Part</th><th>Address</th><th>Who uses it</th></tr></thead><tbody>
+<tr><td>Public website</td><td><code>clockinoutapp.com</code>, <code>/for/&lt;industry&gt;</code>, <code>/signup</code>, <code>/demo</code></td><td>Visitors</td></tr>
+<tr><td>Kiosk</td><td><code>name.clockinoutapp.com/</code></td><td>Families, staff, members, visitors</td></tr>
+<tr><td>Customer admin</td><td><code>name.clockinoutapp.com/admin</code></td><td>Customer owners and admins</td></tr>
+<tr><td>Provider console</td><td><code>clockinoutapp.com/super</code></td><td>You</td></tr>
+<tr><td>Webhooks and API</td><td><code>/webhooks/stripe</code>, <code>/api/prospects</code>, <code>/run-cron</code></td><td>Stripe, the lead finder, an optional pinger</td></tr>
+</tbody></table>
+<h2>Data</h2>
+<table><thead><tr><th>Database</th><th>Holds</th></tr></thead><tbody>
+<tr><td>Platform database (one)</td><td>Customers (tenants) and their plan and billing, settings, payments, demo requests (leads), feature requests, trial email log, prospects</td></tr>
+<tr><td>Customer data (own database or shared)</td><td>Users, students and guardians, staff, attendance, materials, kiosk tiles, import maps, audit log, report log, sign-in attempts</td></tr>
+</tbody></table>
+<div data-type="panel-note"><p>Encrypted with <code>app.key</code> (AES-256-GCM): guardian and staff phone numbers and emails, extra imported information, customer database passwords, and all stored secrets (mail, Stripe, Wave, Google). Passwords are hashed and can never be read back.</p></div>
+<h2>A request, step by step</h2>
+<ol>
+<li>The browser or kiosk calls the address over HTTPS.</li>
+<li><code>.htaccess</code> sends it to <code>public/index.php</code> and blocks private folders.</li>
+<li>Security headers, the session and the database upgrade check run.</li>
+<li>The app finds the customer from the address and, if it has its own database, connects to it.</li>
+<li>The route runs; every form submission is checked with a CSRF token.</li>
+<li>The page, PDF, CSV or JSON is returned.</li>
+</ol>
+<h2>Roles</h2>
+<table><thead><tr><th>Role</th><th>Signs in at</th><th>How</th></tr></thead><tbody>
+<tr><td>Provider (you)</td><td><code>/super</code></td><td>Google, or an emailed code, or break-glass password plus recovery code</td></tr>
+<tr><td>Customer owner or admin</td><td><code>/admin</code> on their portal</td><td>Email, password and a 6-digit emailed code</td></tr>
+<tr><td>Staff</td><td>Kiosk</td><td>User ID or email and password</td></tr>
+<tr><td>Families, members, visitors</td><td>Kiosk</td><td>No login: tap their name</td></tr>
+</tbody></table>
+<h2>Code map</h2>
+<pre><code class="language-text">.htaccess        send requests to public/, block app/ database/ cron/ docs/ backups/
+public/          the only folder browsers reach (index.php, assets/, uploads/logos/)
+app/config.php   YOUR settings (server only, never in git)
+app/keys/app.key encryption key (server only, never in git)
+app/controllers/ platform (website + /super), admin, kiosk, api, prospects
+app/lib/         auth, billing, tenant, db, migrate, mailer, reports, nurture, prospects, ...
+app/views/       page templates
+cron/            send_reports.php (hourly), backup.php (daily), super_password.php (emergency)
+database/        schema.sql for a fresh install
+docs/            MASTER_GUIDE.md, SAAS_BLUEPRINT.md, these Confluence pages, screenshots</code></pre>

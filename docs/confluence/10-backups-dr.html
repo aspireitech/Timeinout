@@ -1,0 +1,45 @@
+<p>What is backed up, where it is, how to restore it, and what to do when something breaks. Includes how to keep an offline copy of all these documents.</p>
+<h2>1. What is backed up</h2>
+<table><thead><tr><th>What</th><th>How</th><th>Where</th><th>You must also</th></tr></thead><tbody>
+<tr><td>Platform database and every customer database</td><td>Automatic, 2:00 every night (cron job 2), kept 14 days</td><td><code>public_html/backups/YYYY-MM-DD_0200/</code> (<code>.sql.gz</code> files + <code>MANIFEST.txt</code>; blocked from the web)</td><td>Download the newest folder weekly to OneDrive/Google Drive</td></tr>
+<tr><td><code>app/keys/app.key</code></td><td><strong>Not automatic</strong></td><td>Server</td><td>2 copies in the password manager — now</td></tr>
+<tr><td><code>app/config.php</code></td><td><strong>Not automatic</strong></td><td>Server</td><td>Copy its contents into the password manager</td></tr>
+<tr><td>Customer logos</td><td>Not automatic</td><td><code>public_html/public/uploads/logos/</code></td><td>Download occasionally</td></tr>
+<tr><td>Code</td><td>GitHub <code>main</code></td><td>github.com/aspireitech/Timeinout</td><td>—</td></tr>
+<tr><td>Whole hosting account</td><td>Hostinger snapshots (plan feature)</td><td>hPanel → Files → Backups</td><td>Check retention</td></tr>
+</tbody></table>
+<h2>2. Weekly off-site copy (5 minutes)</h2>
+<ol><li>hPanel → File Manager → <code>public_html/backups/</code>.</li><li>Right-click the newest folder → Compress → download the zip.</li><li>Save it to OneDrive or Google Drive in a folder "ClockInOut backups"; keep 4–8 weeks.</li></ol>
+<h2>3. Offline copy of these documents</h2>
+<ol>
+<li>Download the latest <strong>ClockInOut-Docs-Offline.zip</strong> (attached to the home page of this space, refreshed with every documentation update).</li>
+<li>Extract it to <code>D:\Project\ClockInOut-Docs</code> (or any folder you back up).</li>
+<li>Open <code>index.html</code> in any browser: all pages and screenshots work without internet. The folder also has the full master guide (<code>MASTER_GUIDE.md</code>) and blueprint.</li>
+<li>Keep secrets out of this folder; they belong in the password manager.</li>
+</ol>
+<h2>4. Recovery objectives</h2>
+<p>Data loss at most 1 day. Restore time 1–3 hours for a full move.</p>
+<h2>5. Runbooks — what broke?</h2>
+<details><summary>A. The site shows errors after an update</summary>
+<ol><li>Extract the previous zip over <code>public_html</code> (page 3).</li><li>Still broken: set <code>'debug' =&gt; true</code> in <code>config.php</code>, read the message, set it back to <code>false</code>.</li></ol></details>
+<details><summary>B. One customer's data is wrong or lost</summary>
+<ol><li>Open <code>MANIFEST.txt</code> in the newest good backup folder to find the right file.</li><li>hPanel → Databases → <strong>phpMyAdmin</strong> → select that customer's database → <strong>Import</strong> → choose the <code>.sql.gz</code> → Go.</li><li>Shared-database customers: import into a scratch database and copy that customer's rows back.</li></ol></details>
+<details><summary>C. Server or hosting account lost</summary><p>Follow "Move to a new host" below with your off-site backup, <code>config.php</code> and <code>app.key</code> from the password manager.</p></details>
+<details><summary>D. Locked out of /super</summary><ol><li>Google → email code → break-glass (password + recovery code).</li><li>All lost: SSH to the server, in the site folder run <code>php cron/super_password.php --recovery</code>.</li><li>Create new recovery codes afterwards.</li></ol></details>
+<details><summary>E. Email stopped</summary><ol><li><code>/super → Settings → Send a test email</code>.</li><li>Usual cause: Microsoft Graph client secret expired → new secret in Entra → update <code>config.php</code>.</li><li>While email is down: use break-glass for <code>/super</code>; you may temporarily turn off admin sign-in codes in <code>/super → Settings</code> (turn back on after).</li></ol></details>
+<details><summary>F. A portal was deleted by mistake</summary><ol><li>Within 30 days: <code>/super → Subscribers → Deleted → Restore</code>.</li><li>Later: restore from <code>backups/deleted/</code> or the daily backup (B).</li></ol></details>
+<details><summary>G. app.key lost</summary><p>Encrypted data (contacts, customer database passwords, stored secrets) cannot be read without it. Restore it from the password manager. There is no other way.</p></details>
+<details><summary>H. Nothing automatic is happening (no reports, outreach still "Queued")</summary><ol><li>hPanel → Advanced → Cron Jobs: both jobs present?</li><li>View Output on the hourly job: errors?</li><li>Outreach: sending ticked in <code>/super → Prospects</code>, and name and address filled in?</li></ol></details>
+<h2>6. Move to a new host</h2>
+<ol>
+<li><strong>Old host:</strong> run a backup, download the newest backup folder, <code>app/config.php</code>, <code>app/keys/app.key</code>, <code>public/uploads/</code>.</li>
+<li><strong>Code:</strong> extract the zip from GitHub <code>main</code> into the new web root.</li>
+<li><strong>Secrets:</strong> upload <code>config.php</code> and <code>app.key</code> to the same paths (permissions 600).</li>
+<li><strong>Databases:</strong> create the platform database and each customer database (same names, users and passwords if possible); import each <code>.sql.gz</code>.</li>
+<li><strong>Logos:</strong> copy <code>public/uploads/logos/</code>.</li>
+<li><strong>Subdomains:</strong> wildcard or one per portal, pointing to the same folder, with SSL.</li>
+<li><strong>Cron:</strong> add both jobs with the new paths (page 3).</li>
+<li><strong>Test before switching DNS:</strong> home, <code>/super</code>, one kiosk, one report, test email.</li>
+<li><strong>Switch DNS:</strong> Namecheap <code>A @</code> and <code>A *</code> to the new IP (lower TTL a day before).</li>
+<li><strong>After:</strong> check Google sign-in redirect URIs, Stripe webhook URL, Search Console; keep the old host a week.</li>
+</ol>

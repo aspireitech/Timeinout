@@ -10,7 +10,7 @@ recover and move it. Hand this document to anyone who needs to take over the pro
 | Stack | PHP 8.1+ · MySQL 8 / MariaDB 10.4+ · Apache (`.htaccess`) · no framework, no build step |
 | Hosting today | Hostinger shared hosting, code in `public_html` |
 | Schema version | **15** (applied automatically on the first request after an update) |
-| Last updated | 2026-11-06 — see [§18 Change log](#18-change-log) |
+| Last updated | 2026-11-12 — see [§18 Change log](#18-change-log) |
 
 > **Never put real passwords, keys or customer data in this file or anywhere in the repository.**
 > The repository is public. Secrets live only on the server (`app/config.php`, `app/keys/app.key`,
@@ -513,6 +513,7 @@ step must update this guide **in the same commit**:
 2. Bump **Schema version** in the header table when `SCHEMA_VERSION` changes, and list it in §4.
 3. Add a line to the change log (§18) with the date and a one-line summary.
 4. If architecture changes, update the Mermaid diagrams and re-render `docs/img/architecture.png`.
+5. Refresh the Confluence space **CIO** ("ClockInOut Technical Documentation" on aspireitech.atlassian.net): edit the matching page source in `docs/confluence/` (map in `pages.json`), republish the changed pages, and rebuild the offline copy with `python3 docs/confluence/build_offline.py ClockInOut-Docs-Offline.zip` (attach it to the space home page). Screenshots live in `docs/img/screens/`.
 
 `CLAUDE.md` in the repository root asks Claude to follow these rules automatically.
 
@@ -539,3 +540,4 @@ step must update this guide **in the same commit**:
 | 2026-11-09 | Provider alerts: copy to extra addresses (/super → Settings), new alerts for sign-ups, card subscriptions, payments and cancellations. |
 | 2026-11-09 | Local-time sending: outreach in each prospect's business hours (by state), trial emails 9–17 customer time, alerts 8–18 and Monday scorecard 8:00 provider time. |
 | 2026-11-10 | Security review: sign-up abuse limits and bot field, zip-bomb guard on .xlsx import, CSV formula guard for tab/CR, `X-Powered-By` hidden, `/run-cron` web cron address. |
+| 2026-11-12 | Confluence space CIO with step-by-step pages and screenshots (`docs/confluence/`), private credentials register, offline documentation copy. |

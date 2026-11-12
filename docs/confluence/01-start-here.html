@@ -1,0 +1,35 @@
+<div data-type="panel-info"><p><strong>Read this page first.</strong> It tells you what ClockInOut is made of, where every piece lives, and which page explains it. Every page is step by step, with screenshots of the real screens (demo data only).</p></div>
+<h2>What ClockInOut is</h2>
+<p>A tablet at the front door where people sign in and out in a few taps. Owners see live attendance and get reports by email. Every customer (daycare, tutoring center, clinic, office, gym, crew…) gets its own portal at <code>name.clockinoutapp.com</code>. One copy of the code serves every customer.</p>
+<img src="{{IMGROOT}}/screens/01-home.jpg" alt="ClockInOut home page" width="1000">
+<h2>Where everything lives</h2>
+<table><thead><tr><th>What</th><th>Where</th><th>Page</th></tr></thead><tbody>
+<tr><td>Website, customer portals, provider console</td><td>Hostinger hosting, folder <code>public_html</code></td><td>3. Hosting, domain and deployment</td></tr>
+<tr><td>Code (all versions)</td><td>GitHub <code>aspireitech/Timeinout</code>, branch <code>main</code></td><td>3. Hosting, domain and deployment</td></tr>
+<tr><td>Domain name and DNS</td><td>Namecheap</td><td>3 and 4</td></tr>
+<tr><td>Email (contact@, reports@)</td><td>Microsoft 365, sent through Microsoft Graph</td><td>4. Email and DNS</td></tr>
+<tr><td>Card payments, invoices</td><td>Stripe, Wave</td><td>5. Payments</td></tr>
+<tr><td>Your control room</td><td><code>clockinoutapp.com/super</code></td><td>6. Provider console</td></tr>
+<tr><td>Customer admin and kiosk</td><td><code>name.clockinoutapp.com</code> or <code>clockinoutapp.com/s/name</code></td><td>7. Customer portal and kiosk</td></tr>
+<tr><td>Automatic emails, lead finder, Facebook posts</td><td>Hostinger cron jobs, Claude scheduled task, Metricool</td><td>8. Growth automation</td></tr>
+<tr><td>Passwords, keys, accounts</td><td>Your password manager (never in Confluence or GitHub)</td><td>Credentials and recovery register (private page)</td></tr>
+<tr><td>Backups</td><td><code>public_html/backups/</code> on the server, plus your weekly off-site copy</td><td>10. Backups and disaster recovery</td></tr>
+<tr><td>Offline copy of these documents</td><td>Your computer, for example <code>D:\Project\ClockInOut-Docs</code></td><td>10. Backups and disaster recovery</td></tr>
+</tbody></table>
+<h2>The 3 secrets you must never lose</h2>
+<ol>
+<li><strong><code>app/keys/app.key</code></strong> on the server: decrypts phone numbers, emails and every stored secret. Lost key = encrypted data is gone. Keep 2 copies in your password manager.</li>
+<li><strong><code>app/config.php</code></strong> on the server: database login, domain, mail settings, cron key.</li>
+<li><strong>Provider recovery codes</strong> (10 codes shown once in <code>/super → Sign-in</code>): your last way into <code>/super</code>.</li>
+</ol>
+<h2>Daily rhythm (all automatic)</h2>
+<table><thead><tr><th>When</th><th>What happens</th></tr></thead><tbody>
+<tr><td>Every hour (server cron)</td><td>Customer reports, trial emails, outreach emails to leads, subdomain checks, Wave sync, clean-up</td></tr>
+<tr><td>2:00 every night (server cron)</td><td>Database backup</td></tr>
+<tr><td>5:47 AM Utah time (Claude)</td><td>Daily lead finder adds about 15 new leads</td></tr>
+<tr><td>10:00 AM Utah time (Metricool)</td><td>Facebook post</td></tr>
+<tr><td>Monday 8:00 AM Utah time</td><td>Weekly scorecard email to you</td></tr>
+<tr><td>Instantly</td><td>Alerts to contact@ and your extra alert address: sign-ups, payments, failed payments, cancellations</td></tr>
+</tbody></table>
+<h2>How these pages stay current</h2>
+<p>The source of truth is <code>docs/MASTER_GUIDE.md</code> in the code. Every change to the product updates that guide in the same commit, then these Confluence pages and the offline copy are refreshed from it. Each page shows its last update date in Confluence's page history.</p>

@@ -1,0 +1,24 @@
+{
+  "space": "CIO",
+  "site": "aspireitech.atlassian.net",
+  "image_base": "https://raw.githubusercontent.com/aspireitech/Timeinout/main/docs/img",
+  "home_title": "ClockInOut Technical Documentation",
+  "pages": [
+    {"file": "01-start-here.html", "title": "1. Start here: what is where"},
+    {"file": "02-architecture.html", "title": "2. Architecture and data"},
+    {"file": "03-hosting-deployment.html", "title": "3. Hosting, domain and deployment"},
+    {"file": "04-email-dns.html", "title": "4. Email and DNS"},
+    {"file": "05-payments.html", "title": "5. Payments (Stripe and Wave)"},
+    {"file": "06-provider-console.html", "title": "6. Provider console (/super)"},
+    {"file": "07-customer-portal.html", "title": "7. Customer portal and kiosk"},
+    {"file": "08-growth-automation.html", "title": "8. Growth automation"},
+    {"file": "09-security.html", "title": "9. Security"},
+    {"file": "10-backups-dr.html", "title": "10. Backups and disaster recovery"},
+    {"file": "11-operations.html", "title": "11. Operations and troubleshooting"},
+    {"file": "12-change-log.html", "title": "12. Change log"},
+    {"file": "../SAAS_BLUEPRINT.md", "title": "13. SaaS blueprint (for other projects)", "format": "markdown"}
+  ],
+  "private": [
+    {"title": "Credentials and recovery register (private)", "note": "Lives only in Confluence (restricted to the owner) and in the offline copy; never in this public repository."}
+  ]
+}
