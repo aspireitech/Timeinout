@@ -543,3 +543,4 @@ step must update this guide **in the same commit**:
 | 2026-11-12 | Confluence space CIO with step-by-step pages and screenshots (`docs/confluence/`), private credentials register, offline documentation copy. |
 | 2026-11-12 | Confluence FAQ page: 56 questions from basic to advanced with screenshots (`docs/confluence/14-faq.html`). |
 | 2026-11-12 | Hourly job: tasks isolated (`run_hourly_jobs()`), last-run status and output in /super → Prospects, clear message when the cron's PHP is older than 8.1. |
+| 2026-11-12 | Docs: cron commands use the site folder `domains/clockinoutapp.com/public_html` (the hosting account has several websites); "Could not open input file" explained. |
