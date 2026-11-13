@@ -1,0 +1,49 @@
+<p>What your customers see and do, from sign-up to the kiosk at their door.</p>
+<h2>1. Sign up (self-service, 1 minute)</h2>
+<img src="{{IMGROOT}}/screens/02-signup.jpg" alt="Sign-up page" width="900">
+<ol>
+<li>Business name, industry (sets the kiosk buttons and words), state and city.</li>
+<li>Address: suggested automatically; "choose your own" link to change it.</li>
+<li>Owner name, email, password (live checklist: 10+ characters, upper and lower case, a number).</li>
+<li>The portal is live at once at <code>clockinoutapp.com/s/name</code>; the welcome email also shows <code>name.clockinoutapp.com</code> "live within 24 hours" (in red) until you create the subdomain.</li>
+<li>Protection: a hidden bot trap and a limit of 3 sign-ups per hour (10 per day) per network and 2 per email per day.</li>
+</ol>
+<h2>2. Admin dashboard</h2>
+<img src="{{IMGROOT}}/screens/20-admin-dashboard.jpg" alt="Admin dashboard" width="1000">
+<p>Who is on site now, sign-ins today, staff on site, material pickups. The sidebar holds every function.</p>
+<h2>3. Add people</h2>
+<img src="{{IMGROOT}}/screens/22-admin-students.jpg" alt="Students and guardians" width="1000">
+<ul>
+<li><strong>Students &amp; guardians</strong> and <strong>Teachers &amp; staff</strong>: add one by one, or click <strong>Import</strong> on that list.</li>
+<li>Guardians: name, relationship, phone (encrypted). Adults with no guardian sign themselves in ("Self").</li>
+</ul>
+<img src="{{IMGROOT}}/screens/23-admin-import.jpg" alt="Import page" width="1000">
+<ol><li>Import → choose Students or Staff → upload Excel (.xlsx) or CSV (max 5 MB).</li><li>Match the columns once (remembered for next time).</li><li>Check the preview → Import. A mistake can be undone for 24 hours on that list's page.</li></ol>
+<h2>4. The kiosk</h2>
+<img src="{{IMGROOT}}/screens/30-kiosk-home.jpg" alt="Kiosk start screen" width="1000">
+<ol>
+<li>Open the portal address on a tablet at the door and sign in once with a staff login. Add it to the home screen.</li>
+<li>A person taps their tile (Student, Teacher/Staff, Visitor, Material pickup) → types a few letters → taps their name.</li>
+<li>Students: choose who is with them (listed guardian, <strong>Authorized relative</strong> who types a name and relationship, or Self) → Sign in / Sign out.</li>
+<li>Past days can be entered only as far back as the admin allows.</li>
+</ol>
+<h2>5. Attendance and reports</h2>
+<img src="{{IMGROOT}}/screens/21-admin-attendance.jpg" alt="Today's attendance" width="1000">
+<img src="{{IMGROOT}}/screens/24-admin-reports.jpg" alt="Reports" width="1000">
+<ul>
+<li><strong>Today's attendance</strong>: live status, who brought and collected each person.</li>
+<li><strong>Reports</strong>: daily, weekly, monthly or custom range; PDF, CSV or email now.</li>
+<li><strong>Scheduled reports</strong>: emailed automatically at the portal's report hour (default 7:00 local) — daily (yesterday), weekly on the chosen weekday, monthly on the 1st — only the ones ticked in settings.</li>
+</ul>
+<h2>6. Settings, users, materials, billing</h2>
+<img src="{{IMGROOT}}/screens/25-admin-settings.jpg" alt="Branding and settings" width="1000">
+<ul>
+<li><strong>Branding &amp; settings:</strong> name, logo, colors, welcome text, time zone, past-day limit, "Always offer Authorized relative", "Open kiosk without login" (keep off unless the link is only on your own device), report recipients and schedule.</li>
+<li><strong>Users:</strong> add admins and kiosk staff, reset passwords, change your own password.</li>
+<li><strong>Pickup materials:</strong> items handed out at the kiosk (folders, books…).</li>
+<li><strong>Billing:</strong> choose and pay a plan (page 5).</li>
+</ul>
+<img src="{{IMGROOT}}/screens/27-admin-users.jpg" alt="Users" width="900">
+<img src="{{IMGROOT}}/screens/28-admin-materials.jpg" alt="Pickup materials" width="900">
+<h2>Demo portal</h2>
+<p>Public demo for prospects: <code>clockinoutapp.com/s/demo</code>, logins <code>admin@demo.com / Demo@1234</code> and <code>staff@demo.com / Staff@1234</code> (sample data only, shown on the demo page). Rebuild it any time in <code>/super → Reset demo portal</code>.</p>

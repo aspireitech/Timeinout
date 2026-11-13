@@ -5,3 +5,4 @@ public/uploads/logos/*
 app/sessions/*
 !app/sessions/.htaccess
 app/keys/
+backups/

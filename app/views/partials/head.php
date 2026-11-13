@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<?php if (tenant()): ?><meta name="robots" content="noindex, nofollow"><?php endif; ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
@@ -23,6 +24,8 @@
   })();
 </script>
 <link rel="icon" href="<?= asset('img/favicon.svg') ?>" type="image/svg+xml">
+<link rel="icon" href="<?= asset('img/favicon-32.png') ?>" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="<?= asset('img/apple-touch-icon.png') ?>">
 <?php if ($t = tenant()): ?>
 <style>:root { --brand: <?= e(hex_color($t['primary_color'], '#6C5CE7')) ?>; --accent: <?= e(hex_color($t['accent_color'], '#00B894')) ?>; }</style>
 <?php endif; ?>

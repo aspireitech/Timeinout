@@ -175,21 +175,3 @@ const US_STATES = [
     'WV' => 'West Virginia', 'WI' => 'Wisconsin', 'WY' => 'Wyoming',
 ];
 
-/** "UT" + "Sandy" + "SJ Kumon" → "utsandysjkumon". Returns [slug, error]. */
-function build_slug(string $state, string $city, string $name): array
-{
-    $state = strtoupper(trim($state));
-    $prefix = isset(US_STATES[$state]) ? strtolower($state) : '';
-    if ($state !== '' && $state !== 'XX' && $prefix === '') {
-        return ['', 'Please choose a state.'];
-    }
-    $city = preg_replace('/[^a-z0-9]/', '', strtolower($city));
-    $name = preg_replace('/[^a-z0-9]/', '', strtolower($name));
-    if (strlen($city) > 15) {
-        return ['', 'Keep the city part to 15 letters or fewer.'];
-    }
-    if (strlen($name) < 3 || strlen($name) > 10) {
-        return ['', 'The name part must be 3 to 10 letters or numbers.'];
-    }
-    return [$prefix . $city . $name, null];
-}

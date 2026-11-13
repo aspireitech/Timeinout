@@ -1,0 +1,53 @@
+<p>Where the site runs, how the domain points to it, how to install an update, and the scheduled jobs that keep it working.</p>
+<h2>1. Hosting (Hostinger)</h2>
+<ul>
+<li>Sign in at <a href="https://hpanel.hostinger.com">hpanel.hostinger.com</a> (login: see the private Credentials register).</li>
+<li>Websites → <strong>clockinoutapp.com</strong>. The whole project lives in <code>public_html</code>; the root <code>.htaccess</code> sends visitors to <code>public/</code> and blocks every private folder (tested: config, key, backups, git, database all return 403).</li>
+<li>Needs PHP 8.1 or newer with pdo_mysql, openssl, mbstring, zip, zlib, curl.</li>
+</ul>
+<h2>2. Domain and DNS (Namecheap)</h2>
+<ol>
+<li>Namecheap → Domain List → clockinoutapp.com → <strong>Advanced DNS</strong>.</li>
+<li>Records that must exist: <code>A @</code> → Hostinger server IP, <code>A *</code> → same IP (all portal subdomains), <code>CNAME www</code> → <code>clockinoutapp.com</code>.</li>
+<li>Email records for Microsoft 365 (MX, SPF, DKIM CNAMEs, DMARC): see page 4.</li>
+</ol>
+<h2>3. Customer addresses (subdomains)</h2>
+<p>Hostinger does not accept a <code>*</code> wildcard subdomain on the current plan, so each portal's own address is created by hand. Until then the portal works at <code>clockinoutapp.com/s/name</code>, and the app switches every link automatically once the subdomain answers.</p>
+<ol>
+<li>When someone signs up you get an email: <strong>"To do: create subdomain name.clockinoutapp.com"</strong>.</li>
+<li>hPanel → Websites → clockinoutapp.com → Domains → <strong>Subdomains</strong> → type the name → tick <strong>Custom folder</strong> and choose <code>public_html</code> → Create.</li>
+<li>Security → SSL: make sure the new subdomain gets a certificate.</li>
+<li>Within an hour the hourly job detects it, switches all links, and emails the customer "Your address is live". In <code>/super</code> the badge "subdomain not live yet" disappears.</li>
+</ol>
+<h2>4. Install an update (the zip)</h2>
+<div data-type="panel-info"><p>Every update zip contains the complete code. It never contains <code>config.php</code>, <code>app.key</code>, logos or backups, so extracting it over the site keeps all your settings and data.</p></div>
+<ol>
+<li>Download the zip you were given (or build it: on your computer <code>cd /d D:\Project\Timeinout</code>, <code>git checkout main</code>, <code>git pull</code>, <code>git archive --format=zip -o ClockInOut.zip HEAD</code>).</li>
+<li>hPanel → Websites → clockinoutapp.com → <strong>File Manager</strong> → open <code>public_html</code>.</li>
+<li><strong>Upload</strong> the zip into <code>public_html</code> (not into a sub-folder).</li>
+<li>Right-click the zip → <strong>Extract</strong> → extract here → allow overwrite.</li>
+<li>Delete the zip file from <code>public_html</code>.</li>
+<li>Open <a href="https://clockinoutapp.com">clockinoutapp.com</a> once: the database upgrades itself.</li>
+<li>Quick test: home page, a portal kiosk, <code>/admin</code> of a portal, <code>/super</code>.</li>
+</ol>
+<p><strong>Undo a bad update:</strong> extract the previous zip the same way. Database changes are always additive, so older code still works.</p>
+<h2>5. Scheduled jobs (cron) — required</h2>
+<div data-type="panel-warning"><p>Without the hourly job nothing automatic happens: no reports, no trial emails, no outreach, no subdomain switching.</p></div>
+<ol>
+<li>hPanel → Websites → clockinoutapp.com → <strong>Advanced → Cron Jobs</strong>.</li>
+<li>Keep <strong>PHP</strong> selected. In <em>Command to Run</em> the first part (<code>/usr/bin/php /home/&lt;account&gt;/</code>) is filled in for you.</li>
+<li>Find the site folder: File Manager shows it at the top, normally <code>domains/clockinoutapp.com/public_html</code> (the account has more than one website, so it is <strong>not</strong> just <code>public_html</code>).</li>
+<li>Job 1: type <code>domains/clockinoutapp.com/public_html/cron/send_reports.php</code>, Common Options <strong>Once Per Hour</strong> (minute 0), Save.</li>
+<li>Job 2: type <code>domains/clockinoutapp.com/public_html/cron/backup.php</code>, Minute <strong>0</strong>, Hour <strong>2</strong>, Save.</li>
+<li>Check: the list shows <code>0 * * * *</code> and <code>0 2 * * *</code>. Click <strong>View Output</strong> on job 1 after the next hour: it shows lines such as <code>prospect …: email 1 sent</code> or <code>Nothing due.</code> If it says <code>Could not open input file</code>, the folder in the command is wrong (see the step above).</li>
+<li>Also check the top of <code>/super → Prospects</code>: a green badge "Hourly job last ran …, all good". Red means it has not run in 2 hours.</li>
+<li>If the output says the job runs an old PHP version: edit the job, choose <strong>Custom</strong>, and use a newer PHP path, for example <code>/opt/alt/php83/usr/bin/php /home/&lt;account&gt;/domains/clockinoutapp.com/public_html/cron/send_reports.php</code>.</li>
+</ol>
+<table><thead><tr><th>Job</th><th>When</th><th>Does</th></tr></thead><tbody>
+<tr><td><code>cron/send_reports.php</code></td><td>Every hour</td><td>Customer reports at each portal's hour (default 7:00 local), Wave sync, purge of portals deleted 30+ days ago, subdomain re-check, trial emails and alerts, outreach emails, Monday scorecard</td></tr>
+<tr><td><code>cron/backup.php</code></td><td>2:00 daily</td><td>Backs up every database to <code>public_html/backups/&lt;date&gt;/</code>, keeps 14 days</td></tr>
+<tr><td><code>cron/super_password.php</code></td><td>By hand, emergencies only</td><td>New provider break-glass password; <code>--recovery</code> prints new recovery codes</td></tr>
+</tbody></table>
+<p>No cron available? Call <code>https://clockinoutapp.com/run-cron?key=CRON_KEY</code> every hour from an external pinger (the key is <code>cron_key</code> in <code>config.php</code>).</p>
+<h2>6. First install on a new server</h2>
+<p>See page 10, "Move to a new host", steps 1–10.</p>

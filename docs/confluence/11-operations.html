@@ -1,0 +1,27 @@
+<h2>Everyday tasks</h2>
+<table><thead><tr><th>Task</th><th>Where</th></tr></thead><tbody>
+<tr><td>Someone replied to outreach</td><td><code>/super → Prospects</code> → set <strong>Replied</strong> → answer from contact@</td></tr>
+<tr><td>Outreach email bounced</td><td><code>/super → Prospects</code> → set <strong>Bounced</strong></td></tr>
+<tr><td>New sign-up alert</td><td>Create the subdomain (page 3), then a welcome call in the first 2 days</td></tr>
+<tr><td>"Chose a plan" email (no card)</td><td>Send the Wave invoice → <code>/super → Subscribers</code> → status <strong>active</strong></td></tr>
+<tr><td>"ACTION: payment failed"</td><td>Stripe retries automatically; call the customer</td></tr>
+<tr><td>Change a customer's plan or status</td><td><code>/super → Subscribers</code></td></tr>
+<tr><td>Owner forgot password</td><td><code>/super → Subscribers → Reset owner password</code></td></tr>
+<tr><td>Customer with its own database</td><td>hPanel → Databases first, then <code>/super → New portal</code></td></tr>
+<tr><td>Change prices</td><td><code>PLAN_CATALOG</code> in <code>app/lib/billing.php</code> + new Stripe prices + new price IDs in <code>/super → Settings</code></td></tr>
+<tr><td>Rebuild the demo</td><td><code>/super → Reset demo portal</code></td></tr>
+<tr><td>Weekly</td><td>Read the Monday scorecard; download the newest backup off-site</td></tr>
+<tr><td>Monthly (around the 8th)</td><td>Ask Claude for next month's Facebook posts</td></tr>
+</tbody></table>
+<h2>Troubleshooting</h2>
+<table><thead><tr><th>Symptom</th><th>Cause → fix</th></tr></thead><tbody>
+<tr><td>"Cannot connect to the database"</td><td>Wrong <code>db</code> in <code>config.php</code>, or database down</td></tr>
+<tr><td>"There is no portal at this address"</td><td>Typo, or subdomain not created</td></tr>
+<tr><td><code>name.clockinoutapp.com</code> "can't provide a secure connection"</td><td>Subdomain or its SSL missing; use <code>clockinoutapp.com/s/name</code> meanwhile</td></tr>
+<tr><td>Portal opens but its data errors</td><td>Its database login changed → update the portal's database details (master guide §14 step 4)</td></tr>
+<tr><td>Sign-in codes not arriving</td><td>Page 10, runbook E</td></tr>
+<tr><td>Google sign-in "redirect_uri_mismatch"</td><td>Add both redirect URIs exactly (page 6)</td></tr>
+<tr><td>Outreach still "Queued"</td><td>Page 10, runbook H</td></tr>
+<tr><td>Link previews show no picture</td><td>Update not uploaded, or old preview cached; share with <code>?v=2</code></td></tr>
+<tr><td>Import went into the wrong list</td><td>Undo on that list's page within 24 h, then import from the right list</td></tr>
+</tbody></table>
