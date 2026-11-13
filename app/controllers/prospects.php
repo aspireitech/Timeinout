@@ -140,6 +140,21 @@ function webhook_prospects(): void
         json_out(['error' => 'Invalid or missing X-Api-Key'], 401);
     }
     $GLOBALS['audit_system'] = true;
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && input('summary') === '1') {
+        // Read-only status for the provider's assistant: what was sent, what is queued, did the hourly job run
+        $counts = array_column(rows('SELECT status, COUNT(*) AS n FROM prospects GROUP BY status'), 'n', 'status');
+        $dayStart = (new DateTime('today', outreach_tz()))->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        json_out([
+            'sending_on'   => setting('prospects_on', '0') === '1',
+            'problem'      => outreach_problem(),
+            'daily_cap'    => (int) setting('prospects_daily', '20'),
+            'counts'       => array_map('intval', $counts),
+            'sent_today'   => (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]),
+            'recent_sends' => rows('SELECT org, email, state, kind, status, step, last_sent_at FROM prospects WHERE last_sent_at IS NOT NULL ORDER BY last_sent_at DESC LIMIT 50'),
+            'hourly_job'   => ['last_run_utc' => setting('cron_last_run', null), 'errors' => (int) setting('cron_last_errors', '0'),
+                               'status' => hourly_job_status()[0], 'log' => (string) setting('cron_last_log', '')],
+        ]);
+    }
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         $domains = [];
         foreach (rows('SELECT email, website FROM prospects') as $r) {
