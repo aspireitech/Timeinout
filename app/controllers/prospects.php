@@ -180,12 +180,20 @@ function webhook_prospects(): void
 function super_prospects_test(): void
 {
     require_super();
-    $to = strtolower(trim((string) input('test_to')));
+    // One or more addresses (comma or one per line), kept as the saved test list for next time
+    $raw = preg_split('/[\s,;]+/', strtolower((string) input('test_to')), -1, PREG_SPLIT_NO_EMPTY);
+    $bad = array_values(array_filter($raw, fn($a) => !filter_var($a, FILTER_VALIDATE_EMAIL)));
+    $list = array_slice(array_values(array_unique(array_filter($raw, fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL)))), 0, 10);
     $kind = isset(PROSPECT_KINDS[(string) input('test_kind')]) ? (string) input('test_kind') : 'dental';
-    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        flash('error', 'Enter the email address the test should go to.');
+    if ($bad) {
+        flash('error', 'Fix these addresses first: ' . implode(', ', $bad));
         redirect(base_path() . '/super/prospects#test');
     }
+    if (!$list) {
+        flash('error', 'Enter the email address(es) the test should go to.');
+        redirect(base_path() . '/super/prospects#test');
+    }
+    setting_set('test_recipients', implode("\n", $list));
     if ($p = outreach_problem()) {
         flash('error', 'Save the outreach settings first: ' . $p);
         redirect(base_path() . '/super/prospects#test');
@@ -194,19 +202,22 @@ function super_prospects_test(): void
                'first_name' => trim((string) input('test_first')) ?: null, 'kind' => $kind, 'token' => str_repeat('0', 32)];
     $sent = 0;
     $error = '';
-    foreach ([0, 1, 2] as $step) {
-        [$subject, $html] = prospect_email($sample, $step);
-        if (send_mail([$to], '[TEST ' . ($step + 1) . '/3] ' . $subject, $html)) {
-            $sent++;
-        } else {
-            $error = (string) ($GLOBALS['mail_error'] ?? 'unknown error');
-            break;
+    foreach ($list as $to) {
+        foreach ([0, 1, 2] as $step) {
+            [$subject, $html] = prospect_email($sample, $step);
+            if (send_mail([$to], '[TEST ' . ($step + 1) . '/3] ' . $subject, $html)) {
+                $sent++;
+            } else {
+                $error = $to . ': ' . (string) ($GLOBALS['mail_error'] ?? 'unknown error');
+                break 2;
+            }
         }
     }
-    audit_note($to, "$sent of 3 test emails ($kind)" . ($error ? "; error: $error" : ''));
-    flash($sent === 3 ? 'success' : 'error', $sent === 3
-        ? "3 test emails sent to $to (first email, follow-up, last note). Check the inbox and spam folder; contact@ Sent Items shows them too."
-        : "Only $sent of 3 test emails were sent. Mail error: $error");
+    $want = 3 * count($list);
+    audit_note(implode(', ', $list), "$sent of $want test emails ($kind)" . ($error ? "; error: $error" : ''));
+    flash($sent === $want ? 'success' : 'error', $sent === $want
+        ? "$sent test emails sent (3 each to " . count($list) . ' address' . (count($list) > 1 ? 'es' : '') . '). Check each inbox and spam folder; contact@ Sent Items shows them too.'
+        : "Only $sent of $want test emails were sent. Mail error: $error");
     redirect(base_path() . '/super/prospects#test');
 }
 
