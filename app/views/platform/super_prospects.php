@@ -41,9 +41,9 @@ $total = array_sum($counts);
     <form method="post" action="<?= e(base_path() . '/super/prospects/test') ?>">
       <?= csrf_field() ?>
       <div class="grid c2">
-        <div class="field"><label for="t-to">Test addresses (one per line, up to 10; saved for next time)</label><textarea id="t-to" name="test_to" rows="4" required placeholder="you@example.com"><?= e((string) setting('test_recipients', '')) ?></textarea></div>
+        <div class="field" style="grid-column:1 / -1"><label for="t-to">Test addresses (one per line, up to 10; saved for next time)</label><textarea id="t-to" name="test_to" rows="4" required placeholder="you@example.com"><?= e((string) setting('test_recipients', '')) ?></textarea></div>
         <div class="field"><label for="t-kind">Type of business</label><select id="t-kind" name="test_kind"><?php foreach (PROSPECT_KINDS as $k => $label): ?><option value="<?= e($k) ?>"><?= e($label) ?></option><?php endforeach; ?></select></div>
-        <div class="field"><label for="t-org">Business name (optional)</label><input type="text" id="t-org" name="test_org" placeholder="Smile Bright Dental"></div>
+        <div class="field"><label for="t-org">Business name (optional)</label><input type="text" id="t-org" name="test_org" placeholder="Leave empty for a realistic sample name"></div>
         <div class="field"><label for="t-first">First name (optional)</label><input type="text" id="t-first" name="test_first" placeholder="Megan"></div>
       </div>
       <button class="btn btn-primary btn-sm">Send 3 test emails</button>

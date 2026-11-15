@@ -198,7 +198,10 @@ function super_prospects_test(): void
         flash('error', 'Save the outreach settings first: ' . $p);
         redirect(base_path() . '/super/prospects#test');
     }
-    $sample = ['org' => trim((string) input('test_org')) ?: 'Sample ' . (PROSPECT_KINDS[$kind] ?? 'Business'),
+    $names = ['clinic' => 'Summit Family Clinic', 'dental' => 'Smile Bright Dental', 'daycare' => 'Little Stars Daycare',
+        'tutoring' => 'Bright Minds Tutoring', 'school' => 'Mountain View Academy', 'office' => 'Summit CPA Group', 'gym' => 'Iron Valley Fitness',
+        'construction' => 'Peak Roofing', 'retail' => 'Main Street Outfitters', 'restaurant' => 'Canyon Grill', 'other' => 'Sample Business'];
+    $sample = ['org' => trim((string) input('test_org')) ?: $names[$kind],
                'first_name' => trim((string) input('test_first')) ?: null, 'kind' => $kind, 'token' => str_repeat('0', 32)];
     $sent = 0;
     $error = '';
