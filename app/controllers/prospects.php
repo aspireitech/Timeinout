@@ -175,3 +175,47 @@ function webhook_prospects(): void
     audit('Prospect finder', null, true, $r['added'] . ' added, ' . count($r['skipped']) . ' skipped');
     json_out($r);
 }
+
+/** Sends the 3 outreach emails for a sample business to one address, now, marked [TEST]. Real prospects are untouched. */
+function super_prospects_test(): void
+{
+    require_super();
+    $to = strtolower(trim((string) input('test_to')));
+    $kind = isset(PROSPECT_KINDS[(string) input('test_kind')]) ? (string) input('test_kind') : 'dental';
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        flash('error', 'Enter the email address the test should go to.');
+        redirect(base_path() . '/super/prospects#test');
+    }
+    if ($p = outreach_problem()) {
+        flash('error', 'Save the outreach settings first: ' . $p);
+        redirect(base_path() . '/super/prospects#test');
+    }
+    $sample = ['org' => trim((string) input('test_org')) ?: 'Sample ' . (PROSPECT_KINDS[$kind] ?? 'Business'),
+               'first_name' => trim((string) input('test_first')) ?: null, 'kind' => $kind, 'token' => str_repeat('0', 32)];
+    $sent = 0;
+    $error = '';
+    foreach ([0, 1, 2] as $step) {
+        [$subject, $html] = prospect_email($sample, $step);
+        if (send_mail([$to], '[TEST ' . ($step + 1) . '/3] ' . $subject, $html)) {
+            $sent++;
+        } else {
+            $error = (string) ($GLOBALS['mail_error'] ?? 'unknown error');
+            break;
+        }
+    }
+    audit_note($to, "$sent of 3 test emails ($kind)" . ($error ? "; error: $error" : ''));
+    flash($sent === 3 ? 'success' : 'error', $sent === 3
+        ? "3 test emails sent to $to (first email, follow-up, last note). Check the inbox and spam folder; contact@ Sent Items shows them too."
+        : "Only $sent of 3 test emails were sent. Mail error: $error");
+    redirect(base_path() . '/super/prospects#test');
+}
+
+/** Runs the hourly job now, exactly like the cron, and shows its output. */
+function super_jobs_run(): void
+{
+    require_super();
+    $lines = run_hourly_jobs();
+    $_SESSION['job_output'] = implode("\n", $lines) ?: 'Nothing due.';
+    flash('success', 'The hourly job ran. Its output is shown below the status line.');
+    redirect(base_path() . '/super/prospects');
+}

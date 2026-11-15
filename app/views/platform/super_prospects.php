@@ -12,8 +12,11 @@ $total = array_sum($counts);
     </div>
     <?php [$jobMsg, $jobCls] = hourly_job_status(); ?>
     <p style="margin:0 0 10px"><span class="badge <?= e($jobCls) ?>"><?= e($jobMsg) ?></span></p>
+    <form method="post" action="<?= e(base_path() . '/super/jobs/run') ?>" style="margin:0 0 10px"><?= csrf_field() ?><button class="btn btn-ghost btn-sm">Run the hourly job now</button>
+      <span class="muted small">Runs exactly what the cron runs. Outreach still only sends on weekdays in each lead's business hours.</span></form>
+    <?php if (!empty($_SESSION['job_output'])): ?><pre class="small" style="white-space:pre-wrap;max-height:220px;overflow:auto;background:#F4F5FA;padding:8px;border-radius:8px"><?= e($_SESSION['job_output']) ?></pre><?php unset($_SESSION['job_output']); endif; ?>
     <?php if (setting('cron_last_log', '') !== ''): ?><details style="margin:0 0 10px"><summary class="small">Last hourly job output</summary><pre class="small" style="white-space:pre-wrap;max-height:220px;overflow:auto"><?= e((string) setting('cron_last_log')) ?></pre></details><?php endif; ?>
-    <p class="muted small">Each prospect gets <b>email 1</b>, a <b>follow-up 4 days later</b> and a <b>last note 5 days after that</b>, on weekdays between 8:00 and 16:00, spread over the day.
+    <p class="muted small">Each prospect gets <b>email 1</b>, a <b>follow-up 4 days later</b> and a <b>last note 5 days after that</b>, in each lead's own business hours (weekdays, by their state's time zone), at most 4 per hour.
       Emails stop by themselves when the prospect signs up, books a demo or unsubscribes. When someone replies, set them to <b>Replied</b> below so they get no more automatic emails.
       Sent from your contact mailbox, so replies come to you.</p>
     <form method="post" action="<?= e(base_path() . '/super/prospects/settings') ?>">
@@ -29,6 +32,21 @@ $total = array_sum($counts);
         <div class="field"><label for="o-tz">Sending hours follow this time zone</label><input type="text" id="o-tz" name="outreach_tz" value="<?= e(setting('outreach_tz', 'America/Denver')) ?>"></div>
       </div>
       <button class="btn btn-primary btn-sm">Save outreach settings</button>
+    </form>
+  </div>
+
+  <div class="card" id="test">
+    <h2><?= icon('mail') ?> Send me a test</h2>
+    <p class="muted small">Sends all 3 outreach emails (first email, follow-up, last note) for a sample business to your own address, right now, marked [TEST]. Real prospects are not touched.</p>
+    <form method="post" action="<?= e(base_path() . '/super/prospects/test') ?>">
+      <?= csrf_field() ?>
+      <div class="grid c2">
+        <div class="field"><label for="t-to">Send to</label><input type="email" id="t-to" name="test_to" required placeholder="you@example.com"></div>
+        <div class="field"><label for="t-kind">Type of business</label><select id="t-kind" name="test_kind"><?php foreach (PROSPECT_KINDS as $k => $label): ?><option value="<?= e($k) ?>"><?= e($label) ?></option><?php endforeach; ?></select></div>
+        <div class="field"><label for="t-org">Business name (optional)</label><input type="text" id="t-org" name="test_org" placeholder="Smile Bright Dental"></div>
+        <div class="field"><label for="t-first">First name (optional)</label><input type="text" id="t-first" name="test_first" placeholder="Megan"></div>
+      </div>
+      <button class="btn btn-primary btn-sm">Send 3 test emails</button>
     </form>
   </div>
 

@@ -73,6 +73,8 @@ function platform_routes(string $path): void
         ['POST',     '/super/prospects/add', 'super_prospects_add', 'Added prospects'],
         ['POST',     '/super/prospects/settings', 'super_prospects_settings', 'Changed outreach settings'],
         ['POST',     '/super/prospects/key', 'super_prospects_key', 'Created prospect finder key'],
+        ['POST',     '/super/prospects/test', 'super_prospects_test', 'Sent outreach test emails'],
+        ['POST',     '/super/jobs/run',      'super_jobs_run',      'Ran the hourly job by hand'],
         ['GET',      '/super/prospects/{id}/preview', 'super_prospect_preview'],
         ['POST',     '/super/prospects/{id}', 'super_prospect_update', 'Updated prospect'],
         ['GET|POST', '/unsubscribe',         'platform_unsubscribe'],
