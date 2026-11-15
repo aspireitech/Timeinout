@@ -54,6 +54,8 @@ function platform_routes(string $path): void
         ['GET|POST', '/signup',              'platform_signup'],
         ['GET|POST', '/demo',                'platform_demo'],
         ['GET',      '/whats-new',           'platform_whats_new'],
+        ['GET',      '/status',              'platform_status'],
+        ['GET',      '/status.json',         'platform_status_json'],
         ['GET',      '/sitemap.xml',         'seo_sitemap'],
         ['GET|POST', '/report-activity',     'platform_report_activity'],
         ['GET',      '/check-address',       'platform_check_slug'],

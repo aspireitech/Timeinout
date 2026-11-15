@@ -64,7 +64,22 @@ $GLOBALS['mail_error'] = null;
  * $sender picks the mailbox ('contact' or 'reports'); $bcc gets a hidden copy.
  * On failure the reason is left in $GLOBALS['mail_error'].
  */
+/** Sends an email and records the outcome for the status page. */
 function send_mail(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = []): bool
+{
+    $ok = send_mail_now($to, $subject, $html, $attachments, $sender, $bcc);
+    try {
+        setting_set($ok ? 'mail_last_ok' : 'mail_last_fail', gmdate('Y-m-d H:i:s'));
+        if (!$ok) {
+            setting_set('mail_last_error', mb_substr((string) ($GLOBALS['mail_error'] ?? ''), 0, 300));
+        }
+    } catch (Throwable $e) {
+        // status bookkeeping must never break sending
+    }
+    return $ok;
+}
+
+function send_mail_now(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = []): bool
 {
     $GLOBALS['mail_error'] = null;
     $valid = fn(array $list) => array_values(array_unique(array_filter(array_map('trim', $list), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL))));

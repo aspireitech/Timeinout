@@ -426,6 +426,7 @@ function webhook_stripe(): void
     $event = json_decode($payload, true) ?: [];
     try {
         $msg = stripe_handle_event($event);
+        setting_set('stripe_last_event', gmdate('Y-m-d H:i:s'));
         audit('Stripe: ' . ($event['type'] ?? 'event'), $msg, true, 'Event ' . ($event['id'] ?? ''));
         json_out(['ok' => true]);
     } catch (Throwable $e) {
@@ -951,4 +952,24 @@ function seo_sitemap(): void
         echo '  <url><loc>' . e($base . $p) . '</loc><lastmod>' . $mod . '</lastmod><priority>' . $prio . "</priority></url>\n";
     }
     exit("</urlset>\n");
+}
+
+// ---------- Status page ----------
+/** clockinoutapp.com/status: plain health for everyone; details when the provider is signed in. */
+function platform_status(): void
+{
+    $detail = !empty($_SESSION['super']);
+    header('Cache-Control: no-store');
+    $components = system_status($detail);
+    view('platform/status', ['components' => $components, 'overall' => status_overall($components), 'detail' => $detail,
+        'metaTitle' => 'System status | ' . cfg('app_name'), 'metaDesc' => 'Live status of ' . cfg('app_name') . ': website, kiosk, sign-in, email, reports, payments and backups.'], 'platform');
+}
+
+/** Machine-readable status for uptime monitors (no details). HTTP 503 when anything is down. */
+function platform_status_json(): void
+{
+    $components = system_status(false);
+    $overall = status_overall($components);
+    json_out(['status' => $overall, 'checked_at' => gmdate('c'),
+        'components' => array_map(fn($x) => ['name' => $x['name'], 'status' => $x['state']], $components)], $overall === 'down' ? 503 : 200);
 }

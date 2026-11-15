@@ -31,7 +31,7 @@
   </header>
   <?php require APP_DIR . '/views/partials/flashes.php'; ?>
   <?= $content ?>
-  <footer class="footer">© <?= date('Y') ?> <?= e(cfg('app_name')) ?> · Time &amp; attendance for any front door</footer>
+  <footer class="footer">© <?= date('Y') ?> <?= e(cfg('app_name')) ?> · Time &amp; attendance for any front door · <a href="<?= e(base_path() . '/status') ?>">System status</a></footer>
 </div>
 <script src="<?= asset('js/app.js') ?>"></script>
 </body>
