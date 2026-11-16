@@ -1,7 +1,8 @@
 <?php
 $p = PACKS[$pack];
-$free = array_filter($avail, fn($f) => $f['pack'] === null);
-$paid = array_filter($avail, fn($f) => $f['pack'] !== null);
+// Only released features are shown; unfinished ones stay hidden until they ship
+$free = array_filter($avail, fn($f) => $f['pack'] === null && $f['ready']);
+$paid = array_filter($avail, fn($f) => $f['pack'] !== null && $f['ready']);
 $packActive = ($t['addon_status'] ?? '') === 'active';
 $inTrial = billing_state($t) === 'trial';
 $toggle = function (string $key, array $f, bool $usable) use ($on) {
@@ -20,6 +21,7 @@ $toggle = function (string $key, array $f, bool $usable) use ($on) {
     <?php foreach ($free as $key => $f): ?><?= $toggle($key, $f, true) ?><?php endforeach; ?>
   </div>
 
+  <?php if ($paid): ?>
   <div class="card" style="border:2px solid var(--brand, #5B4CE0)">
     <div class="card-head">
       <h2><?= icon('shield') ?> <?= e($p['name']) ?> pack</h2>
@@ -29,10 +31,12 @@ $toggle = function (string $key, array $f, bool $usable) use ($on) {
       <?php if (!$packActive && $inTrial): ?><b>Free to try during your trial.</b><?php endif; ?></p>
     <?php foreach ($paid as $key => $f): ?><?= $toggle($key, $f, pack_active($t)) ?><?php endforeach; ?>
   </div>
+  <?php endif; ?>
   <div><button class="btn btn-primary">Save features</button></div>
 </form>
 
 <div class="stack" style="max-width:900px;margin-top:16px">
+  <?php if ($paid): ?>
   <div class="card">
     <h2><?= icon('card') ?> Add or stop the <?= e($p['name']) ?> pack</h2>
     <?php if ($packActive): ?>
@@ -45,6 +49,7 @@ $toggle = function (string $key, array $f, bool $usable) use ($on) {
       <form method="post" action="<?= e(url('/admin/features/request')) ?>"><?= csrf_field() ?><input type="hidden" name="what" value="pack"><button class="btn btn-primary btn-sm">Add <?= e($p['name']) ?> for $<?= PACK_PRICE ?>/month</button></form>
     <?php endif; ?>
   </div>
+  <?php endif; ?>
 
   <div class="card">
     <div class="card-head"><h2><?= icon('heart') ?> Support</h2><span class="badge <?= support_premium($t) ? 'in' : 'gray' ?>"><?= support_premium($t) ? 'Premium Support' : 'Regular Support' ?></span></div>
