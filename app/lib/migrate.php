@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 19;
+const SCHEMA_VERSION = 20;
 
 function setting(string $key, $default = null)
 {
@@ -95,6 +95,9 @@ function migrate(): void
         }
         if ($v < 19) {
             migration_19();
+        }
+        if ($v < 20) {
+            migration_20();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -449,4 +452,33 @@ function migration_19(): void
         KEY message (message_id),
         KEY sent (sent_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/**
+ * Sales dashboard: one dated row per outreach event (found, sent, bounced, opened, clicked, replied, demo, signed_up,
+ * unsubscribed) (platform table). Filled from what is already known; dates before this table existed are estimates.
+ */
+function migration_20(): void
+{
+    q('CREATE TABLE IF NOT EXISTS prospect_events (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        prospect_id INT UNSIGNED NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        step TINYINT UNSIGNED NULL,
+        at DATETIME NOT NULL,
+        KEY at_type (at, type),
+        KEY prospect (prospect_id, type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    if ((int) val('SELECT COUNT(*) FROM prospect_events')) {
+        return;
+    }
+    q("INSERT INTO settings (k, v) VALUES ('sales_events_since', ?) ON DUPLICATE KEY UPDATE v = v", [gmdate('Y-m-d H:i:s')]);
+    q("INSERT INTO prospect_events (prospect_id, type, at) SELECT id, 'found', created_at FROM prospects");
+    // Emails already sent: the last one at last_sent_at, earlier ones 4 and 5 days apart before it
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', step, last_sent_at FROM prospects WHERE step >= 1 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', 1, last_sent_at - INTERVAL 4 DAY FROM prospects WHERE step = 2 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', 2, last_sent_at - INTERVAL 5 DAY FROM prospects WHERE step = 3 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', 1, last_sent_at - INTERVAL 9 DAY FROM prospects WHERE step = 3 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, at) SELECT id, CASE status WHEN 'demo' THEN 'demo' ELSE status END, COALESCE(last_sent_at, created_at)
+       FROM prospects WHERE status IN ('replied','demo','signed_up','unsubscribed','bounced')");
 }

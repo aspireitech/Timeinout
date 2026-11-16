@@ -5,6 +5,7 @@ require APP_DIR . '/controllers/kiosk.php';
 require APP_DIR . '/controllers/api.php';
 require APP_DIR . '/controllers/admin.php';
 require APP_DIR . '/controllers/prospects.php';
+require APP_DIR . '/controllers/sales.php';
 require APP_DIR . '/controllers/features.php';
 
 /**
@@ -82,6 +83,9 @@ function platform_routes(string $path): void
         ['POST',     '/super/prospects/{id}', 'super_prospect_update', 'Updated prospect'],
         ['GET|POST', '/unsubscribe',         'platform_unsubscribe'],
         ['GET|POST', '/unsubscribe/one-click', 'webhook_unsubscribe_one_click'],
+        ['GET',      '/r',                   'platform_track_click'],
+        ['GET',      '/o',                   'platform_track_open'],
+        ['GET',      '/super/sales',         'super_sales'],
         ['GET|POST', '/api/prospects',       'webhook_prospects'],
         ['GET',      '/super/requests',      'super_requests'],
         ['POST',     '/super/requests/{id}', 'super_request_update', 'Updated feature request'],

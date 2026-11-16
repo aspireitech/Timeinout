@@ -113,7 +113,8 @@ function prospects_add(array $list, string $by): array
             $skipped[] = [$p['email'] ?: ($p['org'] ?: '?'), $why];
             continue;
         }
-        insert('prospects', $p + ['status' => 'new', 'step' => 0, 'token' => bin2hex(random_bytes(16)), 'added_by' => $by, 'created_at' => gmdate('Y-m-d H:i:s')]);
+        $id = insert('prospects', $p + ['status' => 'new', 'step' => 0, 'token' => bin2hex(random_bytes(16)), 'added_by' => $by, 'created_at' => gmdate('Y-m-d H:i:s')]);
+        prospect_event($id, 'found');
         $added++;
     }
     return ['added' => $added, 'skipped' => $skipped];
@@ -126,8 +127,12 @@ function prospect_converted(string $email, string $status): void
         $email = strtolower(trim($email));
         $dom = prospect_domain($email);
         $shared = prospect_shared_domain($dom);
-        q('UPDATE prospects SET status = ?, next_at = NULL WHERE ' . ($shared ? 'email = ?' : 'email LIKE ?') . " AND status NOT IN ('signed_up','unsubscribed')",
-            [$status, $shared ? $email : '%@' . $dom]);
+        $where = ($shared ? 'email = ?' : 'email LIKE ?') . " AND status NOT IN ('signed_up','unsubscribed')";
+        $ids = array_column(rows("SELECT id FROM prospects WHERE $where", [$shared ? $email : '%@' . $dom]), 'id');
+        q("UPDATE prospects SET status = ?, next_at = NULL WHERE $where", [$status, $shared ? $email : '%@' . $dom]);
+        foreach ($ids as $id) {
+            prospect_event((int) $id, $status);
+        }
     } catch (Throwable $e) {
         // the prospects table may not exist yet during an update
     }
@@ -268,8 +273,9 @@ function prospect_email(array $p, int $step): array
 {
     $x = prospect_pitch((string) $p['kind']);
     $site = scheme() . '://' . cfg('base_domain') . base_path();
-    $signup = $site . '/signup?src=outreach&industry=' . $x['industry'];
-    $demo = $site . '/demo?src=outreach';
+    // Tracked links (/r): count who clicked, then go to the same page as before
+    $signup = prospect_link($p, $step, 'signup');
+    $demo = prospect_link($p, $step, 'demo');
     $hi = 'Hi ' . e($p['first_name'] ?: $p['org'] . ' team') . ',';
     $org = $p['org'];
     $app = e(cfg('app_name'));
@@ -280,7 +286,7 @@ function prospect_email(array $p, int $step): array
         . '<p style="margin:0 0 18px;text-align:center;font-size:13px;color:#6B7090">No credit card. Your own account in about a minute.</p>';
     $phone = trim((string) setting('outreach_phone', ''));
     $sign = '<p style="margin:0">Best,<br><b>' . e((string) setting('outreach_name', '')) . '</b><br>' . $app
-        . ' &middot; <a href="' . e($site . '/?src=outreach') . '" style="color:#5B4CE0">' . e(cfg('base_domain')) . '</a>' . ($phone !== '' ? ' &middot; ' . e($phone) : '') . '</p>';
+        . ' &middot; <a href="' . e(prospect_link($p, $step, 'home')) . '" style="color:#5B4CE0">' . e(cfg('base_domain')) . '</a>' . ($phone !== '' ? ' &middot; ' . e($phone) : '') . '</p>';
     $foot = '<tr><td style="background:#F4F5FA;padding:14px 32px;font-size:12px;line-height:1.5;color:#6B7090">'
         . 'Not the right person, or not interested? Reply and let me know, or <a href="' . e($site . '/unsubscribe?t=' . $p['token']) . '" style="color:#6B7090">unsubscribe</a>, and I won\'t email again.<br>'
         . nl2br(e(trim((string) setting('outreach_address', '')))) . '</td></tr>';
@@ -312,6 +318,9 @@ function prospect_email(array $p, int $step): array
             . $para('I haven\'t heard back, so I\'ll assume the timing isn\'t right and won\'t follow up again.')
             . $para('If timesheets or sign-in sheets become a headache later, you can start a free trial anytime at <a href="' . e($signup) . '" style="color:#5B4CE0;font-weight:bold">' . e(cfg('base_domain')) . '</a>, or just reply to this email.')
             . $para('Thanks for your time, and have a great week.') . $sign . '</td></tr>';
+    }
+    if (setting('outreach_track_opens', '0') === '1') { // optional, off by default: see /super/sales
+        $body .= '<tr><td><img src="' . e($site . '/o?t=' . rawurlencode((string) $p['token']) . '&s=' . ($step + 1)) . '" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px"></td></tr>';
     }
     $html = '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' . e(ucfirst($x['short'])) . '. Try it free for 7 days.</div>'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FA"><tr><td align="center" style="padding:24px 12px">'
@@ -345,6 +354,7 @@ function run_prospects(bool $force = false): array
     foreach ($due as $p) {
         if ($state = prospect_customer_state($p['email'])) {
             update('prospects', ['status' => $state, 'next_at' => null], 'id = ?', [$p['id']]);
+            prospect_event((int) $p['id'], $state);
             continue;
         }
         $step = (int) $p['step'];
@@ -368,6 +378,7 @@ function run_prospects(bool $force = false): array
         $sid = insert('prospect_sends', ['prospect_id' => $p['id'], 'step' => $next, 'to_email' => $p['email'],
             'message_id' => $GLOBALS['mail_message_id'], 'server_reply' => $GLOBALS['mail_reply'], 'sent_at' => $utc]);
         $sentIds[$sid] = $GLOBALS['mail_raw'];
+        prospect_event((int) $p['id'], 'sent', $next);
         $log[] = 'prospect ' . $p['org'] . ': email ' . $next . ' accepted by the mail server' . ($GLOBALS['mail_reply'] ? ' (' . $GLOBALS['mail_reply'] . ')' : '');
     }
     // A copy of each in the mailbox's Sent folder, so you can see exactly what went out

@@ -278,6 +278,7 @@ function mailbox_bounce_reason(string $text): string
 function mailbox_mark(array $p, string $status, string $note): void
 {
     update('prospects', ['status' => $status, 'next_at' => null], 'id = ?', [$p['id']]);
+    prospect_event((int) $p['id'], $status);
     q("UPDATE prospect_sends SET outcome = ?, outcome_at = UTC_TIMESTAMP(), outcome_note = ? WHERE prospect_id = ? ORDER BY id DESC LIMIT 1",
         [$status, mb_substr($note, 0, 250), $p['id']]);
 }

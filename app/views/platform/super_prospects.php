@@ -34,6 +34,7 @@ $total = array_sum($counts);
         <div class="field"><label for="o-imap">Mailbox server (IMAP) for Sent copies and the reply / bounce check</label><input type="text" id="o-imap" name="imap_host" value="<?= e(setting('imap_host', '')) ?>" placeholder="<?= e($imapHost ?: 'imap.hostinger.com') ?>">
           <span class="muted small">Leave empty to use <?= e($imapHost ?: 'the SMTP server name with imap.') ?>. Same mailbox and password as sending.</span></div>
         <label class="check"><input type="checkbox" name="outreach_save_sent" value="1" <?= setting('outreach_save_sent', '1') === '1' ? 'checked' : '' ?>> <span>Save a copy of each outreach email in the Sent folder</span></label>
+        <label class="check"><input type="checkbox" name="outreach_track_opens" value="1" <?= setting('outreach_track_opens', '0') === '1' ? 'checked' : '' ?>> <span>Count opens (estimate) with a tiny image<br><span class="muted small">Off is recommended: iPhones "open" every email by themselves, and tracking images can push cold email into spam. Clicks and replies are counted either way.</span></span></label>
       </div>
       <button class="btn btn-primary btn-sm">Save outreach settings</button>
     </form>

@@ -61,6 +61,7 @@ function super_prospects_settings(): void
     $imap = strtolower(trim((string) input('imap_host')));
     setting_set('imap_host', preg_match('/^[a-z0-9.-]{3,190}$/', $imap) ? $imap : '');
     setting_set('outreach_save_sent', input('outreach_save_sent') === '1' ? '1' : '0');
+    setting_set('outreach_track_opens', input('outreach_track_opens') === '1' ? '1' : '0');
     setting_set('imap_sent_folder', ''); // found again on the next send
     setting_set('outreach_name', mb_substr(trim((string) input('outreach_name')), 0, 80));
     setting_set('outreach_phone', mb_substr(trim((string) input('outreach_phone')), 0, 40));
@@ -119,6 +120,9 @@ function super_prospect_update(int $id): void
         }
         audit_note($p['org'] . ' — ' . $p['email'], audit_diff($p, $new));
         update('prospects', $new, 'id = ?', [$id]);
+        if ($new['status'] !== $p['status'] && in_array($new['status'], SALES_ONCE, true)) {
+            prospect_event($id, $new['status']); // e.g. you marked a phone reply: it counts on the dashboard
+        }
         flash('success', 'Prospect updated.');
     }
     redirect(base_path() . '/super/prospects' . (input('back') !== '' ? '?status=' . urlencode((string) input('back')) : ''));
@@ -132,6 +136,7 @@ function platform_unsubscribe(): void
     $done = false;
     if ($p && is_post()) {
         update('prospects', ['status' => 'unsubscribed', 'next_at' => null], 'id = ?', [$p['id']]);
+        prospect_event((int) $p['id'], 'unsubscribed');
         $GLOBALS['audit_system'] = true;
         audit('Prospect unsubscribed', $p['org'] . ' — ' . $p['email'], true);
         $done = true;
@@ -152,6 +157,7 @@ function webhook_unsubscribe_one_click(): void
     $p = preg_match('/^[a-f0-9]{32}$/', $token) ? row('SELECT * FROM prospects WHERE token = ?', [$token]) : null;
     if ($p && $p['status'] !== 'unsubscribed') {
         update('prospects', ['status' => 'unsubscribed', 'next_at' => null], 'id = ?', [$p['id']]);
+        prospect_event((int) $p['id'], 'unsubscribed');
         $GLOBALS['audit_system'] = true;
         audit('Prospect unsubscribed (one-click)', $p['org'] . ' — ' . $p['email'], true);
     }
