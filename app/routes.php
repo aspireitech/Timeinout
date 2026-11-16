@@ -5,6 +5,7 @@ require APP_DIR . '/controllers/kiosk.php';
 require APP_DIR . '/controllers/api.php';
 require APP_DIR . '/controllers/admin.php';
 require APP_DIR . '/controllers/prospects.php';
+require APP_DIR . '/controllers/features.php';
 
 /**
  * Tiny router. Patterns like /admin/students/{id} pass `id` as a named argument.
@@ -164,6 +165,10 @@ function tenant_routes(string $path): void
         ['GET',      '/admin/whats-new',           'admin_whats_new'],
         ['POST',     '/admin/whats-new',           'admin_feature_request', 'Requested a feature'],
         ['GET',      '/admin/billing',             'admin_billing'],
+        ['GET',      '/admin/features',            'admin_features'],
+        ['POST',     '/admin/features',            'admin_features',        'Changed optional features'],
+        ['POST',     '/admin/features/request',    'admin_features_request', 'Requested add-on or support'],
+        ['GET',      '/admin/rollcall',            'admin_rollcall'],
         ['POST',     '/admin/billing/stripe',      'admin_billing_stripe'],
         ['POST',     '/admin/billing/portal',      'admin_billing_portal'],
         ['POST',     '/admin/billing/wave',        'admin_billing_wave'],

@@ -33,6 +33,8 @@
             <?= csrf_field() ?>
             <select name="plan" style="width:auto"><?php foreach (plans() as $k => $p): ?><option value="<?= e($k) ?>" <?= $t['plan'] === $k ? 'selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select>
             <select name="status" style="width:auto"><?php foreach (['trial', 'active', 'suspended', 'cancelled'] as $s): ?><option <?= $t['status'] === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select>
+            <select name="addon_status" style="width:auto" title="<?= e(PACKS[tenant_pack($t)]['name']) ?> pack"><?php foreach (['' => 'No pack', 'requested' => 'Pack requested', 'active' => PACKS[tenant_pack($t)]['name'] . ' active', 'cancel_requested' => 'Pack: stop requested'] as $k => $l): ?><option value="<?= e($k) ?>" <?= (string) ($t['addon_status'] ?? '') === $k ? 'selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?></select>
+            <select name="support_plan" style="width:auto"><?php foreach (['regular' => 'Regular support', 'premium' => 'Premium support'] as $k => $l): ?><option value="<?= e($k) ?>" <?= ($t['support_plan'] ?? 'regular') === $k ? 'selected' : '' ?>><?= e($l) ?><?= ($t['support_status'] ?? '') === 'requested' && $k === 'premium' ? ' (requested)' : '' ?></option><?php endforeach; ?></select>
             <button class="btn btn-sm">Save</button>
           </form>
           <form method="post" action="<?= e(base_path() . '/super/tenants/' . $t['id'] . '/password') ?>" style="margin-top:6px" data-confirm="Give the owner of <?= e($t['name']) ?> a new temporary password? Their old password stops working.">

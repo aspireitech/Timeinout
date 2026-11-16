@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 15;
+const SCHEMA_VERSION = 16;
 
 function setting(string $key, $default = null)
 {
@@ -83,6 +83,9 @@ function migrate(): void
         }
         if ($v < 15) {
             migration_15();
+        }
+        if ($v < 16) {
+            migration_16();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -385,4 +388,15 @@ function migration_15(): void
         UNIQUE KEY uq_prospect_token (token),
         KEY ix_prospect_due (status, next_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** V16: optional features per portal, the industry add-on pack and the support plan (all off / regular by default). */
+function migration_16(): void
+{
+    foreach (['features' => 'TEXT NULL', 'addon_status' => 'VARCHAR(20) NULL', 'support_plan' => "VARCHAR(20) NOT NULL DEFAULT 'regular'",
+              'support_status' => 'VARCHAR(20) NULL'] as $col => $def) {
+        if (!column_exists('tenants', $col)) {
+            q("ALTER TABLE tenants ADD COLUMN $col $def");
+        }
+    }
 }

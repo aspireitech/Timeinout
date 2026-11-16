@@ -24,6 +24,7 @@ $nav = function (string $path, string $ico, string $label) use ($here, $locked) 
       <?= $nav('/admin', 'home', 'Dashboard') ?>
       <a href="<?= e(url('/')) ?>"><?= icon('kiosk') ?><span class="t">Open kiosk</span></a>
       <?= $nav('/admin/attendance', 'calendar', "Today's attendance") ?>
+      <?php if (feature_on('roll_call', $t)): ?><?= $nav('/admin/rollcall', 'shield', 'Emergency roll call') ?><?php endif; ?>
       <?= $nav('/admin/logs', 'list', 'Activity log') ?>
       <?= $nav('/admin/reports', 'chart', 'Reports') ?>
       <div class="nav-label">People</div>
@@ -34,6 +35,7 @@ $nav = function (string $path, string $ico, string $label) use ($here, $locked) 
       <div class="nav-label">Setup</div>
       <?= $nav('/admin/tiles', 'grid', 'Kiosk tiles') ?>
       <?= $nav('/admin/settings', 'settings', 'Branding & settings') ?>
+      <?= $nav('/admin/features', 'grid', 'Features & add-ons') ?>
       <?= $nav('/admin/billing', 'card', 'Billing') ?>
       <?= $nav('/admin/users', 'shield', 'Users') ?>
       <?= $nav('/admin/audit', 'list', 'Audit log') ?>

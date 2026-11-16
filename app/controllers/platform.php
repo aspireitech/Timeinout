@@ -287,7 +287,19 @@ function super_update_tenant(int $id): void
     $t = row('SELECT * FROM tenants WHERE id = ?', [$id]);
     audit_note($t ? $t['name'] . ' (' . $t['slug'] . ')' : "#$id", $t ? audit_diff($t, ['status' => $status, 'plan' => $plan]) : null);
     if (in_array($status, ['trial', 'active', 'suspended', 'cancelled'], true) && isset(plans()[$plan])) {
-        update('tenants', ['status' => $status, 'plan' => $plan], 'id = ?', [$id]);
+        $extra = [];
+        $addon = (string) input('addon_status');
+        if (in_array($addon, ['', 'requested', 'active', 'cancel_requested'], true)) {
+            $extra['addon_status'] = $addon === '' ? null : $addon;
+        }
+        $support = (string) input('support_plan');
+        if (in_array($support, ['regular', 'premium'], true)) {
+            $extra['support_plan'] = $support;
+            if ($t && $support !== $t['support_plan']) {
+                $extra['support_status'] = null; // request handled
+            }
+        }
+        update('tenants', ['status' => $status, 'plan' => $plan] + $extra, 'id = ?', [$id]);
         flash('success', 'Subscriber updated.');
     }
     redirect(base_path() . '/super');
