@@ -19,14 +19,14 @@
 </ol>
 <p>Each email once, at most one a day, never to paying customers or the demo.</p>
 <h2>2. Alerts to you</h2>
-<p>New sign-up · new card customer · payment received · <strong>ACTION: payment failed</strong> · cancellation · demo request · "chose a plan, send invoice" · subdomain to-do · trial with no check-ins after 2 days · trial ends tomorrow · feature request · suspicious sign-in report · recovery code or break-glass used. Sent to contact@ and every address in "Also send alerts to".</p>
+<p>New sign-up · new card customer · payment received · <strong>ACTION: payment failed</strong> · cancellation · demo request · "chose a plan, send invoice" · subdomain to-do · trial with no check-ins after 2 days · trial ends tomorrow · feature request · suspicious sign-in report · recovery code or break-glass used · <strong>prospect replied</strong>. Sent to contact@ and every address in "Also send alerts to".</p>
 <h2>3. Weekly scorecard (Monday 8:00)</h2>
-<p>New sign-ups, payments, paying customers, monthly recurring revenue, sign-ups and demo requests by source, outreach numbers (added, emailed, replied, demos, signed up, unsubscribed), and every open trial (red = no check-ins yet: call them).</p>
+<p>New sign-ups, payments, paying customers, monthly recurring revenue, sign-ups and demo requests by source, website visits and top sources, outreach numbers (added, emailed, replied, demos, signed up, unsubscribed), and every open trial (red = no check-ins yet: call them).</p>
 <h2>4. Outreach to prospects</h2>
 <img src="{{IMGROOT}}/screens/12-super-prospects.jpg" alt="Prospects page" width="1000">
 <h3>Settings (one time)</h3>
 <ol>
-<li><code>/super → Prospects</code> → your name, phone, <strong>business postal address</strong> (required by US law), emails per day (20), time zone → tick <strong>Send outreach emails automatically</strong> → Save.</li>
+<li><code>/super → Prospects</code> → your name, phone, <strong>business postal address</strong> (required by US law), emails per day (25), time zone → tick <strong>Send outreach emails automatically</strong> → Save.</li>
 </ol>
 <h3>What each lead receives</h3>
 <ol>
@@ -34,7 +34,7 @@
 <li><strong>Follow-up</strong> 4 days later.</li>
 <li><strong>Last note</strong> 5 days after that, then status "No answer".</li>
 </ol>
-<p>Sent from contact@ in the lead's own business hours (by state): Tue–Thu 9–12 and 13–15, Mon 10–12 and 13–15, Fri 9–12; at most 4 per hour and 20 per day. It stops automatically on sign-up, demo request or unsubscribe. <strong>You</strong> set Replied or Bounced. Every email has an unsubscribe link and your postal address. Preview any email with the <em>Preview</em> link on each row.</p>
+<p>Sent from contact@ in the lead's own business hours (by state): Tue–Thu 9–12 and 13–15, Mon 10–12 and 13–15, Fri 9–12; at most 7 per hour and 25 per day. It stops automatically on sign-up, demo request, unsubscribe, <strong>reply or bounce</strong> (the inbox is read every hour; you get an alert email for each reply). Every email is logged in <code>/super → Prospects → Delivery log</code> and copied to Sent Items. Every email has an unsubscribe link and your postal address. Preview any email with the <em>Preview</em> link on each row.</p>
 <h3>Adding leads by hand</h3>
 <p>Paste one per line: <code>Organization, First name, Email, City, State, Type, Website, Phone</code> (Type: clinic, dental, daycare, tutoring, school, office, gym, construction, retail, restaurant, other). District and government addresses are skipped automatically.</p>
 <h2>5. Daily lead finder (Claude)</h2>
@@ -55,15 +55,15 @@
 <li>30 posts scheduled at 10:00 AM daily (Nov 13 – Dec 12, 2026): industry tips, feature highlights, polls, pricing; each links to the matching page with <code>?src=facebook</code> so sign-ups show "via facebook".</li>
 <li>See or edit: <a href="https://app.metricool.com">app.metricool.com</a> → Planner.</li>
 <li><strong>Refill monthly:</strong> around the 8th, ask Claude "schedule the next month of Facebook posts" (Claude reads the best-performing posts first).</li>
-<li>LinkedIn and Google Business Profile need a paid Metricool plan.</li>
+<li>LinkedIn and Google Business Profile need a paid Metricool plan; Google Business Profile posts are added by hand (texts and images from Claude).</li>
 </ul>
 <h2>7. Tracked links (where sign-ups come from)</h2>
 <table><thead><tr><th>Link</th><th>Use for</th></tr></thead><tbody>
 <tr><td><code>clockinoutapp.com/facebook</code>, <code>/linkedin</code>, <code>/email</code>, <code>/web</code>, <code>/friend</code></td><td>Short share links that record the source</td></tr>
-<tr><td><code>clockinoutapp.com/for/schools</code>, <code>/tutoring</code>, <code>/offices</code>, <code>/healthcare</code>, <code>/gyms</code>, <code>/construction</code></td><td>Industry pages; add <code>?src=channel</code></td></tr>
+<tr><td><code>clockinoutapp.com/for/schools</code>, <code>/tutoring</code>, <code>/offices</code>, <code>/healthcare</code>, <code>/dental</code>, <code>/gyms</code>, <code>/construction</code>, <code>/retail</code></td><td>Industry pages; add <code>?src=channel</code></td></tr>
 </tbody></table>
 <h2>8. Search and analytics</h2>
-<p>Google Search Console (site verification tag) and Google Analytics 4 (measurement ID) are set in <code>/super → Settings</code>; analytics run on the public site only, never inside customer portals.</p>
+<p>Google Search Console (site verification tag) and Google Analytics 4 (measurement ID) are set in <code>/super → Settings</code>; analytics run on the public site only, never inside customer portals. Website visits are also counted on our own server and shown on the Sales dashboard (page 15).</p>
 <h2>Getting found (done 16 Nov 2026)</h2>
 <table><thead><tr><th>Channel</th><th>Status</th><th>Track it with</th></tr></thead><tbody>
 <tr><td>Google Search Console</td><td>Verified; sitemap read (12 pages)</td><td>Search Console → Performance (weekly)</td></tr>
