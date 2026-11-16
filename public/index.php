@@ -72,7 +72,13 @@ if ($resolved === null && setting('ga4_id', '') !== '') {
 
 if ($path === '/__ping') { // lets the app check that a portal's subdomain reaches it (subdomain_live)
     header('Content-Type: text/plain');
-    exit('clockinout:' . ($resolved['slug'] ?? ($resolved === null ? 'platform' : 'unknown')));
+    $who = 'clockinout:' . ($resolved['slug'] ?? ($resolved === null ? 'platform' : 'unknown'));
+    // Restore check: proves the address reaches THIS server's database, not an old host (?n=<one-time value>)
+    $n = (string) ($_GET['n'] ?? '');
+    if (preg_match('/^[a-f0-9]{32}$/', $n)) {
+        $who .= hash_equals((string) setting('ping_nonce', ''), $n) ? ':this-server' : ':other-server';
+    }
+    exit($who);
 }
 
 if ($path === '/robots.txt') {

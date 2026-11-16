@@ -68,6 +68,7 @@
     </form>
   </div>
   <div class="card">
+    <p style="margin:0 0 14px"><a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/check') ?>"><?= icon('shield', 16) ?> Run the restore check</a> <span class="muted small">Tests every credential and dependency after a restore or a move.</span></p>
     <h3><?= icon('check') ?> Send a test email</h3>
     <form method="post" class="inline-form">
       <?= csrf_field() ?><input type="hidden" name="action" value="test">

@@ -13,3 +13,11 @@
   MASTER_GUIDE §17 step 5). When the Atlassian connector is available, republish the pages a change affects and
   rebuild the offline copy. The private credentials register lives only in Confluence: it lists where secrets are
   stored, never their values.
+- **Every zip the owner uploads must pass the security gate.** Build it only with
+  `php cron/release_check.php --zip OUT.zip` (syntax, secrets, forbidden files, headers, CSRF and webhook
+  verification, injection patterns, unescaped output, additive migrations). If it fails, fix the cause; never hand
+  over a zip that failed. Before that, review the changed code for security the way an attacker would (input,
+  output, auth, redirects, headers, data exposure) and tell the owner the result together with the zip.
+  New unescaped template output is added to `cron/release_check_known.txt` only after checking it is safe.
+- After a restore or a move to new hosting, `php cron/verify_restore.php` (or /super → Settings → Run the restore
+  check) proves every credential works; keep its checks in step with new integrations.

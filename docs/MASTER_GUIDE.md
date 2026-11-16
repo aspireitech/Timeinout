@@ -100,7 +100,8 @@ app/
   lib/                 auth, billing, campaigns, crypto, csv_import, import_map, db, migrate,
                        mailer, pdf, reports, tenant, industries, whatsnew, audit, backup, demo, helpers
   views/               layouts/, partials/, platform/, admin/, kiosk/, auth/
-cron/                  send_reports.php (hourly), backup.php (daily), super_password.php (emergency)
+cron/                  send_reports.php (hourly), backup.php (daily), super_password.php (emergency),
+                       verify_restore.php (restore check), release_check.php (security gate before every release zip)
 database/schema.sql    full schema for a fresh install
 docs/                  this guide, GO_LIVE.md (click-by-click hosting setup), img/, older design notes
 backups/               created by cron/backup.php (not in git)
@@ -329,7 +330,7 @@ Name, logo, colors, welcome text, time zone, kiosk without login, past-day entri
 | Job | Schedule | Does |
 |---|---|---|
 | `php /home/USER/domains/clockinoutapp.com/public_html/cron/send_reports.php` | **every hour** | Sends due daily/weekly/monthly reports (at each portal's report hour, default 7:00 local), syncs Wave invoices, purges portals deleted more than 30 days ago, re-checks portals whose subdomain was not live yet, sends trial follow-up emails and alerts, the outreach inbox check (bounces and replies), outreach emails to prospects, and the Monday scorecard. `--force` sends reports now, `--scorecard` sends the scorecard now (testing). |
-| `php /home/USER/domains/clockinoutapp.com/public_html/cron/backup.php` | **daily** (e.g. 02:00) | Dumps the platform database and every customer database to `backups/<date-time>/` as `.sql.gz` with `MANIFEST.txt`; keeps `backup_keep_days`. |
+| `php /home/USER/domains/clockinoutapp.com/public_html/cron/backup.php` | **daily** (e.g. 02:00) | Dumps the platform database and every customer database to `backups/<date-time>/` as `.sql.gz`, adds `uploads_logos.zip`, tests that each file opens, writes `SHA256SUMS` and `MANIFEST.txt` (files, row counts, restore commands); keeps `backup_keep_days`. |
 | `php cron/super_password.php [--recovery]` | by hand, emergencies | Sets a new provider break-glass password; `--recovery` prints new recovery codes. |
 
 Adjust the path to where the code lives (Hostinger: hPanel → Advanced → Cron Jobs). Each hourly task runs on its own (`run_hourly_jobs()` in `app/lib/jobs.php`), so one failing task never stops the others; the last run time and output show at the top of `/super → Prospects`. The job needs PHP 8.1+: if the cron's PHP is older, its output says so; then use **Custom** with a newer PHP path (for example `/opt/alt/php83/usr/bin/php`).
@@ -349,7 +350,8 @@ No cron on the host? Call `https://clockinoutapp.com/run-cron?key=CRON_KEY` hour
 | Data | Customers separated by database or `tenant_id`; AES-256-GCM for contacts and secrets; passwords hashed with `password_hash`. |
 | Privacy | Portals send `noindex` and robots.txt disallows them; no analytics in portals or `/super`. |
 | Audit | Every sign-in, change, import, export and payment event in `audit_log` (portal) and the provider audit log. |
-| Resilience | Daily backups (14 days), deleted portals kept 30 days (Restore in `/super`), dedicated DB saved to `backups/deleted/` before removal. |
+| Release gate | `cron/release_check.php` must pass before any zip is uploaded (§11). |
+| Resilience | Daily backups (14 days, checksummed, with logos), restore check (`cron/verify_restore.php`, `/super/check`), deleted portals kept 30 days (Restore in `/super`), dedicated DB saved to `backups/deleted/` before removal. |
 
 The separate private **security tracker** (Excel, not in the repo) lists open action items.
 
@@ -373,6 +375,8 @@ git pull
 git archive --format=zip -o ClockInOut.zip HEAD
 ```
 The zip never contains `config.php`, `app.key`, uploads or backups, so extracting it over the live site keeps them.
+
+**Security gate:** every release zip is built with `php cron/release_check.php --zip OUT.zip`, which refuses to build when any check fails: PHP syntax, no tracked secrets/keys/backups/local helpers (placeholders allowed), `.htaccess` folder blocks and security headers, CSRF on every POST and signature/token checks on every `webhook_` route, no request data in SQL/shell/eval/unserialize/redirects, no new unescaped template output (reviewed exceptions in `cron/release_check_known.txt`), additive migrations, safe `config.sample.php` defaults; warnings for uncommitted changes and code changes without a guide update.
 
 **Upload on Hostinger:** File Manager → `public_html` → Upload the zip → Extract here → overwrite.
 Never extract inside `app/` (that would overwrite `app/.htaccess`). After extracting, open any
@@ -398,7 +402,9 @@ and `docs/GO_LIVE.md` for click-by-click hosting screens.
 | Code | Same for every customer | GitHub `main` | — |
 | Hostinger backups | Whole account snapshots | Hostinger plan feature | check retention in hPanel |
 
-**Off-site copy routine (weekly):** hPanel → File Manager → `backups/` → download the newest folder → store in cloud storage (OneDrive/Google Drive), keep 4–8 weeks.
+**Off-site copy routine (weekly):** hPanel → File Manager → `backups/` → download the newest folder → store in cloud storage (OneDrive/Google Drive), keep 4–8 weeks. Verify the copy: `shasum -a 256 -c SHA256SUMS` (Mac/Linux) or `Get-FileHash FILE -Algorithm SHA256` (Windows) against `SHA256SUMS`. Logos are in `uploads_logos.zip`; `config.php` and `app.key` are never in the backup folder (password manager).
+
+**Restore check** (`app/lib/restore_check.php`): `php cron/verify_restore.php [--send-test=EMAIL]` or `/super → Settings → Run the restore check` (`/super/check`) tests for real: PHP and extensions, config.php present/permissions/debug/HTTPS, that `app.key` opens the stored encrypted values, the platform database and every customer database, writable folders and logos, hourly job and backup age, Microsoft 365 sign-in and inbox read (or SMTP login), optional real test email, Stripe key/webhook secret/price IDs, Wave token, Google sign-in, prospect finder key, and that `clockinoutapp.com` and customer subdomains reach **this** server over HTTPS (`/__ping?n=<one-time value>` answers `:this-server` only when the address reaches the database that stored the value; `:other-server` means DNS still points to an old host). Each failure names where to fix it; secrets are never shown. Exit code 1 when anything failed.
 
 **Test a restore every quarter** on a dev copy (see §13 scenario C).
 
@@ -442,6 +448,12 @@ Google → email code → break-glass (password + recovery code) → server: `ph
 **F. Portal deleted by mistake**
 Within 30 days: `/super → Subscribers → Deleted → Restore`. After that: restore from `backups/deleted/` or the daily backup (scenario B), then re-create the `tenants` row from the platform backup.
 
+**H. After any restore: prove every credential works**
+Run the restore check (§12) and fix every FAIL with its "where to fix" line; repeat after switching DNS. Then test by hand: home page, `/super` sign-in, one portal admin and kiosk, a report email, `/status` all green.
+
+**I. Suspected break-in**
+Restore code (A) and databases from before the break-in (B); change the hosting password, database passwords, Microsoft client secret, Stripe secret and webhook secret, Wave token, Google OAuth secret, prospect finder key, break-glass password and recovery codes. Keep `app.key` unless it leaked. Run the restore check; read the audit log.
+
 **G. `app.key` lost**
 Encrypted fields (contacts, customer DB passwords, secrets) cannot be decrypted. Recovery: restore `app.key` from the password manager. There is no other way — keep two copies.
 
@@ -463,8 +475,8 @@ Requirements: PHP 8.1+ with `pdo_mysql`, `openssl`, `mbstring`, `zip`, `zlib`, `
 5. **Uploads:** copy `public/uploads/logos/`.
 6. **Subdomains:** add wildcard `*.clockinoutapp.com` pointing to the same web root (Hostinger: Subdomains → custom folder `public_html`).
 7. **Cron:** add the hourly `send_reports.php` and daily `backup.php` jobs with the new paths (§9).
-8. **Test before switching DNS:** use a hosts-file entry or the host's temporary URL: home page, `/super` sign-in, one portal kiosk, one report, `/super → Settings → Send a test email`.
-9. **Switch DNS:** change `A @` and `A *` to the new server IP (lower TTL a day earlier). Wait for SSL to issue for the root and wildcard.
+8. **Test before switching DNS:** `php cron/verify_restore.php --send-test=you@example.com` (everything OK except "reaches this server"), then with a hosts-file entry or the host's temporary URL: home page, `/super` sign-in, one portal kiosk, one report.
+9. **Switch DNS:** change `A @`, `A www` and `A *` to the new server IP (lower TTL a day earlier); leave MX/SPF/DKIM/DMARC (Microsoft 365) unchanged. Wait for SSL to issue for the root and wildcard, then run the restore check again until "reaches this server" is OK.
 10. **After:** update the Google sign-in redirect URIs if the domain changed, Stripe webhook URL, Search Console; keep the old host read-only for a week, then cancel.
 
 ---
@@ -562,3 +574,4 @@ step must update this guide **in the same commit**:
 | 2026-11-16 | Microsoft 365: outreach sent as MIME through Graph (copies in Sent Items, unsubscribe headers kept); replies and bounces read through Graph with Mail.Read. |
 | 2026-11-16 | Security: the inbox check ignores forged replies and bounces (Authentication-Results: DMARC fail, or SPF and DKIM both fail; `mailbox_spoofed()`). |
 | 2026-11-16 | Confluence: new page 15 (Sales dashboard and website traffic); pages 2, 4, 6, 7, 8, 9, 11, 12 and the FAQ updated for features, QR badges, check-in method, Microsoft 365 outreach, growth tools and the security review; new screenshots. |
+| 2026-11-16 | Backups and recovery: nightly backup adds `uploads_logos.zip`, `SHA256SUMS` and restore commands in `MANIFEST.txt`; restore check (`cron/verify_restore.php`, `/super/check`) tests every credential and whether the domain reaches this server (`/__ping?n=`); release security gate `cron/release_check.php` before every upload; Confluence page 10 rewritten with diagrams (`docs/img/backup-dr.png`, `docs/img/restore-flow.png`). |

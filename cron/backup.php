@@ -37,8 +37,45 @@ foreach (rows('SELECT * FROM tenants WHERE db_name IS NOT NULL ORDER BY slug') a
         $log[] = "{$t['slug']}: FAILED " . $e->getMessage();
     }
 }
+// Customer logos (small), so a move to new hosting needs only this folder plus config.php and app.key
+$logos = PUBLIC_DIR . '/uploads/logos';
+if (is_dir($logos) && class_exists('ZipArchive')) {
+    $zip = new ZipArchive();
+    if ($zip->open("$dir/uploads_logos.zip", ZipArchive::CREATE) === true) {
+        $n = 0;
+        foreach (glob($logos . '/*') ?: [] as $f) {
+            if (is_file($f)) {
+                $zip->addFile($f, basename($f));
+                $n++;
+            }
+        }
+        $zip->close();
+        $log[] = sprintf('%-40s %8d files', 'uploads_logos.zip', $n);
+    }
+}
+// Check every file opens, and record its size and SHA-256 so a damaged copy can be spotted after download
+$sums = [];
+foreach (glob("$dir/*") as $f) {
+    $ok = true;
+    if (str_ends_with($f, '.gz')) {
+        $gz = @gzopen($f, 'rb');
+        $ok = $gz && gzread($gz, 64) !== false;
+        if ($gz) {
+            gzclose($gz);
+        }
+    }
+    if (!$ok) {
+        $failed++;
+        $log[] = basename($f) . ': FAILED, the file cannot be opened';
+    }
+    $sums[] = hash_file('sha256', $f) . '  ' . str_pad((string) filesize($f), 10, ' ', STR_PAD_LEFT) . '  ' . basename($f);
+}
 // Which database belongs to which portal (needed when restoring on a new server)
-file_put_contents("$dir/MANIFEST.txt", "ClockInOut backup " . gmdate('Y-m-d H:i') . " UTC\n\n" . implode("\n", $log) . "\n");
+file_put_contents("$dir/MANIFEST.txt", "ClockInOut backup " . gmdate('Y-m-d H:i') . " UTC\n\n" . implode("\n", $log)
+    . "\n\nRestore one database:  gunzip -c FILE.sql.gz | mysql -h HOST -u USER -p DATABASE   (or phpMyAdmin → Import)\n"
+    . "Check a downloaded copy: sha256sum -c SHA256SUMS   (Windows: certutil -hashfile FILE SHA256)\n"
+    . "Not in this folder (keep them in the password manager): app/config.php and app/keys/app.key\n");
+file_put_contents("$dir/SHA256SUMS", implode("\n", array_map(fn($l) => preg_replace('/  +\d+  /', '  ', $l), $sums)) . "\n");
 
 // Remove old backups
 $keep = (int) cfg('backup_keep_days', 14);

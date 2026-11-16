@@ -11,6 +11,7 @@
 <tr><td>Outreach and tracking</td><td>Tracked links open fixed pages only (no open redirect); one-click unsubscribe needs the secret 32-character token; tracking cookies are first-party, HttpOnly, Secure and SameSite=Lax; visits counted without cookies (daily-changing hash, IP not stored); forged replies and bounces ignored (DMARC/SPF/DKIM)</td></tr>
 <tr><td>Kiosk check-in method</td><td>"Scan badge only" enforced on the server; front-desk code hashed and rate-limited (5 tries per 15 minutes)</td></tr>
 <tr><td>Microsoft 365 app</td><td>Mail.Send + Mail.Read application permissions, limited to contact@ and reports@ by an Exchange application access policy (verify with Test-ApplicationAccessPolicy, page 4); the inbox is only read, never changed</td></tr>
+<tr><td>Release gate</td><td>Every update zip is built only after <code>php cron/release_check.php --zip …</code> passes: syntax, no secrets, headers, CSRF and webhook checks, no request data in SQL or redirects, no new unescaped output, additive migrations (page 10, section 10)</td></tr>
 <tr><td>Audit</td><td>Every sign-in, change, import, export and payment recorded</td></tr>
 <tr><td>Privacy</td><td>Portals hidden from search engines; no analytics in portals or <code>/super</code></td></tr>
 </tbody></table>

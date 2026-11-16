@@ -10,8 +10,10 @@
 <tr><td>Customer with its own database</td><td>hPanel → Databases first, then <code>/super → New portal</code></td></tr>
 <tr><td>Change prices</td><td><code>PLAN_CATALOG</code> in <code>app/lib/billing.php</code> + new Stripe prices + new price IDs in <code>/super → Settings</code></td></tr>
 <tr><td>Rebuild the demo</td><td><code>/super → Reset demo portal</code></td></tr>
+<tr><td>After a restore or move, or when something seems wrong</td><td><code>/super → Settings → Run the restore check</code> or <code>php cron/verify_restore.php</code> (page 10, section 8)</td></tr>
 <tr><td>Every weekday morning</td><td>Open the 8:00 hot list email and call the people on it; then set them to Replied or Booked demo</td></tr>
-<tr><td>Weekly</td><td>Read the Monday scorecard; download the newest backup off-site</td></tr>
+<tr><td>Weekly</td><td>Read the Monday scorecard; download the newest backup off-site and check it with SHA256SUMS (page 10, section 3)</td></tr>
+<tr><td>Quarterly</td><td>Restore drill (page 10, section 11)</td></tr>
 <tr><td>Monthly (around the 8th)</td><td>Ask Claude for next month's Facebook posts</td></tr>
 </tbody></table>
 <h2>Troubleshooting</h2>

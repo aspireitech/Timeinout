@@ -6,6 +6,7 @@ require APP_DIR . '/controllers/api.php';
 require APP_DIR . '/controllers/admin.php';
 require APP_DIR . '/controllers/prospects.php';
 require APP_DIR . '/controllers/sales.php';
+require APP_DIR . '/controllers/maintenance.php';
 require APP_DIR . '/controllers/features.php';
 
 /**
@@ -95,6 +96,7 @@ function platform_routes(string $path): void
         ['POST',     '/super/tenants/{id}',  'super_update_tenant', 'Changed subscriber plan/status'],
         ['POST',     '/super/demo',          'super_seed_demo',     'Rebuilt demo portal'],
         ['GET|POST', '/super/settings',      'super_settings'],
+        ['GET|POST', '/super/check',         'super_restore_check'],
         ['GET|POST', '/super/security',      'super_security',      'Changed provider sign-in security'],
         ['GET',      '/super/audit',         'super_audit'],
         ['GET|POST', '/super/payments',      'super_payments'],
