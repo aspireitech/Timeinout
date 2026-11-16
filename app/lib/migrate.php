@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 20;
+const SCHEMA_VERSION = 21;
 
 function setting(string $key, $default = null)
 {
@@ -98,6 +98,9 @@ function migrate(): void
         }
         if ($v < 20) {
             migration_20();
+        }
+        if ($v < 21) {
+            migration_21();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -481,4 +484,24 @@ function migration_20(): void
     q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', 1, last_sent_at - INTERVAL 9 DAY FROM prospects WHERE step = 3 AND last_sent_at IS NOT NULL");
     q("INSERT INTO prospect_events (prospect_id, type, at) SELECT id, CASE status WHEN 'demo' THEN 'demo' ELSE status END, COALESCE(last_sent_at, created_at)
        FROM prospects WHERE status IN ('replied','demo','signed_up','unsubscribed','bounced')");
+}
+
+/** Which link a prospect clicked (hot list), and website visits without cookies (traffic on the sales dashboard; platform table). */
+function migration_21(): void
+{
+    if (!column_exists('prospect_events', 'detail')) {
+        q('ALTER TABLE prospect_events ADD COLUMN detail VARCHAR(20) NULL');
+    }
+    q('CREATE TABLE IF NOT EXISTS site_visits (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        at DATETIME NOT NULL,
+        vid CHAR(16) NOT NULL,
+        path VARCHAR(120) NOT NULL,
+        source VARCHAR(40) NOT NULL,
+        ref_host VARCHAR(80) NULL,
+        device VARCHAR(8) NOT NULL,
+        landing TINYINT(1) NOT NULL DEFAULT 0,
+        KEY at (at),
+        KEY vid (vid, at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }

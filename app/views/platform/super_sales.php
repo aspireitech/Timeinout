@@ -85,6 +85,68 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
       <?php if (!$opens): ?>Opens are not counted (recommended): turn it on in Prospects → settings if you want an estimate.<?php endif; ?></p>
   </div>
 
+  <div class="card" id="hot">
+    <div class="card-head">
+      <h2 style="margin:0">🔥 Call today <span class="muted small" style="font-weight:400">clicked in the last 7 days, no reply yet</span></h2>
+      <span class="badge <?= $hot ? 'out' : 'gray' ?>"><?= count($hot) ?> to call</span>
+    </div>
+    <?php if ($hot): ?>
+      <p class="chart-sum">They looked at your offer. A two-minute call now ("I saw you had a look, any questions?") converts far better than another email. After the call, set them to Replied or Booked demo in Prospects. This list is also emailed to you every weekday at 8:00.</p>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Who</th><th>Call / email</th><th>Looked at</th><th>Last click</th></tr>
+        <?php foreach ($hot as $p): ?>
+          <tr class="small">
+            <td><b><?= e($p['org']) ?></b><br><span class="muted"><?= e(PROSPECT_KINDS[$p['kind']] ?? $p['kind']) ?><?= $p['city'] ? ' · ' . e($p['city']) . ', ' . e((string) $p['state']) : '' ?></span></td>
+            <td><?php if ($p['phone']): ?><a href="tel:<?= e(preg_replace('/[^0-9+]/', '', $p['phone'])) ?>"><b><?= e($p['phone']) ?></b></a><br><?php endif; ?><a href="mailto:<?= e($p['email']) ?>"><?= e($p['email']) ?></a><?= $p['first_name'] ? '<br><span class="muted">ask for ' . e($p['first_name']) . '</span>' : '' ?></td>
+            <td><?= e(ucfirst($p['looked_at'])) ?><?= (int) $p['clicks'] > 1 ? '<br><span class="muted">' . (int) $p['clicks'] . ' clicks</span>' : '' ?></td>
+            <td class="nowrap"><?= e((new DateTime($p['last_click'], new DateTimeZone('UTC')))->setTimezone(outreach_tz())->format('D M j, g:i A')) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </table></div>
+    <?php else: ?>
+      <p class="muted small" style="margin:0">Nobody to call yet. When a prospect clicks the trial, demo or website link in an outreach email and does not reply, they appear here.</p>
+    <?php endif; ?>
+  </div>
+
+  <div class="card" id="traffic">
+    <h2 style="margin-top:0">Website traffic</h2>
+    <div class="kpis">
+      <?= $tile('Visits', number_format($web['visits']), number_format($web['views']) . ' page views', ['', ''], 'One visit per person per day, counted on our server (ad blockers do not hide it). Bots are left out.') ?>
+      <?= $tile('On a phone', $web['visits'] ? sales_pct($web['mobile'] / max(1, $web['views']), 0) : '–', 'of page views', ['', '']) ?>
+      <?= $tile('Demo requests', number_format($web['demos']), 'all sources', ['', '']) ?>
+      <?= $tile('Sign-ups (trials)', number_format($web['signups']), 'all sources', ['', '']) ?>
+      <?= $tile('Visit → lead', sales_pct($web['conv']), 'visits that became a demo request or sign-up', ['', ''], 'A good small-business software site converts 2–5% of visits.') ?>
+    </div>
+    <div class="multiples" style="margin-bottom:14px">
+      <div>
+        <h3>Visits</h3>
+        <?php $vs = array_sum($visits); $vk = $vs ? array_search(max($visits), $visits, true) : null; ?>
+        <div class="chart-sum"><?= number_format($vs) ?> in total<?= $vk !== null ? ' · most: ' . e(preg_replace('/^Week of /', 'week of ', $d['buckets'][$vk])) . ' (' . number_format($visits[$vk]) . ')' : '' ?></div>
+        <?= sales_columns($visits, $d['buckets'], 'visits') ?>
+      </div>
+      <div>
+        <h3>Where visitors land</h3>
+        <div class="chart-sum">First page of each visit</div>
+        <div class="meters">
+          <?php $pmax = max(1, ...array_map('intval', array_column($web['pages'], 'n') ?: [0])); foreach (array_slice($web['pages'], 0, 7) as $pg): ?>
+            <div class="meter" style="grid-template-columns:150px 1fr 60px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= e($pg['path']) ?></span><span class="bar"><i style="width:<?= round($pg['n'] / $pmax * 100, 1) ?>%"></i></span><span class="fig"><b><?= number_format((int) $pg['n']) ?></b></span></div>
+          <?php endforeach; ?>
+          <?php if (!$web['pages']): ?><p class="muted small">No visits counted yet in this period.</p><?php endif; ?>
+        </div>
+      </div>
+    </div>
+    <h3>Where visitors come from, and which sources turn into leads</h3>
+    <div class="table-wrap"><table class="table">
+      <tr><th>Source</th><th class="num">Visits</th><th class="num">Demo requests</th><th class="num">Sign-ups</th><th>Visit → lead</th></tr>
+      <?php foreach (array_slice($web['by_source'], 0, 15, true) as $src => $r): $cv = $r['visits'] ? ($r['demos'] + $r['signups']) / $r['visits'] : null; ?>
+        <tr class="small"><td><b><?= e((string) $src) ?></b></td><td class="num"><?= number_format($r['visits']) ?></td><td class="num"><?= number_format($r['demos']) ?></td><td class="num"><?= number_format($r['signups']) ?></td>
+          <td class="nowrap"><?php if ($cv !== null): ?><span class="mini"><i style="width:<?= round(min(1, $cv / 0.1) * 100, 1) ?>%"></i></span><?= sales_pct($cv) ?><?php else: ?><span class="muted">no visits counted</span><?php endif; ?></td></tr>
+      <?php endforeach; ?>
+      <?php if (!$web['by_source']): ?><tr><td colspan="5" class="empty">Nothing yet in this period.</td></tr><?php endif; ?>
+    </table></div>
+    <p class="muted small" style="margin:8px 0 0">Tag every link you share with <code>?src=</code> (e.g. <code>clockinoutapp.com/?src=flyer</code>) or use the short links <code>/facebook</code>, <code>/linkedin</code>, <code>/email</code>, <code>/friend</code>: each visit, demo request and sign-up is then credited to it, even when they come back days later. The "Visit → lead" bar is full at 10%.</p>
+  </div>
+
   <div class="card">
     <h2 style="margin-top:0">Funnel</h2>
     <div class="rings">

@@ -14,6 +14,8 @@ function run_hourly_jobs(bool $forceReports = false, bool $forceScorecard = fals
         'mailbox'   => fn() => mailbox_check(), // bounces and replies first, so nobody who answered gets another email
         'outreach'  => fn() => run_prospects(),
         'scorecard' => fn() => send_scorecard($forceScorecard),
+        'hotlist'   => fn() => run_hot_leads(),
+        'traffic'   => fn() => traffic_purge(),
     ];
     $lines = [];
     $errors = 0;

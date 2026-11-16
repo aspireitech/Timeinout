@@ -15,6 +15,15 @@
 </head>
 <body>
 <?= $content ?>
+<?php if (preg_match('#^/(for/[a-z-]+)?$#', (string) ($GLOBALS['request_path'] ?? ''))): $_q = ($_s = lead_source()) ? '?src=' . rawurlencode($_s) : ''; ?>
+<div class="sticky-cta" id="sticky-cta" aria-hidden="true">
+  <a class="btn btn-primary" href="<?= e(base_path() . '/signup' . $_q) ?>">Start free trial</a>
+  <a class="btn btn-ghost" href="<?= e(base_path() . '/demo' . $_q) ?>">Book a demo</a>
+</div>
+<script>(function () { var b = document.getElementById('sticky-cta'); if (!b) return;
+  function f() { var on = window.scrollY > 520; b.classList.toggle('on', on); b.setAttribute('aria-hidden', on ? 'false' : 'true'); }
+  window.addEventListener('scroll', f, { passive: true }); f(); })();</script>
+<?php endif; ?>
 <script src="<?= asset('js/home.js') ?>"></script>
 </body>
 </html>

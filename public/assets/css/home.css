@@ -203,3 +203,13 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; padding-bot
 .camp-more { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; }
 .camp-more a { color: var(--brand); font-weight: 600; }
 @media (max-width: 900px) { .camp-pains, .camp-feats { grid-template-columns: 1fr; } }
+
+/* ---------- Phones: start-trial bar that stays at the bottom once the page is scrolled ---------- */
+.sticky-cta { display: none; }
+@media (max-width: 760px) {
+  .sticky-cta { display: flex; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.96); box-shadow: 0 -6px 24px rgba(22,27,54,.12); transform: translateY(110%); transition: transform .25s ease; }
+  .sticky-cta.on { transform: none; }
+  .sticky-cta .btn { flex: 1; justify-content: center; text-align: center; }
+  body { padding-bottom: 76px; }
+}

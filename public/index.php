@@ -84,6 +84,7 @@ if ($resolved === false) {
 }
 
 if ($resolved === null) {
+    traffic_record($path); // website visits for the sales dashboard (main pages, people only)
     platform_routes($path);
 } else {
     if (!empty($resolved['deleted_at'])) {

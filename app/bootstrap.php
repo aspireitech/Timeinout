@@ -36,6 +36,7 @@ require APP_DIR . '/lib/nurture.php';
 require APP_DIR . '/lib/prospects.php';
 require APP_DIR . '/lib/mailbox.php';
 require APP_DIR . '/lib/sales.php';
+require APP_DIR . '/lib/traffic.php';
 require APP_DIR . '/lib/jobs.php';
 require APP_DIR . '/lib/status.php';
 require APP_DIR . '/lib/features.php';

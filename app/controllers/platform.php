@@ -99,6 +99,7 @@ function platform_signup(): void
             $mailed = welcome_email($t, $d['email'], $d['admin_name']);
             subdomain_todo_email($t); // you: create name.<domain> in hPanel within 24 hours
             prospect_converted($d['email'], 'signed_up'); // no more outreach emails
+            prospect_converted_cookie('signed_up'); // clicked an outreach email, signed up with another address
             provider_alert('New sign-up: ' . $t['name'] . (lead_source() ? ' (via ' . lead_source() . ')' : ''),
                 '<p><b>' . e($t['name']) . '</b> started a free trial.</p><p>Owner: ' . e($d['admin_name']) . ' &lt;' . e($d['email']) . '&gt;<br>Industry: '
                 . e(industry($d['industry'])['name']) . '<br>Plan: ' . e($plans[$d['plan']]['name'] ?? $d['plan']) . '<br>Address: <a href="' . e(tenant_url($t, '/')) . '">' . e(tenant_url($t, '/')) . '</a>'
@@ -687,6 +688,7 @@ function platform_demo(): void
                 $id = insert('leads', $d + ['status' => 'new', 'ip' => client_ip(), 'source' => lead_source(), 'created_at' => gmdate('Y-m-d H:i:s')]);
                 $ok = lead_notify($d + ['source' => lead_source()]);
                 prospect_converted($d['email'], 'demo');
+                prospect_converted_cookie('demo');
                 update('leads', ['emailed' => $ok ? 1 : 0], 'id = ?', [$id]);
                 audit('Demo request', $d['company'] . ' — ' . $d['name'], true, $ok ? 'Emailed to ' . lead_inbox() : 'Saved; email failed: ' . ($GLOBALS['mail_error'] ?? ''),
                     ['email' => $d['email'], 'name' => $d['name']]);
@@ -934,7 +936,12 @@ function platform_campaign(string $key): void
 function lead_source(): ?string
 {
     $s = strtolower(substr((string) input('src'), 0, 40));
-    return preg_match('/^[a-z0-9][a-z0-9_-]*$/', $s) ? $s : null;
+    if (preg_match('/^[a-z0-9][a-z0-9_-]*$/', $s)) {
+        return $s;
+    }
+    // Otherwise where this person first arrived from (first-party cookie set by traffic_record())
+    $c = strtolower(substr((string) ($_COOKIE['cio_src'] ?? ''), 0, 40));
+    return preg_match('/^[a-z0-9][a-z0-9_.-]*$/', $c) ? $c : null;
 }
 
 // ---------- Search engines ----------

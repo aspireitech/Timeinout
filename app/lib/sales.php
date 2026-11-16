@@ -8,13 +8,17 @@
 const SALES_ONCE = ['found', 'replied', 'demo', 'signed_up', 'unsubscribed', 'bounced'];
 
 /** Records one funnel event. Never breaks the caller. */
-function prospect_event(int $prospectId, string $type, ?int $step = null): void
+function prospect_event(int $prospectId, string $type, ?int $step = null, ?string $detail = null): void
 {
     try {
         if (in_array($type, SALES_ONCE, true) && val('SELECT 1 FROM prospect_events WHERE prospect_id = ? AND type = ? LIMIT 1', [$prospectId, $type])) {
             return;
         }
-        insert('prospect_events', ['prospect_id' => $prospectId, 'type' => $type, 'step' => $step, 'at' => gmdate('Y-m-d H:i:s')]);
+        $row = ['prospect_id' => $prospectId, 'type' => $type, 'step' => $step, 'at' => gmdate('Y-m-d H:i:s')];
+        if ($detail !== null) {
+            $row['detail'] = mb_substr($detail, 0, 20);
+        }
+        insert('prospect_events', $row);
     } catch (Throwable $e) {
         // the events table may not exist yet during an update
     }
@@ -34,8 +38,17 @@ function prospect_link_target(string $to, ?array $p): string
     return match ($to) {
         'signup' => $site . '/signup?src=outreach' . ($industry !== '' ? '&industry=' . rawurlencode($industry) : ''),
         'demo'   => $site . '/demo?src=outreach',
-        default  => $site . '/?src=outreach',
+        default  => $site . (($c = sales_campaign_for($p['kind'] ?? '')) ? '/for/' . $c : '/') . '?src=outreach', // the page for their kind of business
     };
+}
+
+/** The landing page (/for/<key>) for a kind of prospect, or null. */
+function sales_campaign_for(string $kind): ?string
+{
+    $map = ['school' => 'schools', 'daycare' => 'schools', 'tutoring' => 'tutoring', 'office' => 'offices', 'clinic' => 'healthcare',
+            'dental' => 'dental', 'gym' => 'gyms', 'construction' => 'construction', 'retail' => 'retail', 'restaurant' => 'retail'];
+    $c = $map[$kind] ?? null;
+    return $c !== null && isset(CAMPAIGNS[$c]) ? $c : null;
 }
 
 /** Link scanners in company mail systems open every link right after delivery; those are not people. */
@@ -209,7 +222,7 @@ function sales_dashboard(string $from, string $to, string $group): array
 
     // All sources, for context: demo requests and sign-ups from the website, and paying customers that came from outreach
     $leads = row("SELECT COUNT(*) AS all_n, COALESCE(SUM(source = 'outreach'), 0) AS outreach FROM leads WHERE created_at >= ? AND created_at < ?", [$start, $end]);
-    $signups = row("SELECT COUNT(*) AS all_n, COALESCE(SUM(source = 'outreach'), 0) AS outreach FROM tenants WHERE deleted_at IS NULL AND created_at >= ? AND created_at < ?", [$start, $end]);
+    $signups = row("SELECT COUNT(*) AS all_n, COALESCE(SUM(source = 'outreach'), 0) AS outreach FROM tenants WHERE deleted_at IS NULL AND slug <> ? AND created_at >= ? AND created_at < ?", [DEMO_SLUG, $start, $end]);
     $paying = (int) val("SELECT COUNT(*) FROM tenants WHERE deleted_at IS NULL AND status = 'active' AND (source = 'outreach'
         OR id IN (SELECT u.tenant_id FROM users u JOIN prospects p ON p.email = u.email WHERE u.role = 'owner'))");
 
@@ -293,4 +306,71 @@ function sales_ring(?float $rate, string $label, string $sub, string $color = 'v
         . '<circle cx="50" cy="50" r="' . $r . '" fill="none" stroke="var(--track)" stroke-width="10"/>' . $arc
         . '<text x="50" y="55" text-anchor="middle" class="ring-v">' . e(sales_pct($rate, $rate !== null && $rate < 0.1 ? 1 : 0)) . '</text></svg>'
         . '<div class="ring-l">' . e($label) . '</div><div class="ring-s">' . e($sub) . '</div></div>';
+}
+
+// ---------- Hot list: people to call today ----------
+
+/**
+ * Prospects who clicked a link in an outreach email in the last $days days and have not replied, booked a demo
+ * or signed up: they looked, so a short phone call now converts best. Newest and most interested first.
+ */
+function sales_hot_leads(int $days = 7, int $limit = 50): array
+{
+    $since = gmdate('Y-m-d H:i:s', time() - $days * 86400);
+    $list = rows("SELECT p.*, MAX(e.at) AS last_click, COUNT(*) AS clicks,
+                         SUM(e.detail = 'signup') AS signup_clicks, SUM(e.detail = 'demo') AS demo_clicks
+                  FROM prospect_events e JOIN prospects p ON p.id = e.prospect_id
+                  WHERE e.type = 'clicked' AND e.at >= ? AND p.status IN ('new','active','done')
+                  GROUP BY p.id ORDER BY (SUM(e.detail = 'signup') > 0 OR SUM(e.detail = 'demo') > 0) DESC, MAX(e.at) DESC LIMIT " . (int) $limit, [$since]);
+    foreach ($list as &$p) {
+        $p['looked_at'] = $p['demo_clicks'] ? 'the demo booking page' : ($p['signup_clicks'] ? 'the free-trial sign-up page' : 'your website');
+    }
+    unset($p);
+    return $list;
+}
+
+/**
+ * Weekday morning email (from 8:00 in outreach_tz, once a day): the hot list and yesterday's numbers.
+ * Sent only when there is someone to call or something happened.
+ */
+function run_hot_leads(bool $force = false): array
+{
+    $now = new DateTime('now', outreach_tz());
+    if (setting('hotlist_on', '1') !== '1' || (!$force && ((int) $now->format('N') > 5 || (int) $now->format('G') < 8))) {
+        return [];
+    }
+    $day = $now->format('Y-m-d');
+    if (!$force && setting('hotlist_last', '') === $day) {
+        return [];
+    }
+    setting_set('hotlist_last', $day);
+    $hot = sales_hot_leads(7, 30);
+    $y = (clone $now)->modify('-1 day')->format('Y-m-d');
+    [$ys, $ye] = sales_utc_bounds($y, $y);
+    $t = sales_totals($ys, $ye);
+    $w = traffic_report($ys, $ye);
+    if (!$hot && !$t['emails'] && !$w['visits'] && !$t['replied']) {
+        return [];
+    }
+    $cell = 'style="padding:8px 10px;border-bottom:1px solid #E2E4EF;vertical-align:top"';
+    $big = fn($l, $v) => '<td style="padding:10px 14px;background:#F4F5FA;border-radius:10px"><div style="color:#6b7090;font-size:12px">' . $l . '</div><div style="font-size:20px;font-weight:bold">' . $v . '</div></td>';
+    $html = '<h2 style="margin:0 0 4px">Your sales morning: ' . e($now->format('l, M j')) . '</h2>'
+        . '<p style="color:#6b7090;margin:0 0 12px">Yesterday</p><table style="border-spacing:8px"><tr>'
+        . $big('Website visits', number_format($w['visits'])) . $big('Demo requests', number_format($w['demos'])) . $big('Sign-ups', number_format($w['signups']))
+        . $big('Outreach emails', number_format($t['emails'])) . $big('Replies', number_format($t['replied'])) . '</tr></table>';
+    if ($hot) {
+        $html .= '<h3 style="margin:18px 0 6px">Call these ' . count($hot) . ' today</h3><p style="margin:0 0 8px">They clicked your email in the last 7 days but have not replied. A two-minute call now ("I saw you had a look, any questions?") wins more customers than another email.</p>'
+            . '<table style="border-collapse:collapse;font-size:14px;width:100%"><tr><th align="left" ' . $cell . '>Who</th><th align="left" ' . $cell . '>Call / email</th><th align="left" ' . $cell . '>Looked at</th></tr>';
+        foreach ($hot as $p) {
+            $when = (new DateTime($p['last_click'], new DateTimeZone('UTC')))->setTimezone(outreach_tz())->format('D g:i A');
+            $html .= '<tr><td ' . $cell . '><b>' . e($p['org']) . '</b><br><span style="color:#6b7090">' . e(PROSPECT_KINDS[$p['kind']] ?? $p['kind']) . ($p['city'] ? ' · ' . e($p['city']) . ', ' . e((string) $p['state']) : '') . '</span></td>'
+                . '<td ' . $cell . '>' . ($p['phone'] ? '<a href="tel:' . e(preg_replace('/[^0-9+]/', '', $p['phone'])) . '">' . e($p['phone']) . '</a><br>' : '') . '<a href="mailto:' . e($p['email']) . '">' . e($p['email']) . '</a>'
+                . ($p['first_name'] ? '<br>Ask for ' . e($p['first_name']) : '') . '</td>'
+                . '<td ' . $cell . '>' . e($p['looked_at']) . '<br><span style="color:#6b7090">' . e($when) . ((int) $p['clicks'] > 1 ? ' · ' . (int) $p['clicks'] . ' clicks' : '') . '</span></td></tr>';
+        }
+        $html .= '</table>';
+    }
+    $html .= '<p style="margin-top:16px"><a href="https://' . e(cfg('base_domain') . base_path()) . '/super/sales">Open the sales dashboard</a> · after a call, set the prospect to Replied or Booked demo in Prospects.</p>';
+    $ok = provider_alert(($hot ? count($hot) . ' hot lead' . (count($hot) === 1 ? '' : 's') . ' to call today' : 'Your sales morning') . ' · ' . $now->format('M j'), $html);
+    return ['hot list: ' . count($hot) . ' to call, email ' . ($ok ? 'sent' : 'failed: ' . ($GLOBALS['mail_error'] ?? ''))];
 }
