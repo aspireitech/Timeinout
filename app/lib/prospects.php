@@ -378,6 +378,9 @@ function run_prospects(bool $force = false): array
         $sid = insert('prospect_sends', ['prospect_id' => $p['id'], 'step' => $next, 'to_email' => $p['email'],
             'message_id' => $GLOBALS['mail_message_id'], 'server_reply' => $GLOBALS['mail_reply'], 'sent_at' => $utc]);
         $sentIds[$sid] = $GLOBALS['mail_raw'];
+        if (!empty($GLOBALS['mail_in_sent'])) { // Microsoft 365 already filed it in Sent Items
+            q('UPDATE prospect_sends SET in_sent = 1 WHERE id = ?', [$sid]);
+        }
         prospect_event((int) $p['id'], 'sent', $next);
         $log[] = 'prospect ' . $p['org'] . ': email ' . $next . ' accepted by the mail server' . ($GLOBALS['mail_reply'] ? ' (' . $GLOBALS['mail_reply'] . ')' : '');
     }

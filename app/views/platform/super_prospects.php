@@ -30,9 +30,12 @@ $total = array_sum($counts);
         <div class="field"><label for="o-cap">Emails per day (all steps together)</label><input type="number" id="o-cap" name="prospects_daily" min="1" max="100" value="<?= e(setting('prospects_daily', '20')) ?>">
           <span class="muted small">25 is a safe daily amount. Raise it slowly (about 10 more per week) while bounces stay under 3%; a sudden jump lands in spam.</span></div>
         <div class="field"><label for="o-tz">Sending hours follow this time zone</label><input type="text" id="o-tz" name="outreach_tz" value="<?= e(setting('outreach_tz', 'America/Denver')) ?>"></div>
-        <?php [$imapHost] = mailbox_config(); ?>
+        <?php [$imapHost] = mailbox_config(); if (mailbox_is_graph()): ?>
+        <div class="field"><label>Mailbox</label><p class="small" style="margin:4px 0 0">Microsoft 365: copies go to <b>Sent Items</b> by themselves; replies and bounces are read through Microsoft Graph (needs the <b>Mail.Read</b> permission on your app).</p></div>
+        <?php else: ?>
         <div class="field"><label for="o-imap">Mailbox server (IMAP) for Sent copies and the reply / bounce check</label><input type="text" id="o-imap" name="imap_host" value="<?= e(setting('imap_host', '')) ?>" placeholder="<?= e($imapHost ?: 'imap.hostinger.com') ?>">
           <span class="muted small">Leave empty to use <?= e($imapHost ?: 'the SMTP server name with imap.') ?>. Same mailbox and password as sending.</span></div>
+        <?php endif; ?>
         <label class="check"><input type="checkbox" name="outreach_save_sent" value="1" <?= setting('outreach_save_sent', '1') === '1' ? 'checked' : '' ?>> <span>Save a copy of each outreach email in the Sent folder</span></label>
         <label class="check"><input type="checkbox" name="outreach_track_opens" value="1" <?= setting('outreach_track_opens', '0') === '1' ? 'checked' : '' ?>> <span>Count opens (estimate) with a tiny image<br><span class="muted small">Off is recommended: iPhones "open" every email by themselves, and tracking images can push cold email into spam. Clicks and replies are counted either way.</span></span></label>
       </div>
@@ -50,7 +53,7 @@ $total = array_sum($counts);
     <?php if (!mailbox_ready()): ?>
       <p class="small"><span class="badge warn">Sent copies and inbox check are off</span> Sending works, but no copy goes to Sent and replies and bounces are not read automatically. Why: <?= e((string) mailbox_problem()) ?></p>
     <?php elseif ($imapErr !== ''): ?>
-      <p class="small"><span class="badge danger">Mailbox problem</span> <?= e($imapErr) ?>. Sending is not affected. Check the IMAP server name above (Hostinger: imap.hostinger.com).</p>
+      <p class="small"><span class="badge danger">Mailbox problem</span> <?= e($imapErr) ?> Sending is not affected.<?= mailbox_is_graph() ? '' : ' Check the IMAP server name above (Hostinger: imap.hostinger.com).' ?></p>
     <?php elseif ($imapOk !== ''): ?>
       <p class="small"><span class="badge in">Inbox checked <?= e((new DateTime($imapOk, new DateTimeZone('UTC')))->setTimezone(outreach_tz())->format('M j, g:i A')) ?></span> Replies and bounces update the prospects below by themselves.</p>
     <?php endif; ?>

@@ -87,6 +87,7 @@ function send_mail(array $to, string $subject, string $html, array $attachments 
 function send_mail_now(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = [], array $extraHeaders = []): bool
 {
     $GLOBALS['mail_error'] = $GLOBALS['mail_reply'] = $GLOBALS['mail_message_id'] = $GLOBALS['mail_raw'] = null;
+    $GLOBALS['mail_in_sent'] = false; // true when the mail service itself filed a copy in Sent Items
     $extraHeaders = array_values(array_filter($extraHeaders, fn($h) => is_string($h) && !preg_match('/[\r\n]/', $h) && str_contains($h, ':')));
     $valid = fn(array $list) => array_values(array_unique(array_filter(array_map('trim', $list), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL))));
     $to = $valid($to);
@@ -98,7 +99,7 @@ function send_mail_now(array $to, string $subject, string $html, array $attachme
     $m = mail_config($sender);
     $from = ($m['from_email'] ?? '') ?: $sender . '@' . cfg('base_domain');
     $fromName = ($m['from_name'] ?? '') ?: cfg('app_name');
-    if (($m['driver'] ?? '') === 'graph') {
+    if (($m['driver'] ?? '') === 'graph' && !$extraHeaders) {
         return graph_send($from, $fromName, $to, $bcc, $subject, $html, $attachments, $sender !== 'contact' ? contact_email() : null);
     }
     $encSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
@@ -123,6 +124,12 @@ function send_mail_now(array $to, string $subject, string $html, array $attachme
         $body = chunk_split(base64_encode($html));
     }
 
+    if (($m['driver'] ?? '') === 'graph') { // with extra headers (outreach): send the whole message as MIME
+        $msgId = '<' . bin2hex(random_bytes(12)) . '@' . cfg('base_domain') . '>';
+        $raw = implode("\r\n", array_merge($headers, ['To: ' . implode(', ', $to), 'Subject: ' . $encSubject, 'Date: ' . date('r'), 'Message-ID: ' . $msgId]))
+            . "\r\n\r\n" . $body;
+        return graph_send_mime($from, $raw, $msgId);
+    }
     if (($m['driver'] ?? 'mail') === 'smtp') {
         $msgId = '<' . bin2hex(random_bytes(12)) . '@' . cfg('base_domain') . '>';
         $all = array_merge($headers, [
@@ -250,6 +257,29 @@ function graph_token(): string
     @file_put_contents($cache, json_encode(['client' => $g['client_id'], 'exp' => time() + (int) ($d['expires_in'] ?? 3600), 'token' => encrypt_pii($d['access_token'])]));
     @chmod($cache, 0600);
     return (string) $d['access_token'];
+}
+
+/**
+ * Microsoft 365: sends a complete MIME message (keeps headers such as List-Unsubscribe and our Message-ID,
+ * which the JSON form drops). Microsoft files a copy in the mailbox's Sent Items.
+ */
+function graph_send_mime(string $from, string $raw, string $msgId): bool
+{
+    try {
+        [$code, $d] = graph_http('POST', rtrim(cfg('graph')['api_url'] ?? 'https://graph.microsoft.com', '/') . '/v1.0/users/' . rawurlencode($from) . '/sendMail',
+            ['Authorization: Bearer ' . graph_token(), 'Content-Type: text/plain'], base64_encode($raw));
+        if ($code === 202) {
+            $GLOBALS['mail_reply'] = 'Accepted by Microsoft 365 (202)';
+            $GLOBALS['mail_message_id'] = $msgId;
+            $GLOBALS['mail_in_sent'] = true;
+            return true;
+        }
+        $GLOBALS['mail_error'] = 'Microsoft Graph: ' . ($d['error']['message'] ?? "HTTP $code");
+    } catch (Throwable $e) {
+        $GLOBALS['mail_error'] = $e->getMessage();
+    }
+    error_log('Graph mail error: ' . $GLOBALS['mail_error']);
+    return false;
 }
 
 function graph_send(string $from, string $fromName, array $to, array $bcc, string $subject, string $html, array $attachments, ?string $replyTo): bool
