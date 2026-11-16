@@ -48,7 +48,7 @@ $total = array_sum($counts);
     </div>
     <?php $imapErr = (string) setting('imap_last_error', ''); $imapOk = (string) setting('imap_last_ok', ''); ?>
     <?php if (!mailbox_ready()): ?>
-      <p class="small"><span class="badge warn">Mailbox check off</span> Sending works, but replies and bounces are not read automatically: it needs SMTP sending with a mailbox login.</p>
+      <p class="small"><span class="badge warn">Sent copies and inbox check are off</span> Sending works, but no copy goes to Sent and replies and bounces are not read automatically. Why: <?= e((string) mailbox_problem()) ?></p>
     <?php elseif ($imapErr !== ''): ?>
       <p class="small"><span class="badge danger">Mailbox problem</span> <?= e($imapErr) ?>. Sending is not affected. Check the IMAP server name above (Hostinger: imap.hostinger.com).</p>
     <?php elseif ($imapOk !== ''): ?>

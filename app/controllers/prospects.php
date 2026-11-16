@@ -191,7 +191,7 @@ function webhook_prospects(): void
             'sent_today'   => (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]),
             'delivery_today' => row("SELECT COUNT(*) AS accepted, COALESCE(SUM(in_sent), 0) AS in_sent_folder, COALESCE(SUM(outcome = 'bounced'), 0) AS bounced, COALESCE(SUM(outcome = 'replied'), 0) AS replied FROM prospect_sends WHERE sent_at >= ?", [$dayStart]),
             'recent_delivery' => rows('SELECT s.sent_at, p.org, s.to_email, s.step, s.server_reply, s.in_sent, s.outcome, s.outcome_note FROM prospect_sends s LEFT JOIN prospects p ON p.id = s.prospect_id ORDER BY s.id DESC LIMIT 30'),
-            'mailbox'      => ['ready' => mailbox_ready(), 'last_ok_utc' => setting('imap_last_ok', null), 'error' => (string) setting('imap_last_error', '')],
+            'mailbox'      => ['ready' => mailbox_ready(), 'problem' => mailbox_problem(), 'driver' => (string) (mail_config('contact')['driver'] ?? ''), 'host' => (string) (mail_config('contact')['host'] ?? ''), 'last_ok_utc' => setting('imap_last_ok', null), 'error' => (string) setting('imap_last_error', '')],
             'recent_sends' => rows('SELECT org, email, state, kind, status, step, last_sent_at FROM prospects WHERE last_sent_at IS NOT NULL ORDER BY last_sent_at DESC LIMIT 50'),
             'hourly_job'   => ['last_run_utc' => setting('cron_last_run', null), 'errors' => (int) setting('cron_last_errors', '0'),
                                'status' => hourly_job_status()[0], 'log' => (string) setting('cron_last_log', '')],

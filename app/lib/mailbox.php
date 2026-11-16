@@ -125,8 +125,30 @@ function mailbox_config(): array
 /** Is the mailbox reachable from here (SMTP sender with a login, IMAP host known)? */
 function mailbox_ready(): bool
 {
+    return mailbox_problem() === null;
+}
+
+/** Why the Sent copies and the reply / bounce check cannot run, in plain words (never shows a password), or null. */
+function mailbox_problem(): ?string
+{
+    $m = mail_config('contact');
     [$host, , $user, $pass] = mailbox_config();
-    return $host !== '' && $user !== '' && $pass !== '' && (mail_config('contact')['driver'] ?? '') === 'smtp';
+    $driver = (string) ($m['driver'] ?? 'mail');
+    if ($driver !== 'smtp') {
+        return $driver === 'graph'
+            ? 'Email is sent through Microsoft 365 (Graph); Sent copies and the inbox check need SMTP.'
+            : 'Email is sent with the server\'s built-in PHP mail(), not through your mailbox. In app/config.php set \'mail\' → \'driver\' => \'smtp\' (host smtp.hostinger.com, port 465, secure ssl) and the contact mailbox password under \'mail_senders\' → \'contact\' → \'pass\'.';
+    }
+    if ($user === '') {
+        return 'No mailbox login: add \'user\' => \'contact@…\' under \'mail_senders\' → \'contact\' in app/config.php.';
+    }
+    if ($pass === '') {
+        return 'No mailbox password for ' . $user . ': add it under \'mail_senders\' → \'contact\' → \'pass\' in app/config.php.';
+    }
+    if ($host === '') {
+        return 'The mailbox (IMAP) server is unknown because the SMTP server is ' . ($m['host'] ?? '?') . ': type it in /super → Prospects → "Mailbox server (IMAP)" (Hostinger: imap.hostinger.com).';
+    }
+    return null;
 }
 
 function mailbox_open(): ImapClient
