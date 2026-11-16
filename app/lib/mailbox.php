@@ -307,9 +307,19 @@ function mailbox_mark(array $p, string $status, string $note): void
         [$status, mb_substr($note, 0, 250), $p['id']]);
 }
 
+/** The receiving mail server says the sender is forged (DMARC failed, or both SPF and DKIM failed). */
+function mailbox_spoofed(array $h): bool
+{
+    $ar = strtolower((string) ($h['authentication-results'] ?? ''));
+    return str_contains($ar, 'dmarc=fail') || (str_contains($ar, 'spf=fail') && str_contains($ar, 'dkim=fail'));
+}
+
 /** Acts on one inbox message: a bounce, an automatic reply or a real reply from a prospect. */
 function mailbox_handle(array $h, string $text, array &$log, array &$replied): void
 {
+    if (mailbox_spoofed($h)) {
+        return; // forged sender: never let a fake reply or bounce change a prospect
+    }
     $kind = mailbox_kind($h, $text);
     if ($kind === 'bounce') {
         $addrs = mailbox_bounced_addresses($h, $text);
@@ -396,7 +406,7 @@ function mailbox_check(): array
                 $uids = array_slice($uids, 0, 150); // the rest next hour
                 $max = $last;
                 foreach ($uids as $uid) {
-                    $r = $c->cmd("UID FETCH $uid (BODY.PEEK[HEADER.FIELDS (FROM SUBJECT IN-REPLY-TO REFERENCES AUTO-SUBMITTED X-FAILED-RECIPIENTS CONTENT-TYPE)] BODY.PEEK[TEXT]<0.40000>)");
+                    $r = $c->cmd("UID FETCH $uid (BODY.PEEK[HEADER.FIELDS (FROM SUBJECT IN-REPLY-TO REFERENCES AUTO-SUBMITTED X-FAILED-RECIPIENTS CONTENT-TYPE AUTHENTICATION-RESULTS)] BODY.PEEK[TEXT]<0.40000>)");
                     $head = $text = '';
                     foreach ($r['lits'] as [$before, $lit]) {
                         if (stripos($before, 'HEADER') !== false) {
