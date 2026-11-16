@@ -237,7 +237,7 @@ function sales_dashboard(string $from, string $to, string $group): array
 // ---------- Drawing (server-side SVG: no chart library, works under the strict content policy) ----------
 
 /** A column chart for one series. $values: key => n, $labels: key => label. */
-function sales_columns(array $values, array $labels, string $name, string $color = 'var(--s1)'): string
+function sales_columns(array $values, array $labels, string $name, string $color = 'var(--s1)', ?callable $link = null): string
 {
     $W = 560; $H = 170; $L = 34; $R = 8; $T = 10; $B = 26;
     $n = max(1, count($values));
@@ -266,7 +266,8 @@ function sales_columns(array $values, array $labels, string $name, string $color
                 . 'h' . round($bw - 2 * $r, 1) . 'q' . $r . ',0 ' . $r . ',' . $r . 'V' . round($T + $plotH, 1) . 'z"/>';
         }
         // hit target: the whole column slot, taller than the mark
-        $svg .= '<rect class="hit" x="' . round($L + $slot * $i, 1) . '" y="' . $T . '" width="' . round($slot, 1) . '" height="' . $plotH . '" data-tip="' . e(($labels[$k] ?? $k) . ': ' . number_format($v) . ' ' . strtolower($name)) . '"/>';
+        $hit = '<rect class="hit" x="' . round($L + $slot * $i, 1) . '" y="' . $T . '" width="' . round($slot, 1) . '" height="' . $plotH . '" data-tip="' . e(($labels[$k] ?? $k) . ': ' . number_format($v) . ' ' . strtolower($name) . ($link && $v ? ' (click for the list)' : '')) . '"/>';
+        $svg .= $link && $v ? '<a href="' . e($link((string) $k)) . '">' . $hit . '</a>' : $hit;
         if ($i % $every === 0) {
             $svg .= '<text x="' . round($L + $slot * $i + $slot / 2, 1) . '" y="' . ($H - 8) . '" class="tick" text-anchor="middle">' . e(preg_replace('/^Week of /', '', $labels[$k] ?? $k)) . '</text>';
         }
@@ -373,4 +374,16 @@ function run_hot_leads(bool $force = false): array
     $html .= '<p style="margin-top:16px"><a href="https://' . e(cfg('base_domain') . base_path()) . '/super/sales">Open the sales dashboard</a> · after a call, set the prospect to Replied or Booked demo in Prospects.</p>';
     $ok = provider_alert(($hot ? count($hot) . ' hot lead' . (count($hot) === 1 ? '' : 's') . ' to call today' : 'Your sales morning') . ' · ' . $now->format('M j'), $html);
     return ['hot list: ' . count($hot) . ' to call, email ' . ($ok ? 'sent' : 'failed: ' . ($GLOBALS['mail_error'] ?? ''))];
+}
+
+/** The list page for one bar of a chart (one day, week or month). */
+function sales_bucket_link(string $m, string $key, string $group, string $preset): string
+{
+    $from = $group === 'month' ? $key . '-01' : $key;
+    $to = match ($group) {
+        'month' => (new DateTime($from))->modify('last day of this month')->format('Y-m-d'),
+        'week'  => (new DateTime($from))->modify('+6 days')->format('Y-m-d'),
+        default => $from,
+    };
+    return base_path() . '/super/sales/list?' . http_build_query(['m' => $m, 'range' => 'custom', 'from' => $from, 'to' => $to, 'group' => $group]);
 }

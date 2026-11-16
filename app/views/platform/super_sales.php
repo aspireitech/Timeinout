@@ -5,10 +5,13 @@ $opens = setting('outreach_track_opens', '0') === '1';
 $fmtDate = fn($s) => (new DateTime($s))->format('M j, Y');
 $q = fn(array $over) => e(base_path() . '/super/sales?' . http_build_query(array_merge(['range' => $preset, 'from' => $from, 'to' => $to, 'group' => $group], $over)));
 $presets = ['7d' => 'Last 7 days', '30d' => 'Last 30 days', '90d' => 'Last 90 days', 'month' => 'This month', 'last_month' => 'Last month', 'year' => 'This year'];
-$tile = function (string $label, string $value, string $sub, array $delta, ?string $hint = null): string {
-    return '<div class="kpi"><div class="kpi-l">' . e($label) . ($hint ? ' <span class="muted" title="' . e($hint) . '">ⓘ</span>' : '') . '</div>'
+// Every number opens the list behind it (/super/sales/list), for the same dates
+$L = fn(string $m, array $extra = []) => base_path() . '/super/sales/list?' . http_build_query(['m' => $m, 'range' => $preset, 'from' => $from, 'to' => $to, 'group' => $group] + $extra);
+$tile = function (string $label, string $value, string $sub, array $delta, ?string $hint = null, ?string $m = null) use ($L): string {
+    $tag = $m ? 'a href="' . e($L($m)) . '" title="See the list"' : 'div';
+    return '<' . $tag . ' class="kpi' . ($m ? ' link' : '') . '"><div class="kpi-l">' . e($label) . ($hint ? ' <span class="muted" title="' . e($hint) . '">ⓘ</span>' : '') . '</div>'
         . '<div class="kpi-v">' . e($value) . '</div><div class="kpi-s">' . e($sub) . '</div>'
-        . ($delta[0] !== '' ? '<div class="kpi-d ' . e($delta[1]) . '">' . e($delta[0]) . '</div>' : '') . '</div>';
+        . ($delta[0] !== '' ? '<div class="kpi-d ' . e($delta[1]) . '">' . e($delta[0]) . '</div>' : '') . ($m ? '<div class="kpi-go">See the list →</div>' : '') . '</' . ($m ? 'a' : 'div') . '>';
 };
 ?>
 <style>
@@ -28,6 +31,11 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
   .sales .kpi-v { font-size: 1.9rem; font-weight: 800; color: var(--ink); line-height: 1.2; margin-top: 4px; font-variant-numeric: tabular-nums; }
   .sales .kpi-s { font-size: .8rem; color: var(--ink2); }
   .sales .kpi-d { font-size: .76rem; margin-top: 4px; color: var(--ink2); }
+  .sales a.kpi { display: block; color: inherit; text-decoration: none; transition: box-shadow .15s, transform .15s; }
+  .sales a.kpi:hover { box-shadow: 0 6px 18px rgba(22,27,54,.12); transform: translateY(-1px); }
+  .sales .kpi-go { font-size: .74rem; color: #5B4CE0; margin-top: 6px; font-weight: 600; }
+  .sales a.ring, .sales a.num-link { color: inherit; text-decoration: none; } .sales a.ring:hover .ring-l, .sales a.num-link:hover { color: #5B4CE0; text-decoration: underline; }
+  .sales a.meter { color: inherit; text-decoration: none; } .sales a.meter:hover span:first-child { color: #5B4CE0; text-decoration: underline; }
   .sales .kpi-d.up { color: #006300; } .sales .kpi-d.down { color: #b4232a; }
   .sales .meters { display: grid; gap: 10px; }
   .sales .meter { display: grid; grid-template-columns: 170px 1fr 120px; gap: 12px; align-items: center; font-size: .9rem; }
@@ -39,7 +47,7 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
   .sales .viz { width: 100%; height: auto; display: block; }
   .sales .viz .grid { stroke: var(--grid); stroke-width: 1; } .sales .viz .base { stroke: var(--axis); stroke-width: 1; }
   .sales .viz .tick { font-size: 10px; fill: var(--muted); }
-  .sales .viz .hit { fill: transparent; cursor: default; } .sales .viz .hit:hover { fill: rgba(11,11,11,.04); }
+  .sales .viz .hit { fill: transparent; cursor: default; } .sales .viz a .hit { cursor: pointer; } .sales .viz .hit:hover { fill: rgba(11,11,11,.04); }
   .sales h3 { margin: 0 0 2px; font-size: 1rem; } .sales .chart-sum { font-size: .82rem; color: var(--ink2); margin-bottom: 6px; }
   .sales .seg { display: flex; gap: 2px; height: 22px; border-radius: 4px; overflow: hidden; margin: 8px 0 12px; }
   .sales .seg i { display: block; height: 100%; }
@@ -72,14 +80,14 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
     </div>
 
     <div class="kpis">
-      <?= $tile('Prospects found', number_format($n['found']), 'new organizations added', sales_delta($n['found'], $b['found'])) ?>
-      <?= $tile('Emails sent', number_format($n['emails']), number_format($n['first']) . ' first emails · ' . number_format($n['emailed']) . ' people', sales_delta($n['emails'], $b['emails'])) ?>
-      <?= $tile('Delivered', sales_pct($n['delivery_rate']), number_format($n['bounced']) . ' bounced', sales_delta($n['delivery_rate'], $b['delivery_rate'], true), 'Emailed and not bounced. Keep it above 97%.') ?>
-      <?php if ($opens): ?><?= $tile('Opened (estimate)', sales_pct($n['open_rate']), number_format($n['opened']) . ' people', sales_delta($n['open_rate'], $b['open_rate'], true), 'iPhones and some company mail systems open every email by themselves, so this reads high.') ?><?php endif; ?>
-      <?= $tile('Clicked', sales_pct($n['click_rate']), number_format($n['clicked']) . ' people clicked a link', sales_delta($n['click_rate'], $b['click_rate'], true), 'People who clicked the trial, demo or website link. Link scanners are left out.') ?>
-      <?= $tile('Replied', sales_pct($n['reply_rate']), number_format($n['replied']) . ' replies', sales_delta($n['reply_rate'], $b['reply_rate'], true)) ?>
-      <?= $tile('Demos booked', number_format($n['demo']), 'from prospects', sales_delta($n['demo'], $b['demo'])) ?>
-      <?= $tile('Signed up', number_format($n['signed_up']), sales_pct($n['signup_rate']) . ' of people emailed', sales_delta($n['signed_up'], $b['signed_up'])) ?>
+      <?= $tile('Prospects found', number_format($n['found']), 'new organizations added', sales_delta($n['found'], $b['found']), m: 'found') ?>
+      <?= $tile('Emails sent', number_format($n['emails']), number_format($n['first']) . ' first emails · ' . number_format($n['emailed']) . ' people', sales_delta($n['emails'], $b['emails']), m: 'emails') ?>
+      <?= $tile('Delivered', sales_pct($n['delivery_rate']), number_format($n['bounced']) . ' bounced', sales_delta($n['delivery_rate'], $b['delivery_rate'], true), 'Emailed and not bounced. Keep it above 97%.', m: 'delivered') ?>
+      <?php if ($opens): ?><?= $tile('Opened (estimate)', sales_pct($n['open_rate']), number_format($n['opened']) . ' people', sales_delta($n['open_rate'], $b['open_rate'], true), 'iPhones and some company mail systems open every email by themselves, so this reads high.', m: 'opened') ?><?php endif; ?>
+      <?= $tile('Clicked', sales_pct($n['click_rate']), number_format($n['clicked']) . ' people clicked a link', sales_delta($n['click_rate'], $b['click_rate'], true), 'People who clicked the trial, demo or website link. Link scanners are left out.', m: 'clicked') ?>
+      <?= $tile('Replied', sales_pct($n['reply_rate']), number_format($n['replied']) . ' replies', sales_delta($n['reply_rate'], $b['reply_rate'], true), m: 'replied') ?>
+      <?= $tile('Demos booked', number_format($n['demo']), 'from prospects', sales_delta($n['demo'], $b['demo']), m: 'demo') ?>
+      <?= $tile('Signed up', number_format($n['signed_up']), sales_pct($n['signup_rate']) . ' of people emailed', sales_delta($n['signed_up'], $b['signed_up']), m: 'signed_up') ?>
     </div>
     <p class="muted small" style="margin:0">Rates are out of the <?= number_format($n['emailed']) ?> prospects emailed in this period. Arrows compare with the <?= (int) $d['days'] ?> days before it.
       <?php if (!$opens): ?>Opens are not counted (recommended): turn it on in Prospects → settings if you want an estimate.<?php endif; ?></p>
@@ -111,10 +119,10 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
   <div class="card" id="traffic">
     <h2 style="margin-top:0">Website traffic</h2>
     <div class="kpis">
-      <?= $tile('Visits', number_format($web['visits']), number_format($web['views']) . ' page views', ['', ''], 'One visit per person per day, counted on our server (ad blockers do not hide it). Bots are left out.') ?>
+      <?= $tile('Visits', number_format($web['visits']), number_format($web['views']) . ' page views', ['', ''], 'One visit per person per day, counted on our server (ad blockers do not hide it). Bots are left out.', m: 'visits') ?>
       <?= $tile('On a phone', $web['visits'] ? sales_pct($web['mobile'] / max(1, $web['views']), 0) : '–', 'of page views', ['', '']) ?>
-      <?= $tile('Demo requests', number_format($web['demos']), 'all sources', ['', '']) ?>
-      <?= $tile('Sign-ups (trials)', number_format($web['signups']), 'all sources', ['', '']) ?>
+      <?= $tile('Demo requests', number_format($web['demos']), 'all sources', ['', ''], m: 'web_demos') ?>
+      <?= $tile('Sign-ups (trials)', number_format($web['signups']), 'all sources', ['', ''], m: 'web_signups') ?>
       <?= $tile('Visit → lead', sales_pct($web['conv']), 'visits that became a demo request or sign-up', ['', ''], 'A good small-business software site converts 2–5% of visits.') ?>
     </div>
     <div class="multiples" style="margin-bottom:14px">
@@ -122,7 +130,7 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
         <h3>Visits</h3>
         <?php $vs = array_sum($visits); $vk = $vs ? array_search(max($visits), $visits, true) : null; ?>
         <div class="chart-sum"><?= number_format($vs) ?> in total<?= $vk !== null ? ' · most: ' . e(preg_replace('/^Week of /', 'week of ', $d['buckets'][$vk])) . ' (' . number_format($visits[$vk]) . ')' : '' ?></div>
-        <?= sales_columns($visits, $d['buckets'], 'visits') ?>
+        <?= sales_columns($visits, $d['buckets'], 'visits', 'var(--s1)', fn($k) => sales_bucket_link('visits', $k, $group, $preset)) ?>
       </div>
       <div>
         <h3>Where visitors land</h3>
@@ -139,7 +147,8 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
     <div class="table-wrap"><table class="table">
       <tr><th>Source</th><th class="num">Visits</th><th class="num">Demo requests</th><th class="num">Sign-ups</th><th>Visit → lead</th></tr>
       <?php foreach (array_slice($web['by_source'], 0, 15, true) as $src => $r): $cv = $r['visits'] ? ($r['demos'] + $r['signups']) / $r['visits'] : null; ?>
-        <tr class="small"><td><b><?= e((string) $src) ?></b></td><td class="num"><?= number_format($r['visits']) ?></td><td class="num"><?= number_format($r['demos']) ?></td><td class="num"><?= number_format($r['signups']) ?></td>
+        <?php $sf = ['source' => (string) $src]; ?>
+        <tr class="small"><td><b><?= e((string) $src) ?></b></td><td class="num"><a class="num-link" href="<?= e($L('visits', $sf)) ?>"><?= number_format($r['visits']) ?></a></td><td class="num"><a class="num-link" href="<?= e($L('web_demos', $sf)) ?>"><?= number_format($r['demos']) ?></a></td><td class="num"><a class="num-link" href="<?= e($L('web_signups', $sf)) ?>"><?= number_format($r['signups']) ?></a></td>
           <td class="nowrap"><?php if ($cv !== null): ?><span class="mini"><i style="width:<?= round(min(1, $cv / 0.1) * 100, 1) ?>%"></i></span><?= sales_pct($cv) ?><?php else: ?><span class="muted">no visits counted</span><?php endif; ?></td></tr>
       <?php endforeach; ?>
       <?php if (!$web['by_source']): ?><tr><td colspan="5" class="empty">Nothing yet in this period.</td></tr><?php endif; ?>
@@ -150,12 +159,12 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
   <div class="card">
     <h2 style="margin-top:0">Funnel</h2>
     <div class="rings">
-      <?= sales_ring($n['delivery_rate'], 'Delivered', number_format($n['delivered']) . ' of ' . number_format($n['emailed'])) ?>
-      <?php if ($opens): ?><?= sales_ring($n['open_rate'], 'Opened (estimate)', number_format($n['opened']) . ' people') ?><?php endif; ?>
-      <?= sales_ring($n['click_rate'], 'Clicked', number_format($n['clicked']) . ' people') ?>
-      <?= sales_ring($n['reply_rate'], 'Replied', number_format($n['replied']) . ' people') ?>
-      <?= sales_ring($n['interest_rate'], 'Interested', 'replied, demo or sign-up') ?>
-      <?= sales_ring($n['signup_rate'], 'Signed up', number_format($n['signed_up']) . ' trials') ?>
+      <?= '<a class="ring" href="' . e($L('delivered')) . '">' . sales_ring($n['delivery_rate'], 'Delivered', number_format($n['delivered']) . ' of ' . number_format($n['emailed'])) . '</a>' ?>
+      <?php if ($opens): ?><?= '<a class="ring" href="' . e($L('opened')) . '">' . sales_ring($n['open_rate'], 'Opened (estimate)', number_format($n['opened']) . ' people') . '</a>' ?><?php endif; ?>
+      <?= '<a class="ring" href="' . e($L('clicked')) . '">' . sales_ring($n['click_rate'], 'Clicked', number_format($n['clicked']) . ' people') . '</a>' ?>
+      <?= '<a class="ring" href="' . e($L('replied')) . '">' . sales_ring($n['reply_rate'], 'Replied', number_format($n['replied']) . ' people') . '</a>' ?>
+      <?= '<a class="ring" href="' . e($L('interested')) . '">' . sales_ring($n['interest_rate'], 'Interested', 'replied, demo or sign-up') . '</a>' ?>
+      <?= '<a class="ring" href="' . e($L('signed_up')) . '">' . sales_ring($n['signup_rate'], 'Signed up', number_format($n['signed_up']) . ' trials') . '</a>' ?>
     </div>
     <p class="chart-sum">Of <?= number_format($n['emailed']) ?> prospects emailed, <?= number_format($n['clicked']) ?> clicked, <?= number_format($n['replied']) ?> replied and <?= number_format($n['signed_up']) ?> signed up.</p>
     <div class="meters">
@@ -163,9 +172,10 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
       $stages = ['Emailed' => $n['emailed'], 'Delivered' => $n['delivered']] + ($opens ? ['Opened (estimate)' => $n['opened']] : [])
           + ['Clicked a link' => $n['clicked'], 'Replied' => $n['replied'], 'Booked a demo' => $n['demo'], 'Signed up' => $n['signed_up']];
       $base = max(1, $n['emailed']);
+      $stageList = ['Emailed' => 'emailed', 'Delivered' => 'delivered', 'Opened (estimate)' => 'opened', 'Clicked a link' => 'clicked', 'Replied' => 'replied', 'Booked a demo' => 'demo', 'Signed up' => 'signed_up'];
       foreach ($stages as $label => $v): $pct = $v / $base; ?>
-        <div class="meter"><span><?= e($label) ?></span><span class="bar" title="<?= e($label . ': ' . number_format($v)) ?>"><i style="width:<?= round(min(1, $pct) * 100, 2) ?>%"></i></span>
-          <span class="fig"><b><?= number_format($v) ?></b> <small><?= $n['emailed'] ? sales_pct($pct) : '' ?></small></span></div>
+        <a class="meter" href="<?= e($L($stageList[$label])) ?>" title="See the list"><span><?= e($label) ?></span><span class="bar" title="<?= e($label . ': ' . number_format($v)) ?>"><i style="width:<?= round(min(1, $pct) * 100, 2) ?>%"></i></span>
+          <span class="fig"><b><?= number_format($v) ?></b> <small><?= $n['emailed'] ? sales_pct($pct) : '' ?></small></span></a>
       <?php endforeach; ?>
     </div>
   </div>
@@ -179,7 +189,7 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
         <div>
           <h3><?= e($title) ?></h3>
           <div class="chart-sum"><?= number_format($sum) ?> in total<?= $peakKey !== null ? ' · most: ' . e(preg_replace('/^Week of /', 'week of ', $d['buckets'][$peakKey])) . ' (' . number_format($vals[$peakKey]) . ')' : '' ?></div>
-          <?= sales_columns($vals, $d['buckets'], $unit) ?>
+          <?= sales_columns($vals, $d['buckets'], $unit, 'var(--s1)', fn($b) => sales_bucket_link(['found' => 'found', 'sent' => 'emails', 'clicked' => 'clicked', 'replied' => 'replied', 'won' => 'interested'][$k], $b, $group, $preset)) ?>
         </div>
       <?php endforeach; ?>
     </div>
@@ -193,8 +203,9 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
       <?php $i = 0; foreach ($d['mix'] as $label => $v): if ($v > 0): ?><i style="flex:<?= $v ?>;background:<?= $cols[$i] ?>" title="<?= e($label . ': ' . number_format($v)) ?>"></i><?php endif; $i++; endforeach; ?>
     </div>
     <div class="legend">
-      <?php $i = 0; foreach ($d['mix'] as $label => $v): ?>
-        <div><span class="sw" style="background:<?= $cols[$i++] ?>"></span><?= e($label) ?>: <b><?= number_format($v) ?></b> <span class="muted">(<?= sales_pct($v / $mixTotal, 0) ?>)</span></div>
+      <?php $i = 0; $mixLink = ['Waiting to be emailed' => 'new', 'In the email sequence' => 'active', 'No answer yet' => 'done'];
+      foreach ($d['mix'] as $label => $v): $st = $mixLink[$label] ?? null; ?>
+        <div><span class="sw" style="background:<?= $cols[$i++] ?>"></span><?= e($label) ?>: <?php if ($st): ?><a class="num-link" href="<?= e(base_path() . '/super/prospects?status=' . $st) ?>"><b><?= number_format($v) ?></b></a><?php else: ?><b><?= number_format($v) ?></b><?php endif; ?> <span class="muted">(<?= sales_pct($v / $mixTotal, 0) ?>)</span></div>
       <?php endforeach; ?>
     </div>
   </div>
@@ -206,15 +217,17 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
       <div class="table-wrap" style="margin-bottom:14px">
       <table class="table">
         <tr><th><?= e($head) ?></th><th class="num">Emailed</th><th class="num">Bounced</th><th class="num">Clicked</th><th class="num">Replied</th><th>Interested</th><th class="num">Signed up</th></tr>
-        <?php foreach ($d[$key] as $g => $r): $s = max(1, $r['sent'] ?? 0); $int = ($r['interested'] ?? 0) / $s; ?>
+        <?php foreach ($d[$key] as $g => $r): $s = max(1, $r['sent'] ?? 0); $int = ($r['interested'] ?? 0) / $s;
+            $f = $key === 'kinds' ? ['kind' => (string) $g] : ['state' => (string) $g !== '' ? (string) $g : '-'];
+            $a = fn(string $m, $v) => '<a class="num-link" href="' . e($L($m, $f)) . '">' . number_format((int) $v) . '</a>'; ?>
           <tr class="small">
             <td><b><?= e($name((string) $g)) ?></b></td>
-            <td class="num"><?= number_format($r['sent'] ?? 0) ?></td>
-            <td class="num"><?= number_format($r['bounced'] ?? 0) ?></td>
-            <td class="num"><?= number_format($r['clicked'] ?? 0) ?> <span class="muted"><?= sales_pct(($r['clicked'] ?? 0) / $s, 0) ?></span></td>
-            <td class="num"><?= number_format($r['replied'] ?? 0) ?> <span class="muted"><?= sales_pct(($r['replied'] ?? 0) / $s, 0) ?></span></td>
-            <td class="nowrap"><span class="mini"><i style="width:<?= round(min(1, $int) * 100, 1) ?>%"></i></span><?= number_format($r['interested'] ?? 0) ?> <span class="muted"><?= sales_pct($int, 0) ?></span></td>
-            <td class="num"><?= number_format($r['signed_up'] ?? 0) ?></td>
+            <td class="num"><?= $a('emailed', $r['sent'] ?? 0) ?></td>
+            <td class="num"><?= $a('bounced', $r['bounced'] ?? 0) ?></td>
+            <td class="num"><?= $a('clicked', $r['clicked'] ?? 0) ?> <span class="muted"><?= sales_pct(($r['clicked'] ?? 0) / $s, 0) ?></span></td>
+            <td class="num"><?= $a('replied', $r['replied'] ?? 0) ?> <span class="muted"><?= sales_pct(($r['replied'] ?? 0) / $s, 0) ?></span></td>
+            <td class="nowrap"><span class="mini"><i style="width:<?= round(min(1, $int) * 100, 1) ?>%"></i></span><?= $a('interested', $r['interested'] ?? 0) ?> <span class="muted"><?= sales_pct($int, 0) ?></span></td>
+            <td class="num"><?= $a('signed_up', $r['signed_up'] ?? 0) ?></td>
           </tr>
         <?php endforeach; ?>
         <?php if (!$d[$key]): ?><tr><td colspan="7" class="empty">No emails in this period.</td></tr><?php endif; ?>
@@ -227,9 +240,9 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
     <h2 style="margin-top:0">All sources</h2>
     <p class="chart-sum">Everything that came in during this period, from outreach and from the website, ads or word of mouth.</p>
     <div class="kpis" style="margin:0">
-      <?= $tile('Demo requests', number_format((int) $d['leads']['all_n']), (int) $d['leads']['outreach'] . ' from outreach links', ['', '']) ?>
-      <?= $tile('New sign-ups (trials)', number_format((int) $d['signups']['all_n']), (int) $d['signups']['outreach'] . ' from outreach links', ['', '']) ?>
-      <?= $tile('Paying customers from outreach', number_format($d['paying']), 'all time, active subscriptions', ['', '']) ?>
+      <?= $tile('Demo requests', number_format((int) $d['leads']['all_n']), (int) $d['leads']['outreach'] . ' from outreach links', ['', ''], m: 'web_demos') ?>
+      <?= $tile('New sign-ups (trials)', number_format((int) $d['signups']['all_n']), (int) $d['signups']['outreach'] . ' from outreach links', ['', ''], m: 'web_signups') ?>
+      <?= $tile('Paying customers from outreach', number_format($d['paying']), 'all time, active subscriptions', ['', ''], m: 'paying') ?>
     </div>
   </div>
 

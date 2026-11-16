@@ -86,6 +86,7 @@ function platform_routes(string $path): void
         ['GET',      '/r',                   'platform_track_click'],
         ['GET',      '/o',                   'platform_track_open'],
         ['GET',      '/super/sales',         'super_sales'],
+        ['GET',      '/super/sales/list',    'super_sales_list'],
         ['GET|POST', '/api/prospects',       'webhook_prospects'],
         ['GET',      '/super/requests',      'super_requests'],
         ['POST',     '/super/requests/{id}', 'super_request_update', 'Updated feature request'],

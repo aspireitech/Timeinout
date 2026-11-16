@@ -63,6 +63,8 @@
         <div class="field"><label for="g-sv">Search Console HTML tag (or its content value)</label><input type="text" id="g-sv" name="google_site_verification" value="<?= e(setting('google_site_verification', '')) ?>" placeholder='<meta name="google-site-verification" content="…">'></div>
         <div class="field"><label for="g-ga">Google Analytics 4 measurement ID (optional)</label><input type="text" id="g-ga" name="ga4_id" value="<?= e(setting('ga4_id', '')) ?>" placeholder="G-XXXXXXXXXX"></div>
       </div>
+      <?php if (setting('google_site_verification', '') !== ''): ?><p class="small" style="margin:0 0 8px"><span class="badge in">Search Console tag is on the website</span> Now press <b>Verify</b> in Search Console.</p><?php endif; ?>
+      <button class="btn btn-primary">Save settings</button>
     </form>
   </div>
   <div class="card">
