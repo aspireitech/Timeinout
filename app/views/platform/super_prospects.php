@@ -16,9 +16,9 @@ $total = array_sum($counts);
       <span class="muted small">Runs exactly what the cron runs. Outreach still only sends on weekdays in each lead's business hours.</span></form>
     <?php if (!empty($_SESSION['job_output'])): ?><pre class="small" style="white-space:pre-wrap;max-height:220px;overflow:auto;background:#F4F5FA;padding:8px;border-radius:8px"><?= e($_SESSION['job_output']) ?></pre><?php unset($_SESSION['job_output']); endif; ?>
     <?php if (setting('cron_last_log', '') !== ''): ?><details style="margin:0 0 10px"><summary class="small">Last hourly job output</summary><pre class="small" style="white-space:pre-wrap;max-height:220px;overflow:auto"><?= e((string) setting('cron_last_log')) ?></pre></details><?php endif; ?>
-    <p class="muted small">Each prospect gets <b>email 1</b>, a <b>follow-up 4 days later</b> and a <b>last note 5 days after that</b>, in each lead's own business hours (weekdays, by their state's time zone), at most 4 per hour.
-      Emails stop by themselves when the prospect signs up, books a demo or unsubscribes. When someone replies, set them to <b>Replied</b> below so they get no more automatic emails.
-      Sent from your contact mailbox, so replies come to you.</p>
+    <p class="muted small">Each prospect gets <b>email 1</b>, a <b>follow-up 4 days later</b> and a <b>last note 5 days after that</b>, in each lead's own business hours (weekdays, by their state's time zone), at most <?= (int) ceil(max(1, (int) setting('prospects_daily', '25')) / 4) ?> per hour.
+      Emails stop by themselves when the prospect signs up, books a demo, unsubscribes, <b>replies</b> or <b>bounces</b>: every hour the contact inbox is checked, and you get an email the moment someone replies.
+      Sent from your contact mailbox, so replies come to you, and a copy of each email is filed in its <b>Sent</b> folder.</p>
     <form method="post" action="<?= e(base_path() . '/super/prospects/settings') ?>">
       <?= csrf_field() ?>
       <div class="grid c2">
@@ -28,11 +28,48 @@ $total = array_sum($counts);
         <div class="field"><label for="o-phone">Phone (signature, optional)</label><input type="text" id="o-phone" name="outreach_phone" value="<?= e(setting('outreach_phone', '')) ?>" placeholder="+1 (555) 123-4567"></div>
         <div class="field" style="grid-column:1 / -1"><label for="o-addr">Business postal address (required by US law in sales emails)</label><textarea id="o-addr" name="outreach_address" rows="3" placeholder="Company name&#10;Street&#10;City, State ZIP"><?= e(setting('outreach_address', '')) ?></textarea></div>
         <div class="field"><label for="o-cap">Emails per day (all steps together)</label><input type="number" id="o-cap" name="prospects_daily" min="1" max="100" value="<?= e(setting('prospects_daily', '20')) ?>">
-          <span class="muted small">Start with 20. A new mailbox that sends too many sales emails lands in spam.</span></div>
+          <span class="muted small">25 is a safe daily amount. Raise it slowly (about 10 more per week) while bounces stay under 3%; a sudden jump lands in spam.</span></div>
         <div class="field"><label for="o-tz">Sending hours follow this time zone</label><input type="text" id="o-tz" name="outreach_tz" value="<?= e(setting('outreach_tz', 'America/Denver')) ?>"></div>
+        <?php [$imapHost] = mailbox_config(); ?>
+        <div class="field"><label for="o-imap">Mailbox server (IMAP) for Sent copies and the reply / bounce check</label><input type="text" id="o-imap" name="imap_host" value="<?= e(setting('imap_host', '')) ?>" placeholder="<?= e($imapHost ?: 'imap.hostinger.com') ?>">
+          <span class="muted small">Leave empty to use <?= e($imapHost ?: 'the SMTP server name with imap.') ?>. Same mailbox and password as sending.</span></div>
+        <label class="check"><input type="checkbox" name="outreach_save_sent" value="1" <?= setting('outreach_save_sent', '1') === '1' ? 'checked' : '' ?>> <span>Save a copy of each outreach email in the Sent folder</span></label>
       </div>
       <button class="btn btn-primary btn-sm">Save outreach settings</button>
     </form>
+  </div>
+
+  <div class="card" id="delivery">
+    <div class="card-head">
+      <h2><?= icon('check') ?> Delivery log</h2>
+      <span class="muted small">Today: <b><?= (int) ($today['sent'] ?? 0) ?></b> accepted by the mail server · <?= (int) ($today['in_sent'] ?? 0) ?> in Sent · <?= (int) ($today['bounced'] ?? 0) ?> bounced · <?= (int) ($today['replied'] ?? 0) ?> replied
+        &nbsp;|&nbsp; All time: <?= (int) ($totals['sent'] ?? 0) ?> sent · <?= (int) ($totals['bounced'] ?? 0) ?> bounced · <?= (int) ($totals['replied'] ?? 0) ?> replied</span>
+    </div>
+    <?php $imapErr = (string) setting('imap_last_error', ''); $imapOk = (string) setting('imap_last_ok', ''); ?>
+    <?php if (!mailbox_ready()): ?>
+      <p class="small"><span class="badge warn">Mailbox check off</span> Sending works, but replies and bounces are not read automatically: it needs SMTP sending with a mailbox login.</p>
+    <?php elseif ($imapErr !== ''): ?>
+      <p class="small"><span class="badge danger">Mailbox problem</span> <?= e($imapErr) ?>. Sending is not affected. Check the IMAP server name above (Hostinger: imap.hostinger.com).</p>
+    <?php elseif ($imapOk !== ''): ?>
+      <p class="small"><span class="badge in">Inbox checked <?= e((new DateTime($imapOk, new DateTimeZone('UTC')))->setTimezone(outreach_tz())->format('M j, g:i A')) ?></span> Replies and bounces update the prospects below by themselves.</p>
+    <?php endif; ?>
+    <p class="muted small" style="margin-top:0"><b>Accepted</b> = your mail server took the email for delivery (its own answer is shown). A bad address comes back as a <b>bounce</b> within minutes to a day, and is then shown here. Accepted and not bounced = delivered to their mail server.</p>
+    <div class="table-wrap" style="max-height:420px;overflow:auto">
+    <table class="table">
+      <tr><th>Sent</th><th>To</th><th>Email</th><th>Mail server answer</th><th>Result</th></tr>
+      <?php foreach ($sends as $s): ?>
+        <tr class="small">
+          <td class="nowrap"><?= e((new DateTime($s['sent_at'], new DateTimeZone('UTC')))->setTimezone(outreach_tz())->format('M j, g:i A')) ?></td>
+          <td><b><?= e((string) $s['org']) ?></b><br><?= e($s['to_email']) ?></td>
+          <td class="nowrap"><?= e(['', 'Email 1', 'Follow-up', 'Last note'][(int) $s['step']] ?? 'Email ' . (int) $s['step']) ?><?= $s['in_sent'] ? '<br><span class="muted">copy in Sent</span>' : '' ?></td>
+          <td class="muted" style="max-width:260px;word-break:break-word"><?= e((string) ($s['server_reply'] ?: 'accepted')) ?></td>
+          <td><?php if ($s['outcome'] === 'bounced'): ?><span class="badge danger">Bounced</span><?php elseif ($s['outcome'] === 'replied'): ?><span class="badge in">Replied</span><?php else: ?><span class="badge out">Delivered</span><?php endif; ?>
+            <?php if ($s['outcome_note']): ?><br><span class="muted"><?= e($s['outcome_note']) ?></span><?php endif; ?></td>
+        </tr>
+      <?php endforeach; ?>
+      <?php if (!$sends): ?><tr><td colspan="5" class="empty">Nothing sent since this log started. Each outreach email will be listed here with the mail server's answer.</td></tr><?php endif; ?>
+    </table>
+    </div>
   </div>
 
   <div class="card" id="test">
@@ -92,6 +129,7 @@ $total = array_sum($counts);
           <td class="small"><?= e((string) $p['first_name']) ?><br><a href="mailto:<?= e($p['email']) ?>"><?= e($p['email']) ?></a><?php if ($p['phone']): ?><br><a href="tel:<?= e(preg_replace('/[^0-9+]/', '', $p['phone'])) ?>"><?= e($p['phone']) ?></a><?php endif; ?></td>
           <td class="small nowrap"><span class="badge <?= $badge[$p['status']] ?? 'gray' ?>"><?= e(PROSPECT_STATUSES[$p['status']] ?? $p['status']) ?></span><br><?= (int) $p['step'] ?> of 3 sent
             <?php if ($p['last_sent_at']): ?><br><span class="muted">last <?= e(date('M j', strtotime($p['last_sent_at']))) ?></span><?php endif; ?>
+            <?php if ($ls = $lastSend[(int) $p['id']] ?? null): ?><br><span class="muted" title="<?= e((string) $ls['server_reply']) ?>"><?= $ls['outcome'] === 'bounced' ? 'bounced' : ($ls['outcome'] === 'replied' ? 'replied' : '✓ accepted' . ($ls['in_sent'] ? ', in Sent' : '')) ?></span><?php endif; ?>
             <?php if ($p['next_at'] && $p['status'] === 'active'): ?><br><span class="muted">next <?= e(date('M j', strtotime($p['next_at']))) ?></span><?php endif; ?>
             <br><a href="<?= e(base_path() . '/super/prospects/' . $p['id'] . '/preview?step=' . min(2, (int) $p['step'])) ?>" target="_blank">Preview</a></td>
           <td>

@@ -65,9 +65,9 @@ $GLOBALS['mail_error'] = null;
  * On failure the reason is left in $GLOBALS['mail_error'].
  */
 /** Sends an email and records the outcome for the status page. */
-function send_mail(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = []): bool
+function send_mail(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = [], array $extraHeaders = []): bool
 {
-    $ok = send_mail_now($to, $subject, $html, $attachments, $sender, $bcc);
+    $ok = send_mail_now($to, $subject, $html, $attachments, $sender, $bcc, $extraHeaders);
     try {
         setting_set($ok ? 'mail_last_ok' : 'mail_last_fail', gmdate('Y-m-d H:i:s'));
         if (!$ok) {
@@ -79,9 +79,15 @@ function send_mail(array $to, string $subject, string $html, array $attachments 
     return $ok;
 }
 
-function send_mail_now(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = []): bool
+/**
+ * After a successful send: $GLOBALS['mail_reply'] (the mail server's "250 … queued as …" answer, SMTP only),
+ * $GLOBALS['mail_message_id'] and $GLOBALS['mail_raw'] (the whole message, to file a copy in the Sent folder).
+ * $extraHeaders: e.g. List-Unsubscribe (SMTP and mail() only).
+ */
+function send_mail_now(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = [], array $extraHeaders = []): bool
 {
-    $GLOBALS['mail_error'] = null;
+    $GLOBALS['mail_error'] = $GLOBALS['mail_reply'] = $GLOBALS['mail_message_id'] = $GLOBALS['mail_raw'] = null;
+    $extraHeaders = array_values(array_filter($extraHeaders, fn($h) => is_string($h) && !preg_match('/[\r\n]/', $h) && str_contains($h, ':')));
     $valid = fn(array $list) => array_values(array_unique(array_filter(array_map('trim', $list), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL))));
     $to = $valid($to);
     $bcc = array_values(array_diff($valid($bcc), $to));
@@ -100,6 +106,7 @@ function send_mail_now(array $to, string $subject, string $html, array $attachme
     if ($sender !== 'contact') {
         $headers[] = 'Reply-To: ' . contact_email(); // replies to a report reach a person
     }
+    $headers = array_merge($headers, $extraHeaders);
 
     if ($attachments) {
         $b = 'b' . bin2hex(random_bytes(12));
@@ -117,13 +124,17 @@ function send_mail_now(array $to, string $subject, string $html, array $attachme
     }
 
     if (($m['driver'] ?? 'mail') === 'smtp') {
+        $msgId = '<' . bin2hex(random_bytes(12)) . '@' . cfg('base_domain') . '>';
+        $all = array_merge($headers, [
+            'To: ' . implode(', ', $to),
+            'Subject: ' . $encSubject,
+            'Date: ' . date('r'),
+            'Message-ID: ' . $msgId,
+        ]);
         try {
-            smtp_send($m, $from, array_merge($to, $bcc), array_merge($headers, [
-                'To: ' . implode(', ', $to),
-                'Subject: ' . $encSubject,
-                'Date: ' . date('r'),
-                'Message-ID: <' . bin2hex(random_bytes(8)) . '@' . cfg('base_domain') . '>',
-            ]), $body);
+            $GLOBALS['mail_reply'] = smtp_send($m, $from, array_merge($to, $bcc), $all, $body);
+            $GLOBALS['mail_message_id'] = $msgId;
+            $GLOBALS['mail_raw'] = implode("\r\n", $all) . "\r\n\r\n" . $body;
             return true;
         } catch (Throwable $ex) {
             $GLOBALS['mail_error'] = 'SMTP: ' . $ex->getMessage();
@@ -141,7 +152,8 @@ function send_mail_now(array $to, string $subject, string $html, array $attachme
     return $ok;
 }
 
-function smtp_send(array $c, string $from, array $to, array $headers, string $body): void
+/** Sends one message over SMTP. Returns the server's answer to the message ("250 2.0.0 Ok: queued as …"). */
+function smtp_send(array $c, string $from, array $to, array $headers, string $body): string
 {
     $secure = $c['secure'] ?? '';
     $fp = @stream_socket_client(($secure === 'ssl' ? 'ssl://' : 'tcp://') . $c['host'] . ':' . (int) $c['port'], $errno, $errstr, 15);
@@ -187,9 +199,14 @@ function smtp_send(array $c, string $from, array $to, array $headers, string $bo
     $cmd('DATA', [354]);
     $data = implode("\r\n", $headers) . "\r\n\r\n" . $body;
     $data = preg_replace('/^\./m', '..', $data);
-    $cmd($data . "\r\n.", [250]);
-    $cmd('QUIT', [221]);
+    $accepted = trim($cmd($data . "\r\n.", [250]));
+    try {
+        $cmd('QUIT', [221]);
+    } catch (Throwable $e) {
+        // the message is already accepted; a rude goodbye does not matter
+    }
     fclose($fp);
+    return mb_substr(preg_replace('/\s+/', ' ', $accepted), 0, 250);
 }
 
 // ---------- Microsoft 365 through Microsoft Graph (no SMTP, no mailbox passwords) ----------

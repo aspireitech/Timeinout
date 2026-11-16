@@ -327,11 +327,11 @@ function run_prospects(bool $force = false): array
         return [];
     }
     $now = new DateTime('now', outreach_tz());
-    $cap = max(1, min(100, (int) setting('prospects_daily', '20')));
+    $cap = max(1, min(100, (int) setting('prospects_daily', '25')));
     $dayStart = (clone $now)->setTime(0, 0)->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     $sentToday = (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]);
-    // Spread the day's emails: at most cap/5 per hourly run (4 when the cap is 20)
-    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap / 5));
+    // Spread the day's emails over the ~4-5 sending hours: at most cap/4 per hourly run (7 when the cap is 25)
+    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap / 4));
     if ($room <= 0) {
         return [];
     }
@@ -341,6 +341,7 @@ function run_prospects(bool $force = false): array
     // Only those whose local time is a good moment right now (see prospect_send_window)
     $due = array_slice(array_values(array_filter($due, fn($p) => $force || prospect_send_window($p['state']))), 0, $room);
     $log = [];
+    $sentIds = [];
     foreach ($due as $p) {
         if ($state = prospect_customer_state($p['email'])) {
             update('prospects', ['status' => $state, 'next_at' => null], 'id = ?', [$p['id']]);
@@ -352,7 +353,9 @@ function run_prospects(bool $force = false): array
             continue;
         }
         [$subject, $html] = prospect_email($p, $step);
-        if (!send_mail([$p['email']], $subject, $html)) {
+        $unsub = scheme() . '://' . cfg('base_domain') . base_path() . '/unsubscribe/one-click?t=' . $p['token']; // Gmail / Yahoo "Unsubscribe" button
+        $headers = ['List-Unsubscribe: <' . $unsub . '>, <mailto:' . contact_email() . '?subject=unsubscribe>', 'List-Unsubscribe-Post: List-Unsubscribe=One-Click'];
+        if (!send_mail([$p['email']], $subject, $html, [], 'contact', [], $headers)) {
             $log[] = 'prospect ' . $p['email'] . ': email failed: ' . ($GLOBALS['mail_error'] ?? '');
             break; // mailbox problem: try again next hour
         }
@@ -362,7 +365,20 @@ function run_prospects(bool $force = false): array
             'status' => $next > 2 ? 'done' : 'active',
             'next_at' => $next > 2 ? null : gmdate('Y-m-d H:i:s', strtotime('+' . PROSPECT_GAPS[$next] . ' days')),
         ], 'id = ?', [$p['id']]);
-        $log[] = 'prospect ' . $p['org'] . ': email ' . $next . ' sent';
+        $sid = insert('prospect_sends', ['prospect_id' => $p['id'], 'step' => $next, 'to_email' => $p['email'],
+            'message_id' => $GLOBALS['mail_message_id'], 'server_reply' => $GLOBALS['mail_reply'], 'sent_at' => $utc]);
+        $sentIds[$sid] = $GLOBALS['mail_raw'];
+        $log[] = 'prospect ' . $p['org'] . ': email ' . $next . ' accepted by the mail server' . ($GLOBALS['mail_reply'] ? ' (' . $GLOBALS['mail_reply'] . ')' : '');
+    }
+    // A copy of each in the mailbox's Sent folder, so you can see exactly what went out
+    if ($sentIds = array_filter($sentIds)) {
+        $saved = mailbox_file_sent(array_values($sentIds));
+        if ($saved) {
+            q('UPDATE prospect_sends SET in_sent = 1 WHERE id IN (' . implode(',', array_slice(array_keys($sentIds), 0, $saved)) . ')');
+            $log[] = "outreach: $saved cop" . ($saved === 1 ? 'y' : 'ies') . ' saved in the Sent folder';
+        } elseif (!empty($GLOBALS['mailbox_error'])) {
+            $log[] = 'outreach: could not save copies in the Sent folder (' . $GLOBALS['mailbox_error'] . '); the emails themselves were sent';
+        }
     }
     return $log;
 }

@@ -18,7 +18,16 @@ function super_prospects(): void
     $counts = array_column(rows('SELECT status, COUNT(*) AS n FROM prospects GROUP BY status'), 'n', 'status');
     $newKey = $_SESSION['prospect_key_once'] ?? null; // shown once, right after it is created
     unset($_SESSION['prospect_key_once']);
-    view('platform/super_prospects', compact('list', 'status', 'counts', 'newKey'), 'platform');
+    // Delivery evidence: the last email to each prospect, and the latest emails overall
+    $lastSend = [];
+    foreach (rows('SELECT s.* FROM prospect_sends s JOIN (SELECT prospect_id, MAX(id) AS id FROM prospect_sends GROUP BY prospect_id) x ON x.id = s.id') as $s) {
+        $lastSend[(int) $s['prospect_id']] = $s;
+    }
+    $sends = rows('SELECT s.*, p.org FROM prospect_sends s LEFT JOIN prospects p ON p.id = s.prospect_id ORDER BY s.id DESC LIMIT 100');
+    $dayStart = (new DateTime('today', outreach_tz()))->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+    $today = row("SELECT COUNT(*) AS sent, SUM(in_sent) AS in_sent, SUM(outcome = 'bounced') AS bounced, SUM(outcome = 'replied') AS replied FROM prospect_sends WHERE sent_at >= ?", [$dayStart]);
+    $totals = row("SELECT COUNT(*) AS sent, SUM(outcome = 'bounced') AS bounced, SUM(outcome = 'replied') AS replied FROM prospect_sends");
+    view('platform/super_prospects', compact('list', 'status', 'counts', 'newKey', 'lastSend', 'sends', 'today', 'totals'), 'platform');
 }
 
 /** Paste box: one prospect per line, comma or tab separated. */
@@ -48,7 +57,11 @@ function super_prospects_settings(): void
 {
     require_super();
     setting_set('prospects_on', input('prospects_on') === '1' ? '1' : '0');
-    setting_set('prospects_daily', (string) max(1, min(100, (int) input('prospects_daily') ?: 20)));
+    setting_set('prospects_daily', (string) max(1, min(100, (int) input('prospects_daily') ?: 25)));
+    $imap = strtolower(trim((string) input('imap_host')));
+    setting_set('imap_host', preg_match('/^[a-z0-9.-]{3,190}$/', $imap) ? $imap : '');
+    setting_set('outreach_save_sent', input('outreach_save_sent') === '1' ? '1' : '0');
+    setting_set('imap_sent_folder', ''); // found again on the next send
     setting_set('outreach_name', mb_substr(trim((string) input('outreach_name')), 0, 80));
     setting_set('outreach_phone', mb_substr(trim((string) input('outreach_phone')), 0, 40));
     setting_set('outreach_address', mb_substr(trim((string) input('outreach_address')), 0, 300));
@@ -127,6 +140,26 @@ function platform_unsubscribe(): void
 }
 
 /**
+ * One-click unsubscribe (RFC 8058) from the List-Unsubscribe header: the mail app POSTs here, no page or form.
+ * The secret token in the link is the proof (that is why it is a webhook_ route without a form token). GET shows the normal page.
+ */
+function webhook_unsubscribe_one_click(): void
+{
+    $token = (string) input('t');
+    if (!is_post()) {
+        redirect(base_path() . '/unsubscribe?t=' . (preg_match('/^[a-f0-9]{32}$/', $token) ? $token : ''));
+    }
+    $p = preg_match('/^[a-f0-9]{32}$/', $token) ? row('SELECT * FROM prospects WHERE token = ?', [$token]) : null;
+    if ($p && $p['status'] !== 'unsubscribed') {
+        update('prospects', ['status' => 'unsubscribed', 'next_at' => null], 'id = ?', [$p['id']]);
+        $GLOBALS['audit_system'] = true;
+        audit('Prospect unsubscribed (one-click)', $p['org'] . ' — ' . $p['email'], true);
+    }
+    http_response_code(200);
+    exit('Unsubscribed.');
+}
+
+/**
  * API for the daily prospect finder. Header X-Api-Key: the key from /super → Prospects.
  *   GET  → {"known_domains": [...]} so the finder skips organizations already in the list
  *   POST {"prospects": [{"org","first_name","email","phone","website","city","state","kind","source"}, ...]}
@@ -150,6 +183,9 @@ function webhook_prospects(): void
             'daily_cap'    => (int) setting('prospects_daily', '20'),
             'counts'       => array_map('intval', $counts),
             'sent_today'   => (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]),
+            'delivery_today' => row("SELECT COUNT(*) AS accepted, COALESCE(SUM(in_sent), 0) AS in_sent_folder, COALESCE(SUM(outcome = 'bounced'), 0) AS bounced, COALESCE(SUM(outcome = 'replied'), 0) AS replied FROM prospect_sends WHERE sent_at >= ?", [$dayStart]),
+            'recent_delivery' => rows('SELECT s.sent_at, p.org, s.to_email, s.step, s.server_reply, s.in_sent, s.outcome, s.outcome_note FROM prospect_sends s LEFT JOIN prospects p ON p.id = s.prospect_id ORDER BY s.id DESC LIMIT 30'),
+            'mailbox'      => ['ready' => mailbox_ready(), 'last_ok_utc' => setting('imap_last_ok', null), 'error' => (string) setting('imap_last_error', '')],
             'recent_sends' => rows('SELECT org, email, state, kind, status, step, last_sent_at FROM prospects WHERE last_sent_at IS NOT NULL ORDER BY last_sent_at DESC LIMIT 50'),
             'hourly_job'   => ['last_run_utc' => setting('cron_last_run', null), 'errors' => (int) setting('cron_last_errors', '0'),
                                'status' => hourly_job_status()[0], 'log' => (string) setting('cron_last_log', '')],

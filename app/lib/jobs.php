@@ -11,6 +11,7 @@ function run_hourly_jobs(bool $forceReports = false, bool $forceScorecard = fals
         'purge'     => fn() => purge_expired_tenants(),
         'subdomain' => fn() => subdomain_recheck(),
         'trials'    => fn() => run_nurture(),
+        'mailbox'   => fn() => mailbox_check(), // bounces and replies first, so nobody who answered gets another email
         'outreach'  => fn() => run_prospects(),
         'scorecard' => fn() => send_scorecard($forceScorecard),
     ];

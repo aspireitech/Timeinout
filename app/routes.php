@@ -81,6 +81,7 @@ function platform_routes(string $path): void
         ['GET',      '/super/prospects/{id}/preview', 'super_prospect_preview'],
         ['POST',     '/super/prospects/{id}', 'super_prospect_update', 'Updated prospect'],
         ['GET|POST', '/unsubscribe',         'platform_unsubscribe'],
+        ['GET|POST', '/unsubscribe/one-click', 'webhook_unsubscribe_one_click'],
         ['GET|POST', '/api/prospects',       'webhook_prospects'],
         ['GET',      '/super/requests',      'super_requests'],
         ['POST',     '/super/requests/{id}', 'super_request_update', 'Updated feature request'],

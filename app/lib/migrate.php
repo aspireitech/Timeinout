@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 
 function setting(string $key, $default = null)
 {
@@ -92,6 +92,9 @@ function migrate(): void
         }
         if ($v < 18) {
             migration_18();
+        }
+        if ($v < 19) {
+            migration_19();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -425,4 +428,25 @@ function migration_18(): void
             q("ALTER TABLE tenants ADD COLUMN $col $def");
         }
     }
+}
+
+/** Outreach delivery log: one row per email, with the mail server's answer and any bounce or reply (platform table). */
+function migration_19(): void
+{
+    q('CREATE TABLE IF NOT EXISTS prospect_sends (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        prospect_id INT UNSIGNED NOT NULL,
+        step TINYINT UNSIGNED NOT NULL,
+        to_email VARCHAR(190) NOT NULL,
+        message_id VARCHAR(190) NULL,
+        server_reply VARCHAR(255) NULL,
+        in_sent TINYINT(1) NOT NULL DEFAULT 0,
+        sent_at DATETIME NOT NULL,
+        outcome VARCHAR(20) NULL,
+        outcome_at DATETIME NULL,
+        outcome_note VARCHAR(255) NULL,
+        KEY prospect (prospect_id),
+        KEY message (message_id),
+        KEY sent (sent_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }
