@@ -57,6 +57,51 @@ function badge_reissue(string $type, int $id): ?string
     return $n ? $code : null;
 }
 
+// ---------- Check-in method per group: 'both' (tap or scan), 'scan' (badge only), 'tap' (names only) ----------
+
+const CHECKIN_MODES = ['both' => 'Tap name or scan badge', 'scan' => 'Scan badge only', 'tap' => 'Tap name only'];
+const DESK_UNLOCK_SECONDS = 120;
+
+/** Group of a kiosk tile or person type: 'members' (students / members) or 'staff'. */
+function checkin_group(string $typeOrTile): string
+{
+    return in_array($typeOrTile, ['staff', 'teacher'], true) ? 'staff' : 'members';
+}
+
+function checkin_mode(string $group, ?array $t = null): string
+{
+    $t = $t ?? tenant();
+    if (!feature_on('qr_badges', $t)) {
+        return 'tap';
+    }
+    $modes = json_decode((string) ($t['checkin_modes'] ?? ''), true);
+    $m = is_array($modes) ? (string) ($modes[$group] ?? 'both') : 'both';
+    return isset(CHECKIN_MODES[$m]) ? $m : 'both';
+}
+
+/** The front desk entered its code for "Forgot my badge?" (valid for a short time, on this kiosk only). */
+function desk_unlocked(string $group): bool
+{
+    return (int) ($_SESSION['desk_unlock'][tid()][$group] ?? 0) > time();
+}
+
+/** Remember that this person was just identified by their badge (the following sign-in/out is allowed in scan-only mode). */
+function badge_pass_set(string $type, int $id): void
+{
+    $_SESSION['badge_pass'][tid()] = [$type, $id, time() + 300];
+}
+
+/** May this person be signed in or out now, given the group's check-in method? */
+function checkin_allowed(string $type, int $id): bool
+{
+    $group = checkin_group($type);
+    if (checkin_mode($group) !== 'scan' || desk_unlocked($group)) {
+        return true;
+    }
+    [$pt, $pid, $exp] = $_SESSION['badge_pass'][tid()] ?? ['', 0, 0];
+    return $pt === $type && (int) $pid === $id && $exp > time();
+}
+
 /** Personal badge page (shows the QR on a phone). */
 function badge_link(array $t, string $code): string
 {

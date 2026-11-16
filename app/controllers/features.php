@@ -157,12 +157,62 @@ function api_badge(): void
     }
     $p = $found['row'];
     $date = (string) input('date');
+    if (checkin_mode(checkin_group($type)) === 'tap') {
+        json_out(['error' => 'Badges are not used for ' . strtolower($type === 'teacher' ? term('b2') : term('a2')) . ' here. Please tap your name instead.'], 409);
+    }
+    badge_pass_set($type, (int) $p['id']);
     $status = day_status($type, [(int) $p['id']], valid_date($date) ? $date : tenant_today());
     json_out([
         'tile' => ['id' => (int) $tile['id'], 'type' => $tile['type'], 'contact' => (bool) $tile['needs_contact'], 'label' => $tile['label']],
         'person' => ['id' => (int) $p['id'], 'name' => full_name($p), 'initials' => initials(full_name($p)),
                      'grade' => $type === 'student' ? $p['grade'] : null, 'status' => $status[(int) $p['id']] ?? null],
     ]);
+}
+
+/** Kiosk "Forgot my badge?": the front desk types its code; name search opens for this group for 2 minutes. */
+function api_desk_unlock(): void
+{
+    api_guard();
+    $in = json_decode((string) file_get_contents('php://input'), true) ?: $_POST;
+    $group = checkin_group((string) ($in['group'] ?? 'members'));
+    $key = 'tenant' . tid();
+    if (login_blocked('desk', $key)) {
+        json_out(['error' => 'Too many wrong codes. Please wait 15 minutes.'], 429);
+    }
+    $hash = (string) (tenant()['desk_pin_hash'] ?? '');
+    $ok = $hash !== '' && password_verify((string) ($in['pin'] ?? ''), $hash);
+    login_attempt('desk', $key, $ok);
+    if (!$ok) {
+        json_out(['error' => $hash === '' ? 'No front-desk code is set. An admin can set one in Admin → QR badges.' : 'That code is not right.'], 403);
+    }
+    $_SESSION['desk_unlock'][tid()][$group] = time() + DESK_UNLOCK_SECONDS;
+    audit('Front desk unlocked name search', $group, true);
+    json_out(['ok' => true]);
+}
+
+/** Admin → QR badges → Check-in method: per group, and the front-desk code. */
+function admin_badges_settings(): void
+{
+    require_admin();
+    $modes = [];
+    foreach (['members', 'staff'] as $g) {
+        $m = (string) input('mode_' . $g);
+        $modes[$g] = isset(CHECKIN_MODES[$m]) ? $m : 'both';
+    }
+    $data = ['checkin_modes' => json_encode($modes)];
+    $pin = trim((string) input('desk_pin'));
+    if ($pin !== '') {
+        if (!preg_match('/^\d{4,8}$/', $pin)) {
+            flash('error', 'The front-desk code must be 4 to 8 digits.');
+            redirect(url('/admin/badges'));
+        }
+        $data['desk_pin_hash'] = password_hash($pin, PASSWORD_DEFAULT);
+    }
+    update('tenants', $data, 'id = ?', [tid()]);
+    audit_note('Check-in method', term('a2') . ': ' . CHECKIN_MODES[$modes['members']] . '; ' . term('b2') . ': ' . CHECKIN_MODES[$modes['staff']] . ($pin !== '' ? '; front-desk code changed' : ''));
+    $needsPin = in_array('scan', $modes, true) && $pin === '' && empty(tenant()['desk_pin_hash']);
+    flash($needsPin ? 'error' : 'success', $needsPin ? 'Saved. Set a front-desk code too, so people who forgot their badge can still sign in with the front desk\'s help.' : 'Check-in method saved.');
+    redirect(url('/admin/badges'));
 }
 
 /** Emergency roll call: everyone signed in right now, to tick off at the assembly point. */

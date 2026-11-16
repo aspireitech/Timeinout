@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 17;
+const SCHEMA_VERSION = 18;
 
 function setting(string $key, $default = null)
 {
@@ -89,6 +89,9 @@ function migrate(): void
         }
         if ($v < 17) {
             migration_17();
+        }
+        if ($v < 18) {
+            migration_18();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -410,6 +413,16 @@ function migration_17(): void
     foreach (['students', 'teachers'] as $table) {
         if (!column_exists($table, 'badge_code')) {
             q("ALTER TABLE $table ADD COLUMN badge_code VARCHAR(24) NULL, ADD KEY ix_{$table}_badge (tenant_id, badge_code)");
+        }
+    }
+}
+
+/** V18: how each group checks in (tap / scan / both) and the hashed front-desk code for "Forgot my badge?". */
+function migration_18(): void
+{
+    foreach (['checkin_modes' => 'VARCHAR(80) NULL', 'desk_pin_hash' => 'VARCHAR(255) NULL'] as $col => $def) {
+        if (!column_exists('tenants', $col)) {
+            q("ALTER TABLE tenants ADD COLUMN $col $def");
         }
     }
 }

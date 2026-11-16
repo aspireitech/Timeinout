@@ -59,12 +59,18 @@
     S.tile = { id: +b.dataset.tile, type: b.dataset.type, contact: b.dataset.contact === '1', label: b.dataset.label };
     S.person = S.guardian = null;
     if (S.tile.type === 'visitor') return openVisitor();
+    // "Scan badge only" for this group: the button opens the camera instead of the name search
+    if ((S.tile.type === 'members' || S.tile.type === 'staff') && groupMode(S.tile.type) === 'scan') return openScan(true);
+    openSearch();
+  }));
+  function groupMode(type) { return type === 'staff' ? root.dataset.modeStaff : root.dataset.modeMembers; }
+  function openSearch() {
     $('#search-title').textContent = S.tile.label + ': find ' + (S.tile.type === 'pickup' ? 'the name' : 'your name');
     $('#search').value = '';
     $('#results').innerHTML = '';
     setHint('Start typing a first or last name.');
     show('search');
-  }));
+  }
   $$('[data-back]').forEach((b) => b.addEventListener('click', () => show(b.dataset.back)));
   $('#action-back').addEventListener('click', () => show(S.tile.contact && !isStaff() ? 'guardian' : 'search'));
   $('#mat-back').addEventListener('click', () => show(S.tile.contact ? 'guardian' : 'search'));
@@ -83,8 +89,9 @@
     const q = $('#search').value.trim();
     const mine = ++seq;
     if (!q) { $('#results').innerHTML = ''; setHint('Start typing a first or last name.'); return; }
-    const list = await getJSON(`/search?type=${isStaff() ? 'staff' : 'members'}&q=${encodeURIComponent(q)}&date=${S.day}`);
+    const list = await getJSON(`/search?type=${isStaff() ? 'staff' : 'members'}&tile=${S.tile.type}&q=${encodeURIComponent(q)}&date=${S.day}`);
     if (mine !== seq) return; // a newer search is already running
+    if (!Array.isArray(list)) { $('#results').innerHTML = ''; setHint(list.error || 'Please scan your badge.'); return; }
     $('#results').innerHTML = list.map((p, i) =>
       `<button class="pick" data-i="${i}"><span class="avatar ${isStaff() ? 'teacher' : ''}">${esc(p.initials)}</span>` +
       `<span><div class="nm">${esc(p.name)}</div>${p.grade ? `<div class="sb">${esc(p.grade)}</div>` : ''}</span>${S.tile.type === 'pickup' ? '' : badge(p.status)}</button>`).join('');
@@ -334,9 +341,12 @@
     const btn = $$('.action').find((b) => !b.disabled);
     if (btn && S.day === TODAY) btn.click();
   }
-  async function openScan() {
+  async function openScan(fromTile) {
+    if (fromTile !== true) S.tile = null; // the "Scan my badge" button: the badge decides the group
     show('scan');
     $('#scan-hint').textContent = 'Looking for a QR code…';
+    $('#forgot-btn').classList.toggle('hidden', !(S.tile && groupMode(S.tile.type) === 'scan'));
+    $('#desk-form').classList.add('hidden');
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.jsQR) {
       return fail('scan', 'This device cannot use its camera here. Type your name instead, or use a badge scanner.');
     }
@@ -367,8 +377,28 @@
     requestAnimationFrame(loop);
   }
   if (BADGES) {
-    $('#scan-btn').addEventListener('click', openScan);
+    $('#scan-btn').addEventListener('click', () => openScan(false));
     $('#scan-back').addEventListener('click', () => { stopCamera(); show('role'); });
+    // "Forgot my badge?": a staff member types the front-desk code, then the name search opens once
+    $('#forgot-btn').addEventListener('click', () => {
+      stopCamera();
+      $('#forgot-btn').classList.add('hidden');
+      $('#desk-form').classList.remove('hidden');
+      $('#desk-pin').value = '';
+      setTimeout(() => $('#desk-pin').focus(), 60);
+    });
+    const unlock = async () => {
+      const r = await fetch(API + '/desk-unlock', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF, Accept: 'application/json' },
+        body: JSON.stringify({ pin: $('#desk-pin').value, group: S.tile ? S.tile.type : 'members' }),
+      }).catch(() => null);
+      const data = r ? await r.json().catch(() => ({})) : { error: 'Connection problem. Please try again.' };
+      if (!r || !r.ok || !data.ok) return fail('scan', data.error || 'That code is not right.');
+      openSearch();
+    };
+    $('#desk-go').addEventListener('click', unlock);
+    $('#desk-pin').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); unlock(); } });
     // Badge scanners type very fast; collect quick keystrokes and act on Enter
     let buf = '', last = 0;
     document.addEventListener('keydown', (e) => {

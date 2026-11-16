@@ -22,6 +22,23 @@
 </div>
 
 <div class="card no-print" style="margin-bottom:14px">
+  <h2 style="margin-top:0"><?= icon('settings') ?> Check-in method</h2>
+  <form method="post" action="<?= e(url('/admin/badges/settings')) ?>">
+    <?= csrf_field() ?>
+    <div class="grid c2">
+      <?php foreach (['members' => term('a2'), 'staff' => term('b2')] as $g => $label): ?>
+        <div class="field"><label for="mode-<?= e($g) ?>"><?= e($label) ?></label>
+          <select id="mode-<?= e($g) ?>" name="mode_<?= e($g) ?>"><?php foreach (CHECKIN_MODES as $k => $l): ?><option value="<?= e($k) ?>" <?= checkin_mode($g, $t) === $k ? 'selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?></select></div>
+      <?php endforeach; ?>
+      <div class="field"><label for="desk-pin">Front-desk code for "Forgot my badge?" (4–8 digits)</label>
+        <input type="password" id="desk-pin" name="desk_pin" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="<?= !empty($t['desk_pin_hash']) ? 'Set. Leave empty to keep it' : 'e.g. 4826' ?>"></div>
+    </div>
+    <p class="muted small" style="margin:0 0 10px"><b>Tap name or scan badge</b>: fastest and most forgiving. <b>Scan badge only</b>: nobody can sign in for someone else; a person who forgot their badge taps <i>Forgot my badge?</i> and a staff member types the front-desk code. <b>Tap name only</b>: badges are not used for that group.</p>
+    <button class="btn btn-primary btn-sm">Save check-in method</button>
+  </form>
+</div>
+
+<div class="card no-print" style="margin-bottom:14px">
   <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <div class="row">
       <?php foreach (['all' => 'Everyone', 'students' => term('a2'), 'staff' => term('b2')] as $k => $label): ?>

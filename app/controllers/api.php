@@ -40,6 +40,10 @@ function api_guard(): void
 function api_search(): void
 {
     api_guard();
+    $group = in_array(input('type'), ['teacher', 'staff'], true) ? 'staff' : 'members';
+    if (input('tile') !== 'pickup' && checkin_mode($group) === 'scan' && !desk_unlocked($group)) {
+        json_out(['error' => 'Please scan your badge. Forgot it? Ask the front desk.'], 403);
+    }
     $q = mb_substr((string) input('q'), 0, 50);
     if ($q === '') {
         json_out([]);
@@ -154,6 +158,10 @@ function api_record(): void
     $person = row("SELECT * FROM {$type}s WHERE id = ? AND tenant_id = ? AND active = 1", [$personId, tid()]);
     if (!$person) {
         json_out(['error' => 'Person not found.'], 404);
+    }
+    // "Scan badge only": a sign-in/out needs this person's own badge (or the front-desk code)
+    if (in_array($tile['type'], ['members', 'staff'], true) && !checkin_allowed($type, $personId)) {
+        json_out(['error' => 'Please scan your badge to sign in or out. Forgot it? Tap "Forgot my badge?" and ask the front desk.'], 403);
     }
 
     $guardian = null;

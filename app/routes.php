@@ -174,6 +174,8 @@ function tenant_routes(string $path): void
         ['POST',     '/admin/badges/email',        'admin_badges_email',    'Emailed QR badges'],
         ['GET',      '/badge',                     'tenant_badge_page'],
         ['GET',      '/api/badge',                 'api_badge'],
+        ['POST',     '/api/desk-unlock',           'api_desk_unlock'],
+        ['POST',     '/admin/badges/settings',     'admin_badges_settings', 'Changed check-in method'],
         ['POST',     '/admin/billing/stripe',      'admin_billing_stripe'],
         ['POST',     '/admin/billing/portal',      'admin_billing_portal'],
         ['POST',     '/admin/billing/wave',        'admin_billing_wave'],
