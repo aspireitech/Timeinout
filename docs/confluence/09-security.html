@@ -8,6 +8,9 @@
 <tr><td>Abuse limits</td><td>Sign-up bot trap and rate limits; demo form 5/hour per network; import max 5 MB and zip-bomb guard; CSV exports neutralise spreadsheet formulas</td></tr>
 <tr><td>Data</td><td>Customers separated (own database or customer tag on every row and query); AES-256-GCM encryption of contacts and secrets; hashed passwords</td></tr>
 <tr><td>Payments</td><td>Only signed Stripe webhooks (under 5 minutes old) can mark a customer paid</td></tr>
+<tr><td>Outreach and tracking</td><td>Tracked links open fixed pages only (no open redirect); one-click unsubscribe needs the secret 32-character token; tracking cookies are first-party, HttpOnly, Secure and SameSite=Lax; visits counted without cookies (daily-changing hash, IP not stored); forged replies and bounces ignored (DMARC/SPF/DKIM)</td></tr>
+<tr><td>Kiosk check-in method</td><td>"Scan badge only" enforced on the server; front-desk code hashed and rate-limited (5 tries per 15 minutes)</td></tr>
+<tr><td>Microsoft 365 app</td><td>Mail.Send + Mail.Read application permissions, limited to contact@ and reports@ by an Exchange application access policy (verify with Test-ApplicationAccessPolicy, page 4); the inbox is only read, never changed</td></tr>
 <tr><td>Audit</td><td>Every sign-in, change, import, export and payment recorded</td></tr>
 <tr><td>Privacy</td><td>Portals hidden from search engines; no analytics in portals or <code>/super</code></td></tr>
 </tbody></table>
@@ -30,3 +33,12 @@
 <li data-type="task-item"><input type="checkbox"> Calendar reminder for the Microsoft Graph client secret expiry</li>
 <li data-type="task-item"><input type="checkbox"> Never paste a key or password into chat, email, Confluence or GitHub</li>
 </ul>
+<h2>Review of the 16 Nov 2026 changes</h2>
+<table><thead><tr><th>Checked</th><th>Result</th></tr></thead><tbody>
+<tr><td>SQL in the new sales, traffic and inbox code</td><td>All visitor input passed as parameters; dynamic parts come from fixed lists</td></tr>
+<tr><td>Script injection through referrer, source tags, prospect names, email subjects</td><td>Escaped everywhere; source tags limited to letters, digits, dot, dash</td></tr>
+<tr><td>Redirect abuse through <code>/r?to=…</code></td><td>Blocked: only signup, demo or the home/landing page</td></tr>
+<tr><td>Header injection in outgoing email</td><td>Blocked: extra headers with line breaks are dropped</td></tr>
+<tr><td>Fake "reply" or "Undeliverable" email to stop outreach</td><td>Fixed: messages failing DMARC (or SPF and DKIM) are ignored</td></tr>
+<tr><td>Secrets in the public repository</td><td>None: no config.php, keys, passwords or hosting account IDs</td></tr>
+</tbody></table>

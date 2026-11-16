@@ -554,6 +554,7 @@ step must update this guide **in the same commit**:
 | 2026-11-16 | Features & add-ons page (schema 16): optional features off by default, one $19 add-on pack per industry (Safe Pickup / Staff Hours), Premium Support $99, Emergency roll call. |
 | 2026-11-16 | QR badges (schema 17): printable cards, emailed badge links, lost-badge reissue, kiosk camera and USB scanner support; scans and taps mix freely. |
 | 2026-11-16 | Outreach delivery proof (schema 19): delivery log with the mail server's answer, copies in the Sent folder over IMAP, hourly inbox check marks bounces and replies (reply alert email), one-click unsubscribe headers, default 25 emails a day. |
+| 2026-11-16 | Confluence: new page 15 (Sales dashboard and website traffic); pages 2, 4, 6, 7, 8, 9, 11, 12 and the FAQ updated for features, QR badges, check-in method, Microsoft 365 outreach, growth tools and the security review; new screenshots. |
 | 2026-11-16 | Security: the inbox check ignores forged replies and bounces (Authentication-Results: DMARC fail, or SPF and DKIM both fail; `mailbox_spoofed()`). |
 | 2026-11-16 | Microsoft 365: outreach sent as MIME through Graph (copies in Sent Items, unsubscribe headers kept); replies and bounces read through Graph with Mail.Read. |
 | 2026-11-16 | /super → Prospects and `GET /api/prospects?summary=1` say why Sent copies and the inbox check are off (`mailbox_problem()`: PHP mail() instead of SMTP, missing login or password, unknown IMAP server). |

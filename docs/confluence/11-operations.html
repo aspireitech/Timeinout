@@ -1,7 +1,7 @@
 <h2>Everyday tasks</h2>
 <table><thead><tr><th>Task</th><th>Where</th></tr></thead><tbody>
-<tr><td>Someone replied to outreach</td><td><code>/super → Prospects</code> → set <strong>Replied</strong> → answer from contact@</td></tr>
-<tr><td>Outreach email bounced</td><td><code>/super → Prospects</code> → set <strong>Bounced</strong></td></tr>
+<tr><td>Someone replied to outreach</td><td>Automatic: marked <strong>Replied</strong> and an alert email arrives → answer from contact@ within a few hours</td></tr>
+<tr><td>Outreach email bounced</td><td>Automatic: marked <strong>Bounced</strong> (reason in <code>/super → Prospects → Delivery log</code>)</td></tr>
 <tr><td>New sign-up alert</td><td>Create the subdomain (page 3), then a welcome call in the first 2 days</td></tr>
 <tr><td>"Chose a plan" email (no card)</td><td>Send the Wave invoice → <code>/super → Subscribers</code> → status <strong>active</strong></td></tr>
 <tr><td>"ACTION: payment failed"</td><td>Stripe retries automatically; call the customer</td></tr>
@@ -10,6 +10,7 @@
 <tr><td>Customer with its own database</td><td>hPanel → Databases first, then <code>/super → New portal</code></td></tr>
 <tr><td>Change prices</td><td><code>PLAN_CATALOG</code> in <code>app/lib/billing.php</code> + new Stripe prices + new price IDs in <code>/super → Settings</code></td></tr>
 <tr><td>Rebuild the demo</td><td><code>/super → Reset demo portal</code></td></tr>
+<tr><td>Every weekday morning</td><td>Open the 8:00 hot list email and call the people on it; then set them to Replied or Booked demo</td></tr>
 <tr><td>Weekly</td><td>Read the Monday scorecard; download the newest backup off-site</td></tr>
 <tr><td>Monthly (around the 8th)</td><td>Ask Claude for next month's Facebook posts</td></tr>
 </tbody></table>
@@ -24,4 +25,8 @@
 <tr><td>Outreach still "Queued"</td><td>Page 10, runbook H</td></tr>
 <tr><td>Link previews show no picture</td><td>Update not uploaded, or old preview cached; share with <code>?v=2</code></td></tr>
 <tr><td>Import went into the wrong list</td><td>Undo on that list's page within 24 h, then import from the right list</td></tr>
+<tr><td>Nothing in Sent Items for outreach</td><td>Emails sent before 16 Nov 2026 2 PM were never copied. Otherwise read the yellow/red line in /super → Prospects → Delivery log (page 4)</td></tr>
+<tr><td>Delivery log: "Microsoft 365 refused to show the inbox"</td><td>Mail.Read missing or not consented, or the access policy does not include contact@ (page 4)</td></tr>
+<tr><td>Website traffic shows 0</td><td>Counting started 16 Nov 2026; your own /super visits and bots are not counted</td></tr>
+<tr><td>Clicked shows 0%</td><td>Clicks are counted only for emails sent after the tracking update (16 Nov 2026)</td></tr>
 </tbody></table>
