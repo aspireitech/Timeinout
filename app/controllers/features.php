@@ -54,6 +54,117 @@ function admin_features_request(): void
     redirect(url('/admin/features'));
 }
 
+// ---------- QR badges ----------
+
+/** Admin → Badges: printable cards, email badges, cancel and reissue a lost one. */
+function admin_badges(): void
+{
+    require_admin();
+    if (!feature_on('qr_badges')) {
+        flash('error', 'Turn on QR badges in Features & add-ons first.');
+        redirect(url('/admin/features'));
+    }
+    badges_ensure();
+    $who = in_array(input('who'), ['students', 'staff'], true) ? (string) input('who') : 'all';
+    $people = [];
+    if ($who !== 'staff') {
+        foreach (rows('SELECT id, first_name, last_name, grade, badge_code FROM students WHERE tenant_id = ? AND active = 1 ORDER BY first_name, last_name', [tid()]) as $r) {
+            $people[] = ['type' => 'student', 'id' => (int) $r['id'], 'name' => full_name($r), 'group' => $r['grade'] ?: term('a1'), 'code' => $r['badge_code']];
+        }
+    }
+    if ($who !== 'students') {
+        foreach (rows('SELECT id, first_name, last_name, badge_code FROM teachers WHERE tenant_id = ? AND active = 1 ORDER BY first_name, last_name', [tid()]) as $r) {
+            $people[] = ['type' => 'teacher', 'id' => (int) $r['id'], 'name' => full_name($r), 'group' => term('b1'), 'code' => $r['badge_code']];
+        }
+    }
+    admin_view('badges', ['people' => $people, 'who' => $who, 't' => tenant()]);
+}
+
+function admin_badge_reissue(): void
+{
+    require_admin();
+    $type = input('type') === 'teacher' ? 'teacher' : 'student';
+    $id = (int) input('id');
+    $code = feature_on('qr_badges') ? badge_reissue($type, $id) : null;
+    audit_note(($type === 'teacher' ? 'Staff' : 'Student') . " #$id", $code ? 'Badge cancelled and reissued' : 'Badge reissue failed');
+    flash($code ? 'success' : 'error', $code ? 'The old badge no longer works. Print or send the new one.' : 'Could not reissue that badge.');
+    redirect(url('/admin/badges'));
+}
+
+/** Emails each staff member their own badge link, or each family the badge link of their child. */
+function admin_badges_email(): void
+{
+    require_admin();
+    if (!feature_on('qr_badges')) {
+        redirect(url('/admin/features'));
+    }
+    badges_ensure();
+    $t = tenant();
+    $who = input('who') === 'students' ? 'students' : 'staff';
+    $sent = $skipped = 0;
+    $mail = function (string $to, string $name, string $code) use ($t, &$sent): void {
+        $link = badge_link($t, $code);
+        $html = '<div style="font-family:Arial,sans-serif;max-width:520px;color:#161B36;line-height:1.5"><h2 style="margin:0 0 10px">' . e($name) . '\'s badge for ' . e($t['name']) . '</h2>'
+            . '<p>Open the link below on your phone and show the QR code to the kiosk camera to sign in or out in a second. Tip: save it to your home screen, or take a screenshot.</p>'
+            . '<p style="margin:18px 0"><a href="' . e($link) . '" style="display:inline-block;background:#5B4CE0;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Open my badge</a></p>'
+            . '<p style="color:#6b7090;font-size:13px">Keep this link private: it works like a key card. If it is lost, ask ' . e($t['name']) . ' for a new badge and the old one stops working.</p></div>';
+        if (send_mail([$to], 'Your ' . $t['name'] . ' badge: ' . $name, $html)) {
+            $sent++;
+        }
+    };
+    if ($who === 'staff') {
+        foreach (rows('SELECT first_name, last_name, email, badge_code FROM teachers WHERE tenant_id = ? AND active = 1 LIMIT 300', [tid()]) as $r) {
+            $email = (string) (decrypt_pii((string) $r['email']) ?? '');
+            filter_var($email, FILTER_VALIDATE_EMAIL) ? $mail($email, full_name($r), $r['badge_code']) : $skipped++;
+        }
+    } else {
+        foreach (rows('SELECT s.first_name, s.last_name, s.badge_code, g.email FROM students s JOIN guardians g ON g.student_id = s.id AND g.tenant_id = s.tenant_id
+                       WHERE s.tenant_id = ? AND s.active = 1 LIMIT 600', [tid()]) as $r) {
+            $email = (string) (decrypt_pii((string) $r['email']) ?? '');
+            filter_var($email, FILTER_VALIDATE_EMAIL) ? $mail($email, full_name($r), $r['badge_code']) : $skipped++;
+        }
+    }
+    audit_note('Badges emailed (' . $who . ')', "$sent sent, $skipped without an email address");
+    flash($sent ? 'success' : 'error', "$sent badge email(s) sent." . ($skipped ? " $skipped had no email address on file: print those badges instead." : ''));
+    redirect(url('/admin/badges'));
+}
+
+/** Personal badge page (from the email): name and a big QR to show at the kiosk. No sign-in needed; the code is the key. */
+function tenant_badge_page(): void
+{
+    $code = strtoupper(trim((string) input('c')));
+    $found = feature_on('qr_badges') ? badge_find($code) : null;
+    header('Cache-Control: no-store');
+    header('X-Robots-Tag: noindex');
+    view('kiosk/badge', ['t' => tenant(), 'code' => $code, 'person' => $found ? full_name($found['row']) : null], null);
+}
+
+/** Kiosk: a scanned badge → the right tile and person, with today's status, to continue the normal flow. */
+function api_badge(): void
+{
+    api_guard();
+    if (!feature_on('qr_badges')) {
+        json_out(['error' => 'QR badges are not turned on.'], 404);
+    }
+    $found = badge_find(strtoupper(trim((string) input('code'))));
+    if (!$found) {
+        json_out(['error' => 'This badge is not recognised. It may have been replaced. Please type your name instead.'], 404);
+    }
+    $type = $found['type'];
+    $tile = row('SELECT * FROM kiosk_tiles WHERE tenant_id = ? AND active = 1 AND type = ? ORDER BY sort_order, id LIMIT 1', [tid(), $type === 'teacher' ? 'staff' : 'members']);
+    if (!$tile) {
+        json_out(['error' => 'There is no ' . ($type === 'teacher' ? 'staff' : 'sign-in') . ' button on this kiosk. Please ask the front desk.'], 409);
+    }
+    $p = $found['row'];
+    $date = (string) input('date');
+    $status = day_status($type, [(int) $p['id']], valid_date($date) ? $date : tenant_today());
+    json_out([
+        'tile' => ['id' => (int) $tile['id'], 'type' => $tile['type'], 'contact' => (bool) $tile['needs_contact'], 'label' => $tile['label']],
+        'person' => ['id' => (int) $p['id'], 'name' => full_name($p), 'initials' => initials(full_name($p)),
+                     'grade' => $type === 'student' ? $p['grade'] : null, 'status' => $status[(int) $p['id']] ?? null],
+    ]);
+}
+
 /** Emergency roll call: everyone signed in right now, to tick off at the assembly point. */
 function admin_rollcall(): void
 {

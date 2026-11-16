@@ -16,7 +16,7 @@ const SUPPORT_PRICE = 99;
 const FEATURES = [
     'roll_call'      => ['name' => 'Emergency roll call', 'pack' => null, 'ready' => true,
         'what' => 'In a fire drill or evacuation, open Roll call on your phone: it lists everyone signed in right now (people, staff, visitors). Tick each person as they are counted outside; anyone left unticked is missing.'],
-    'qr_badges'      => ['name' => 'QR badges', 'pack' => null, 'ready' => false,
+    'qr_badges'      => ['name' => 'QR badges', 'pack' => null, 'ready' => true,
         'what' => 'Every person gets a personal QR code (printed card or on their phone). The kiosk camera or a USB scanner reads it and signs them in or out in a second, without searching names.'],
     'family_pin'     => ['name' => 'Family PIN at pickup', 'pack' => 'safe_pickup', 'ready' => false,
         'what' => 'Each family gets a 4-digit PIN. Signing a child out on the kiosk needs the PIN, so nobody can tap a child\'s name and leave with them.'],

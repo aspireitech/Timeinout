@@ -292,6 +292,7 @@
   }
   function reset() {
     clearTimeout(resetTimer);
+    stopCamera();
     S.tile = S.person = S.guardian = null;
     $$('.past-time').forEach((t) => { t.value = ''; }); // never carry a time over to the next person
     show('role');
@@ -305,4 +306,81 @@
     if (step && step !== 'role' && step !== 'done') idleTimer = setTimeout(reset, 90000);
   }
   ['click', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, () => armIdle(current()), { passive: true }));
+
+  // ---- QR badges: the tablet camera, or a USB / Bluetooth scanner (it types the code and presses Enter).
+  // A scan opens the same flow as tapping the name, so scans and taps mix freely in one record.
+  const BADGES = root.dataset.badges === '1';
+  const BADGE_RE = /^CIO1-[A-HJ-NP-Z2-9]{12}$/;
+  let stream = null, scanning = false;
+  function stopCamera() {
+    scanning = false;
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+  }
+  async function handleBadge(raw) {
+    const code = String(raw || '').trim().toUpperCase();
+    if (!BADGE_RE.test(code)) return;
+    stopCamera();
+    const s = $('#search'); if (s) s.value = '';
+    let data;
+    try { data = await getJSON(`/badge?code=${encodeURIComponent(code)}&date=${S.day}`); } catch (e) { data = { error: 'Connection problem. Please try again.' }; }
+    if (!data || data.error) { show('scan'); fail('scan', (data && data.error) || 'This badge is not recognised.'); return; }
+    S.tile = data.tile; S.guardian = null;
+    if (S.tile.contact && S.tile.type !== 'staff') return pickPerson(data.person); // children: choose who is with them, as usual
+    S.person = data.person;
+    $('#who-a').innerHTML = whoHTML();
+    show('action');
+    await loadStatus();
+    // Staff and adults: one scan = the only valid choice (sign in if out, sign out if in), today only
+    const btn = $$('.action').find((b) => !b.disabled);
+    if (btn && S.day === TODAY) btn.click();
+  }
+  async function openScan() {
+    show('scan');
+    $('#scan-hint').textContent = 'Looking for a QR code…';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.jsQR) {
+      return fail('scan', 'This device cannot use its camera here. Type your name instead, or use a badge scanner.');
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    } catch (e) {
+      return fail('scan', 'The camera is not available. Allow camera access for this page, or type your name instead.');
+    }
+    const v = $('#scan-video');
+    v.srcObject = stream;
+    await v.play().catch(() => {});
+    const c = $('#scan-canvas'), ctx = c.getContext('2d', { willReadFrequently: true });
+    scanning = true;
+    const loop = () => {
+      if (!scanning) return;
+      if (v.readyState >= 2 && v.videoWidth) {
+        const w = 480, h = Math.round((v.videoHeight * 480) / v.videoWidth);
+        c.width = w; c.height = h;
+        ctx.drawImage(v, 0, 0, w, h);
+        const found = window.jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
+        if (found && found.data) {
+          if (BADGE_RE.test(found.data.trim().toUpperCase())) return handleBadge(found.data);
+          $('#scan-hint').textContent = 'That QR code is not a badge for this kiosk.';
+        }
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+  if (BADGES) {
+    $('#scan-btn').addEventListener('click', openScan);
+    $('#scan-back').addEventListener('click', () => { stopCamera(); show('role'); });
+    // Badge scanners type very fast; collect quick keystrokes and act on Enter
+    let buf = '', last = 0;
+    document.addEventListener('keydown', (e) => {
+      const now = Date.now();
+      if (now - last > 100) buf = '';
+      last = now;
+      if (e.key === 'Enter') {
+        if (BADGE_RE.test(buf.toUpperCase())) { e.preventDefault(); handleBadge(buf); }
+        buf = '';
+      } else if (e.key && e.key.length === 1) {
+        buf += e.key;
+      }
+    });
+  }
 })();

@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 
 function setting(string $key, $default = null)
 {
@@ -86,6 +86,9 @@ function migrate(): void
         }
         if ($v < 16) {
             migration_16();
+        }
+        if ($v < 17) {
+            migration_17();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -397,6 +400,16 @@ function migration_16(): void
               'support_status' => 'VARCHAR(20) NULL'] as $col => $def) {
         if (!column_exists('tenants', $col)) {
             q("ALTER TABLE tenants ADD COLUMN $col $def");
+        }
+    }
+}
+
+/** V17: personal QR badge code for every student and staff member (NULL until QR badges are used). */
+function migration_17(): void
+{
+    foreach (['students', 'teachers'] as $table) {
+        if (!column_exists($table, 'badge_code')) {
+            q("ALTER TABLE $table ADD COLUMN badge_code VARCHAR(24) NULL, ADD KEY ix_{$table}_badge (tenant_id, badge_code)");
         }
     }
 }

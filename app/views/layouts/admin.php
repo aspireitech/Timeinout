@@ -32,6 +32,7 @@ $nav = function (string $path, string $ico, string $label) use ($here, $locked) 
       <?= $nav('/admin/teachers', 'teacher', term('b2')) ?>
       <?= $nav('/admin/materials', 'box', 'Pickup ' . strtolower(term('items'))) ?>
       <?= $nav('/admin/import', 'upload', 'Import') ?>
+      <?php if (feature_on('qr_badges', $t)): ?><?= $nav('/admin/badges', 'grid', 'QR badges') ?><?php endif; ?>
       <div class="nav-label">Setup</div>
       <?= $nav('/admin/tiles', 'grid', 'Kiosk tiles') ?>
       <?= $nav('/admin/settings', 'settings', 'Branding & settings') ?>

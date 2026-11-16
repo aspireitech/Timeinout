@@ -3,7 +3,7 @@ $t = tenant();
 $min = tenant_now()->modify('-' . (int) $t['allow_past_days'] . ' days')->format('Y-m-d');
 $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
 ?>
-<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>" data-relative="<?= (int) ($t['allow_typed_relative'] ?? 1) ?>">
+<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>" data-relative="<?= (int) ($t['allow_typed_relative'] ?? 1) ?>" data-badges="<?= feature_on('qr_badges', $t) ? 1 : 0 ?>">
   <header class="k-top">
     <div class="k-org">
       <?php if ($t['logo_path']): ?><img src="<?= e(upload_url($t['logo_path'])) ?>" alt=""><?php else: ?><span class="logo-mark"><?= e(initials($t['name'])) ?></span><?php endif; ?>
@@ -35,6 +35,27 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
           </button>
         <?php endforeach; ?>
         <?php if (!$tiles): ?><p class="k-hint">No buttons are set up yet. An admin can add them in Admin → Kiosk tiles.</p><?php endif; ?>
+      </div>
+      <?php if (feature_on('qr_badges', $t)): ?>
+        <div style="text-align:center;margin-top:18px">
+          <button type="button" class="btn btn-lg" id="scan-btn" style="background:#161B36;color:#fff;border-radius:999px;padding:14px 28px"><?= icon('grid', 22) ?> Scan my badge</button>
+          <div class="k-hint" style="margin-top:6px">Have a QR badge? Tap here and hold it up to the camera. A badge scanner works too.</div>
+        </div>
+      <?php endif; ?>
+    </section>
+
+    <!-- QR badge: camera scan -->
+    <section data-step="scan" class="hidden">
+      <div class="k-panel" style="text-align:center">
+        <button class="k-back" id="scan-back"><?= icon('back', 18) ?> Back</button>
+        <h2>Hold your badge up to the camera</h2>
+        <div style="position:relative;max-width:520px;margin:10px auto;border-radius:18px;overflow:hidden;background:#000">
+          <video id="scan-video" playsinline muted style="width:100%;display:block"></video>
+          <div style="position:absolute;inset:18%;border:4px solid #F2A93B;border-radius:18px;pointer-events:none"></div>
+        </div>
+        <canvas id="scan-canvas" class="hidden"></canvas>
+        <div class="k-hint" id="scan-hint">Looking for a QR code…</div>
+        <div class="k-error hidden"></div>
       </div>
     </section>
 
@@ -148,3 +169,4 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
     <?php else: ?><a href="<?= e(url('/login')) ?>">Staff login</a><?php endif; ?>
   </footer>
 </div>
+<?php if (feature_on('qr_badges', $t)): ?><script src="<?= asset('js/vendor/jsQR.js') ?>"></script><?php endif; ?>

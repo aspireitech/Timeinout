@@ -37,6 +37,7 @@ require APP_DIR . '/lib/prospects.php';
 require APP_DIR . '/lib/jobs.php';
 require APP_DIR . '/lib/status.php';
 require APP_DIR . '/lib/features.php';
+require APP_DIR . '/lib/badges.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', cfg('debug') ? '1' : '0');
