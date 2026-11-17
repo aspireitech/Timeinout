@@ -23,7 +23,7 @@ $toggle = function (string $key, array $f, bool $usable) use ($on) {
         <div class="grid c2" style="margin:0 0 12px 30px">
           <div class="field" style="margin:0"><label for="r-mode">Who gets the reminder</label>
             <select id="r-mode" name="signout_mode"><?php foreach (REMINDER_MODES as $mk => $ml): ?><option value="<?= e($mk) ?>" <?= ($t['signout_mode'] ?? 'both') === $mk ? 'selected' : '' ?>><?= e($ml) ?></option><?php endforeach; ?></select></div>
-          <label class="check" style="align-self:end"><input type="checkbox" name="signout_weekdays" value="1" <?= ($t['signout_weekdays'] ?? 1) ? 'checked' : '' ?>> <span>Working days only (Monday covers Friday–Sunday)</span></label>
+          <label class="check" style="align-self:end"><input type="checkbox" name="signout_weekdays" value="1" <?= ($t['signout_weekdays'] ?? 1) ? 'checked' : '' ?>> <span><b>No reminders on Saturday and Sunday</b><br><span class="muted small">Missed sign-outs from Friday, Saturday and Sunday are emailed on Monday morning instead.</span></span></label>
           <div class="field" style="margin:0;grid-column:1 / -1"><label for="r-close">Closing-time check (optional): your closing time</label>
             <input type="time" id="r-close" name="closing_time" value="<?= e(substr((string) ($t['closing_time'] ?? ''), 0, 5)) ?>" style="max-width:160px">
             <span class="muted small">Leave empty for none. Within the hour after this time, if anyone is still signed in today, your report recipients get one email listing them, with who brought each child and their phone number. Nothing is sent when everyone has left.</span></div>
