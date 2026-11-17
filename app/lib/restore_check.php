@@ -16,7 +16,8 @@ function restore_checks(?string $sendTestTo = null): array
             [$status, $detail] = $fn();
             $add($area, $check, $status, $detail, $status === 'ok' ? '' : $fix);
         } catch (Throwable $e) {
-            $add($area, $check, 'fail', mb_substr($e->getMessage(), 0, 300), $fix);
+            $msg = preg_replace(["/'?(sk|rk|pk)_(live|test)_[^'\\s]*'?/", "/ on account '?acct_[A-Za-z0-9]+'?/", '/You can edit permissions at \\S+/'], ['your key', '', ''], $e->getMessage());
+            $add($area, $check, 'fail', mb_substr(trim((string) $msg), 0, 300), $fix);
         }
     };
 
@@ -135,10 +136,20 @@ function restore_checks(?string $sendTestTo = null): array
 
     // ---------- Payments ----------
     if (stripe_ready()) {
-        $try('Payments', 'Stripe secret key', function () {
-            stripe_request('GET', '/v1/balance');
-            return [str_starts_with(secret('stripe_secret'), 'sk_live_') ? 'ok' : 'warn', str_starts_with(secret('stripe_secret'), 'sk_live_') ? 'live key works' : 'works, but it is a TEST key'];
-        }, '/super → Settings → Stripe secret key (Stripe → Developers → API keys).');
+        // Test exactly what ClockInOut uses, without creating anything: Checkout (plan payment) and the Customer portal.
+        // Restricted keys (rk_live_…) are recommended; they only need these permissions.
+        $key = secret('stripe_secret');
+        $mode = str_contains($key, '_live_') ? 'live' : 'TEST';
+        $kind = str_starts_with($key, 'rk_') ? 'restricted key' : 'secret key';
+        $stripeFix = 'Stripe → Developers → API keys → your restricted key → Edit → set the permission named in the message → Save (the key itself stays the same).';
+        $try('Payments', 'Stripe key can start a plan payment (Checkout Sessions)', function () use ($mode, $kind) {
+            stripe_request('GET', '/v1/checkout/sessions', ['limit' => 1]);
+            return [$mode === 'live' ? 'ok' : 'warn', "$mode $kind works" . ($mode === 'live' ? '' : ': customers cannot really pay with a TEST key')];
+        }, $stripeFix . ' Needed: "Checkout Sessions: Write". Or a new key in /super → Settings.');
+        $try('Payments', 'Stripe key can open the card / plan page (Customer portal)', function () {
+            stripe_request('GET', '/v1/billing_portal/configurations', ['limit' => 1]);
+            return ['ok', 'works'];
+        }, $stripeFix . ' Needed: "Customer portal: Write".');
         $add('Payments', 'Stripe webhook signing secret', secret('stripe_webhook_secret') !== '' ? 'ok' : 'fail', secret('stripe_webhook_secret') !== '' ? 'set' : 'missing',
             'Stripe → Developers → Webhooks → endpoint https://' . cfg('base_domain') . '/webhooks/stripe → Signing secret → /super → Settings.');
         foreach (array_keys(plans()) as $pk) {
@@ -148,9 +159,16 @@ function restore_checks(?string $sendTestTo = null): array
                     continue;
                 }
                 $try('Payments', "Stripe price $pk" . ($sfx ? ' (yearly)' : ''), function () use ($id) {
-                    $p = stripe_request('GET', '/v1/prices/' . rawurlencode($id));
+                    try {
+                        $p = stripe_request('GET', '/v1/prices/' . rawurlencode($id));
+                    } catch (RuntimeException $e) {
+                        if (stripos($e->getMessage(), 'permission') !== false) { // a restricted key without "Prices: Read": checkout still works
+                            return ['info', $id . ': cannot be checked with this restricted key (optional "Prices: Read" permission); a wrong ID shows up as an error at checkout'];
+                        }
+                        throw $e;
+                    }
                     return [!empty($p['active']) ? 'ok' : 'warn', $id . (!empty($p['active']) ? ' active' : ' NOT active')];
-                }, '/super → Settings → price IDs must exist in the same Stripe account and mode.');
+                }, '/super → Settings → price IDs must exist in the same Stripe account and mode (Stripe → Product catalog → price → copy ID).');
             }
         }
     } else {
