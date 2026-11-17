@@ -13,7 +13,7 @@
 <tr><td>Kiosk</td><td><code>name.clockinoutapp.com/</code></td><td>Families, staff, members, visitors</td></tr>
 <tr><td>Customer admin</td><td><code>name.clockinoutapp.com/admin</code></td><td>Customer owners and admins</td></tr>
 <tr><td>Provider console</td><td><code>clockinoutapp.com/super</code></td><td>You</td></tr>
-<tr><td>Webhooks and API</td><td><code>/webhooks/stripe</code>, <code>/api/prospects</code>, <code>/run-cron</code>, <code>/status</code> and <code>/status.json</code>, outreach links <code>/r</code> and <code>/o</code>, one-click unsubscribe <code>/unsubscribe/one-click</code></td><td>Stripe, the lead finder, an optional pinger</td></tr>
+<tr><td>Webhooks and API</td><td><code>/webhooks/stripe</code>, <code>/api/prospects</code>, <code>/run-cron</code>, <code>/status</code> and <code>/status.json</code>, outreach links <code>/r</code> and <code>/o</code>, one-click unsubscribe <code>/unsubscribe/one-click</code>, families' reminder stop link <code>name.clockinoutapp.com/reminders/stop</code></td><td>Stripe, the lead finder, an optional pinger, email recipients</td></tr>
 </tbody></table>
 <h2>Data</h2>
 <table><thead><tr><th>Database</th><th>Holds</th></tr></thead><tbody>
@@ -42,9 +42,9 @@
 public/          the only folder browsers reach (index.php, assets/, uploads/logos/)
 app/config.php   YOUR settings (server only, never in git)
 app/keys/app.key encryption key (server only, never in git)
-app/controllers/ platform (website + /super), admin, kiosk, api, prospects, sales, features
-app/lib/         auth, billing, tenant, db, migrate, mailer, mailbox, reports, nurture, prospects, sales, traffic, features, badges, ...
+app/controllers/ platform (website + /super), admin, kiosk, api, prospects, sales, features, maintenance
+app/lib/         auth, billing, tenant, db, migrate, mailer, mailbox, reports, reminders, nurture, prospects, sales, traffic, features, badges, restore_check, ...
 app/views/       page templates
-cron/            send_reports.php (hourly), backup.php (daily), super_password.php (emergency)
+cron/            send_reports.php (hourly), backup.php (daily), super_password.php (emergency), verify_restore.php, release_check.php
 database/        schema.sql for a fresh install
 docs/            MASTER_GUIDE.md, SAAS_BLUEPRINT.md, these Confluence pages, screenshots</code></pre>
