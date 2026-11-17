@@ -21,7 +21,10 @@ function admin_features(): void
             }
         }
         audit_note('Optional features', implode(', ', array_map(fn($k) => FEATURES[$k]['name'], $on)) ?: 'all off');
-        update('tenants', ['features' => json_encode(array_values($on))], 'id = ?', [tid()]);
+        $mode = (string) input('signout_mode');
+        update('tenants', ['features' => json_encode(array_values($on)), 'signout_mode' => isset(REMINDER_MODES[$mode]) ? $mode : 'both',
+            'signout_weekdays' => input('signout_weekdays') === '1' ? 1 : 0,
+            'closing_time' => preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string) input('closing_time')) ? input('closing_time') . ':00' : null], 'id = ?', [tid()]);
         flash('success', 'Features saved.');
         redirect(url('/admin/features'));
     }
@@ -236,4 +239,22 @@ function admin_rollcall(): void
     }
     audit_note('Emergency roll call opened', count($people) . ' people on site');
     admin_view('rollcall', ['people' => $people, 'today' => $today]);
+}
+
+/** Link in a parent's reminder email: stop missed sign-out reminders for this guardian (no login; secret token). */
+function tenant_reminder_stop(): void
+{
+    $t = tenant();
+    $gid = (int) input('g');
+    $key = (string) input('k');
+    $valid = $gid > 0 && preg_match('/^[a-f0-9]{32}$/', $key) && hash_equals(reminder_token((int) $t['id'], 'guardian', $gid), $key)
+        && val('SELECT 1 FROM guardians WHERE id = ? AND tenant_id = ?', [$gid, $t['id']]);
+    $done = false;
+    if ($valid && is_post()) {
+        q('INSERT IGNORE INTO reminder_optout (tenant_id, person_type, person_id, created_at) VALUES (?,?,?,?)', [$t['id'], 'guardian', $gid, gmdate('Y-m-d H:i:s')]);
+        $GLOBALS['audit_system'] = true;
+        audit('Family stopped sign-out reminders', 'guardian #' . $gid, true);
+        $done = true;
+    }
+    view('kiosk/reminder_stop', ['valid' => (bool) $valid, 'done' => $done, 'g' => $gid, 'k' => $key], 'auth');
 }

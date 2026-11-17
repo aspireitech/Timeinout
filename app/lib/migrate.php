@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 21;
+const SCHEMA_VERSION = 22;
 
 function setting(string $key, $default = null)
 {
@@ -101,6 +101,9 @@ function migrate(): void
         }
         if ($v < 21) {
             migration_21();
+        }
+        if ($v < 22) {
+            migration_22();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -503,5 +506,34 @@ function migration_21(): void
         landing TINYINT(1) NOT NULL DEFAULT 0,
         KEY at (at),
         KEY vid (vid, at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** Missed sign-out reminders: who gets them (per portal), and a log so each person is reminded once per day. */
+function migration_22(): void
+{
+    foreach (['signout_mode' => "VARCHAR(10) NOT NULL DEFAULT 'both'", 'signout_weekdays' => 'TINYINT(1) NOT NULL DEFAULT 1', 'closing_time' => 'TIME NULL'] as $col => $def) {
+        if (column_exists('tenants', $col)) {
+            continue;
+        }
+        q("ALTER TABLE tenants ADD COLUMN $col $def");
+    }
+    q('CREATE TABLE IF NOT EXISTS reminder_log (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        tenant_id INT UNSIGNED NOT NULL,
+        person_type VARCHAR(10) NOT NULL,
+        person_id INT UNSIGNED NOT NULL,
+        event_date DATE NOT NULL,
+        status VARCHAR(12) NOT NULL,
+        created_at DATETIME NOT NULL,
+        UNIQUE KEY once (tenant_id, person_type, person_id, event_date),
+        KEY recent (tenant_id, person_type, person_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    q('CREATE TABLE IF NOT EXISTS reminder_optout (
+        tenant_id INT UNSIGNED NOT NULL,
+        person_type VARCHAR(10) NOT NULL,
+        person_id INT UNSIGNED NOT NULL,
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY (tenant_id, person_type, person_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }

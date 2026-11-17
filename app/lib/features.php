@@ -18,6 +18,8 @@ const FEATURES = [
         'what' => 'In a fire drill or evacuation, open Roll call on your phone: it lists everyone signed in right now (people, staff, visitors). Tick each person as they are counted outside; anyone left unticked is missing.'],
     'qr_badges'      => ['name' => 'QR badges', 'pack' => null, 'ready' => true,
         'what' => 'Every person gets a personal QR code (printed card or on their phone). The kiosk camera or a USB scanner reads it and signs them in or out in a second, without searching names.'],
+    'signout_reminders' => ['name' => 'Missed sign-out reminders', 'pack' => null, 'ready' => true,
+        'what' => 'The morning after someone signed in but did not sign out, they get a short friendly email: staff "please sign out before you leave", parents "please sign out at pickup". Your daily report shows who was reminded and who keeps forgetting.'],
     'family_pin'     => ['name' => 'Family PIN at pickup', 'pack' => 'safe_pickup', 'ready' => false,
         'what' => 'Each family gets a 4-digit PIN. Signing a child out on the kiosk needs the PIN, so nobody can tap a child\'s name and leave with them.'],
     'parent_alerts'  => ['name' => 'Parent notifications', 'pack' => 'safe_pickup', 'ready' => false,

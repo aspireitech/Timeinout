@@ -6,6 +6,8 @@
 function run_hourly_jobs(bool $forceReports = false, bool $forceScorecard = false): array
 {
     $tasks = [
+        'reminders' => fn() => run_signout_reminders(), // before the reports, so the daily report shows who was reminded
+        'closing'   => fn() => run_closing_checks(),
         'reports'   => fn() => run_scheduled_reports($forceReports),
         'wave'      => fn() => wave_sync(),
         'purge'     => fn() => purge_expired_tenants(),

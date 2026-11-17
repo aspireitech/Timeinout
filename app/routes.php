@@ -181,6 +181,7 @@ function tenant_routes(string $path): void
         ['POST',     '/admin/badges/reissue',      'admin_badge_reissue',   'Reissued a QR badge'],
         ['POST',     '/admin/badges/email',        'admin_badges_email',    'Emailed QR badges'],
         ['GET',      '/badge',                     'tenant_badge_page'],
+        ['GET|POST', '/reminders/stop',            'tenant_reminder_stop'],
         ['GET',      '/api/badge',                 'api_badge'],
         ['POST',     '/api/desk-unlock',           'api_desk_unlock'],
         ['POST',     '/admin/badges/settings',     'admin_badges_settings', 'Changed check-in method'],

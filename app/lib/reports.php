@@ -180,7 +180,9 @@ function report_email_html(array $t, string $title, array $r, string $portalUrl)
     if ($r['not_signed_out']) {
         $h .= '<h3 style="margin:18px 6px 6px;color:#d63031">Signed in but never signed out (' . count($r['not_signed_out']) . ')</h3><ul style="font-size:13px">';
         foreach (array_slice($r['not_signed_out'], 0, 50) as $ev) {
-            $h .= '<li>' . e($ev['person_name']) . ' — ' . e(date('M j', strtotime($ev['event_date']))) . ' in at ' . e(fmt_time($ev['event_time'])) . '</li>';
+            $note = reminder_note((int) $t['id'], $ev);
+            $h .= '<li>' . e($ev['person_name']) . ' — ' . e(date('M j', strtotime($ev['event_date']))) . ' in at ' . e(fmt_time($ev['event_time']))
+                . ($note !== '' ? ' <span style="color:#6B7090">(' . e($note) . ')</span>' : '') . '</li>';
         }
         $h .= '</ul>';
     }

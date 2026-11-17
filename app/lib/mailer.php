@@ -105,7 +105,9 @@ function send_mail_now(array $to, string $subject, string $html, array $attachme
     $encSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $headers = ['MIME-Version: 1.0', 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <$from>"];
     if ($sender !== 'contact') {
-        $headers[] = 'Reply-To: ' . contact_email(); // replies to a report reach a person
+        if (!preg_grep('/^Reply-To:/i', $extraHeaders)) {
+            $headers[] = 'Reply-To: ' . contact_email(); // replies to a report reach a person
+        }
     }
     $headers = array_merge($headers, $extraHeaders);
 

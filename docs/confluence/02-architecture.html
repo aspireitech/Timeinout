@@ -4,7 +4,7 @@
 <ul>
 <li><strong>One codebase, many customers.</strong> The web address decides which customer a request belongs to: <code>name.clockinoutapp.com</code>, or <code>clockinoutapp.com/s/name</code> until the subdomain exists.</li>
 <li><strong>Plain PHP, no build step.</strong> Deploying means copying files. Works on low-cost shared hosting.</li>
-<li><strong>Self-updating database.</strong> After an update, the first page view upgrades the database automatically (current schema version: 21).</li>
+<li><strong>Self-updating database.</strong> After an update, the first page view upgrades the database automatically (current schema version: 22).</li>
 <li><strong>Each customer's data is kept apart:</strong> either in its own MySQL database, or in the shared database tagged with the customer number on every row.</li>
 </ul>
 <h2>Main parts</h2>
@@ -17,8 +17,8 @@
 </tbody></table>
 <h2>Data</h2>
 <table><thead><tr><th>Database</th><th>Holds</th></tr></thead><tbody>
-<tr><td>Platform database (one)</td><td>Customers (tenants) and their plan and billing, settings, payments, demo requests (leads), feature requests, trial email log, prospects, outreach delivery log (<code>prospect_sends</code>), sales funnel events (<code>prospect_events</code>), website visits (<code>site_visits</code>, no cookies, kept 400 days); per customer: optional features, add-on pack, support plan, check-in method and front-desk code (hashed)</td></tr>
-<tr><td>Customer data (own database or shared)</td><td>Users, students and guardians, staff, attendance, materials, kiosk tiles, import maps, audit log, report log, sign-in attempts</td></tr>
+<tr><td>Platform database (one)</td><td>Customers (tenants) and their plan and billing, settings, payments, demo requests (leads), feature requests, trial email log, prospects, outreach delivery log (<code>prospect_sends</code>), sales funnel events (<code>prospect_events</code>), website visits (<code>site_visits</code>, no cookies, kept 400 days); per customer: optional features, add-on pack, support plan, check-in method and front-desk code (hashed), missed sign-out reminder settings and closing time</td></tr>
+<tr><td>Customer data (own database or shared)</td><td>Users, students and guardians, staff, attendance, materials, kiosk tiles, import maps, audit log, report log, reminder log and family opt-outs, sign-in attempts</td></tr>
 </tbody></table>
 <div data-type="panel-note"><p>Encrypted with <code>app.key</code> (AES-256-GCM): guardian and staff phone numbers and emails, extra imported information, customer database passwords, and all stored secrets (mail, Stripe, Wave, Google). Passwords are hashed and can never be read back.</p></div>
 <h2>A request, step by step</h2>
