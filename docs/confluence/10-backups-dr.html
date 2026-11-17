@@ -120,7 +120,7 @@ daily 2:00  /usr/bin/php /home/NEWUSER/…/webfolder/cron/backup.php</code></pre
 <h2>8. After any restore: prove every credential works</h2>
 <p>The <strong>restore check</strong> tests each credential for real and says where to fix what fails. It never shows a secret.</p>
 <ul>
-<li>Browser: <code>/super → Settings → Run the restore check</code> (page <code>/super/check</code>). Optionally type your email to also receive a real test email.</li>
+<li>Browser: <code>/super → Restore check (top menu)</code> (page <code>/super/check</code>). Optionally type your email to also receive a real test email.</li>
 <li>Server: <pre><code class="language-bash">php ~/domains/clockinoutapp.com/public_html/cron/verify_restore.php --send-test=you@example.com</code></pre>It first upgrades a restored database to the current code, then prints OK / WARN / FAIL with a "fix:" line, and ends with exit code 0 (all good) or 1 (something failed).</li>
 </ul>
 <img src="{{IMGROOT}}/screens/49-restore-check-cli.jpg" alt="Restore check on the command line" width="1000">

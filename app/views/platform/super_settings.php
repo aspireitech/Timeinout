@@ -2,6 +2,7 @@
 <div style="max-width:900px;margin:0 auto 60px" class="stack">
   <div class="card">
     <h2><?= icon('settings') ?> Email, payments &amp; security</h2>
+    <p style="margin:0 0 14px"><a class="btn btn-primary btn-sm" href="<?= e(base_path() . '/super/check') ?>"><?= icon('shield', 16) ?> Run the restore check</a> <span class="muted small">Tests every credential and dependency (database, encryption key, Microsoft 365, Stripe, DNS, cron) and says where to fix anything that fails.</span></p>
     <h3><?= icon('mail') ?> Email delivery (SMTP)</h3>
     <p class="muted">Used for sign-in codes and report emails for every school. Get these details from your hosting (cPanel → Email Accounts → Connect Devices) or an email service such as Google Workspace, Microsoft 365, SendGrid or Amazon SES.</p>
     <form method="post">
@@ -68,7 +69,6 @@
     </form>
   </div>
   <div class="card">
-    <p style="margin:0 0 14px"><a class="btn btn-ghost btn-sm" href="<?= e(base_path() . '/super/check') ?>"><?= icon('shield', 16) ?> Run the restore check</a> <span class="muted small">Tests every credential and dependency after a restore or a move.</span></p>
     <h3><?= icon('check') ?> Send a test email</h3>
     <form method="post" class="inline-form">
       <?= csrf_field() ?><input type="hidden" name="action" value="test">
