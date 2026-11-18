@@ -124,9 +124,9 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
       <tr><th>Version</th><th class="num">Emailed</th><th class="num">Clicked</th><th class="num">Replied</th><th class="num">Demo or sign-up</th><th class="num">Bounced</th><th class="num">Unsubscribed</th></tr>
       <?php foreach (['a' => 'A · designed email (banner, button)', 'b' => 'B · plain personal note (call-back link)'] as $v => $label): $r = $ab[$v]; ?>
         <tr class="small"><td><b><?= e($label) ?></b></td><td class="num"><?= number_format($r['emailed']) ?></td>
-          <td class="num"><?= number_format($r['clicked']) ?> <span class="muted"><?= $pct($r['clicked'], $r['emailed']) ?></span></td>
-          <td class="num"><?= number_format($r['replied']) ?> <span class="muted"><?= $pct($r['replied'], $r['emailed']) ?></span></td>
-          <td class="num"><?= number_format($r['demo_or_signup']) ?> <span class="muted"><?= $pct($r['demo_or_signup'], $r['emailed']) ?></span></td>
+          <td class="num"><?= number_format($r['clicked']) ?> <span class="muted"><?= e($pct($r['clicked'], $r['emailed'])) ?></span></td>
+          <td class="num"><?= number_format($r['replied']) ?> <span class="muted"><?= e($pct($r['replied'], $r['emailed'])) ?></span></td>
+          <td class="num"><?= number_format($r['demo_or_signup']) ?> <span class="muted"><?= e($pct($r['demo_or_signup'], $r['emailed'])) ?></span></td>
           <td class="num"><?= number_format($r['bounced']) ?></td><td class="num"><?= number_format($r['unsubscribed']) ?></td></tr>
       <?php endforeach; ?>
     </table></div>
