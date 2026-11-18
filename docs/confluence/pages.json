@@ -1,5 +1,5 @@
 {
-  "space": "CIO",
+  "space": "AIPROD",
   "site": "aspireitech.atlassian.net",
   "image_base": "https://raw.githubusercontent.com/aspireitech/Timeinout/main/docs/img",
   "home_title": "ClockInOut Technical Documentation",
@@ -89,7 +89,7 @@
       "page_id": "197984280"
     }
   ],
-  "space_id": "197689346",
+  "space_id": "199196674",
   "home_page_id": "197689487",
   "offline_attachment": "ClockInOut-Docs-Offline-public.zip on the home page (without the private register)"
 }

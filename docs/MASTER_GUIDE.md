@@ -530,7 +530,7 @@ step must update this guide **in the same commit**:
 2. Bump **Schema version** in the header table when `SCHEMA_VERSION` changes, and list it in §4.
 3. Add a line to the change log (§18) with the date and a one-line summary.
 4. If architecture changes, update the Mermaid diagrams and re-render `docs/img/architecture.png`.
-5. Refresh the Confluence space **CIO** ("ClockInOut Technical Documentation" on aspireitech.atlassian.net): edit the matching page source in `docs/confluence/` (map in `pages.json`), republish the changed pages, and rebuild the offline copy with `python3 docs/confluence/build_offline.py ClockInOut-Docs-Offline.zip` (attach it to the space home page). Screenshots live in `docs/img/screens/`.
+5. Refresh the Confluence pages ("ClockInOut Technical Documentation" in space **AIPROD**, "Aspire iTECH - Internal - Product", on aspireitech.atlassian.net): edit the matching page source in `docs/confluence/` (map in `pages.json`), republish the changed pages, and rebuild the offline copy with `python3 docs/confluence/build_offline.py ClockInOut-Docs-Offline.zip` (attach it to the space home page). Screenshots live in `docs/img/screens/`.
 
 `CLAUDE.md` in the repository root asks Claude to follow these rules automatically.
 
@@ -582,3 +582,4 @@ step must update this guide **in the same commit**:
 | 2026-11-17 | Missed sign-out reminders (schema 22, free, optional): next-morning emails to staff and/or the parent who dropped off (admin chooses), stop link for families, notes in the daily report instead of an extra admin email, optional same-evening closing-time check for the admin. |
 | 2026-11-17 | Reminder setting renamed to "No reminders on Saturday and Sunday" with a plain explanation. |
 | 2026-11-18 | Outreach A/B test (schema 23): plain personal note vs designed email, founding offer (free setup + 50% off 3 months, first 20), call-back page `/hello`, Stripe promotion codes at checkout, pausable business types, tuning API and nightly sales review, A/B card on the Sales dashboard. |
+| 2026-11-18 | Confluence pages moved to space AIPROD (Aspire iTECH - Internal - Product); `pages.json` updated. |
