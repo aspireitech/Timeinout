@@ -191,6 +191,12 @@ function webhook_prospects(): void
             'sent_today'   => (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]),
             'delivery_today' => row("SELECT COUNT(*) AS accepted, COALESCE(SUM(in_sent), 0) AS in_sent_folder, COALESCE(SUM(outcome = 'bounced'), 0) AS bounced, COALESCE(SUM(outcome = 'replied'), 0) AS replied FROM prospect_sends WHERE sent_at >= ?", [$dayStart]),
             'recent_delivery' => rows('SELECT s.sent_at, p.org, s.to_email, s.step, s.server_reply, s.in_sent, s.outcome, s.outcome_note FROM prospect_sends s LEFT JOIN prospects p ON p.id = s.prospect_id ORDER BY s.id DESC LIMIT 30'),
+            'ab'           => outreach_ab_stats(30),
+            'by_kind'      => outreach_kind_stats(30),
+            'tuning'       => ['daily_cap' => (int) setting('prospects_daily', '25'), 'plain_pct' => (int) setting('ab_plain_pct', '50'),
+                               'paused_kinds' => array_values(array_filter(explode(',', (string) setting('outreach_pause_kinds', '')))), 'offer_on' => outreach_offer() !== null,
+                               'last_review' => setting('nightly_review_at', null)],
+            'callbacks_7d' => (int) val("SELECT COUNT(*) FROM leads WHERE source = 'outreach' AND created_at >= ?", [gmdate('Y-m-d H:i:s', time() - 7 * 86400)]),
             'mailbox'      => ['ready' => mailbox_ready(), 'problem' => mailbox_problem(), 'driver' => (string) (mail_config('contact')['driver'] ?? ''), 'host' => (string) (mail_config('contact')['host'] ?? ''), 'last_ok_utc' => setting('imap_last_ok', null), 'error' => (string) setting('imap_last_error', '')],
             'recent_sends' => rows('SELECT org, email, state, kind, status, step, last_sent_at FROM prospects WHERE last_sent_at IS NOT NULL ORDER BY last_sent_at DESC LIMIT 50'),
             'hourly_job'   => ['last_run_utc' => setting('cron_last_run', null), 'errors' => (int) setting('cron_last_errors', '0'),
@@ -209,6 +215,9 @@ function webhook_prospects(): void
         json_out(['known_domains' => $known, 'count' => count($known)]);
     }
     $body = json_decode((string) file_get_contents('php://input'), true);
+    if (is_array($body['tune'] ?? null)) { // the nightly sales review adjusts tomorrow's sending, within safe limits
+        json_out(outreach_tune($body['tune']));
+    }
     $list = is_array($body['prospects'] ?? null) ? $body['prospects'] : null;
     if ($list === null) {
         json_out(['error' => 'Send JSON: {"prospects": [...]}'], 400);

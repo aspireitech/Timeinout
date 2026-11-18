@@ -8,7 +8,7 @@
 //     prospect's token), so the prospect is marked converted even if they sign up with another email address.
 // Bots and link scanners are left out. Rows older than 400 days are deleted by the hourly job.
 
-const TRAFFIC_PAGES = '#^/(signup|demo|whats-new|status|for/[a-z-]+|linkedin|facebook|email|web|friend)?$#';
+const TRAFFIC_PAGES = '#^/(signup|demo|hello|whats-new|status|for/[a-z-]+|linkedin|facebook|email|web|friend)?$#';
 
 function traffic_is_bot(): bool
 {

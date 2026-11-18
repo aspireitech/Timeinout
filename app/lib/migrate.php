@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 22;
+const SCHEMA_VERSION = 23;
 
 function setting(string $key, $default = null)
 {
@@ -104,6 +104,9 @@ function migrate(): void
         }
         if ($v < 22) {
             migration_22();
+        }
+        if ($v < 23) {
+            migration_23();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -536,4 +539,15 @@ function migration_22(): void
         created_at DATETIME NOT NULL,
         PRIMARY KEY (tenant_id, person_type, person_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** Outreach A/B test: which email version a prospect gets (a = designed, b = plain personal note). */
+function migration_23(): void
+{
+    if (!column_exists('prospects', 'variant')) {
+        q('ALTER TABLE prospects ADD COLUMN variant CHAR(1) NULL');
+    }
+    if (!column_exists('prospect_sends', 'variant')) {
+        q('ALTER TABLE prospect_sends ADD COLUMN variant CHAR(1) NULL');
+    }
 }

@@ -116,6 +116,25 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
     <?php endif; ?>
   </div>
 
+  <?php $ab = outreach_ab_stats(30); $pct = fn($x, $n) => $n ? sales_pct($x / $n, 1) : '–'; ?>
+  <div class="card" id="abtest">
+    <div class="card-head"><h2 style="margin:0">Email A/B test <span class="muted small" style="font-weight:400">first emails in the last 30 days</span></h2>
+      <span class="muted small">Plain note gets <?= (int) setting('ab_plain_pct', '50') ?>% of new prospects<?= setting('outreach_pause_kinds', '') !== '' ? ' · paused: ' . e(str_replace(',', ', ', (string) setting('outreach_pause_kinds'))) : '' ?></span></div>
+    <div class="table-wrap"><table class="table">
+      <tr><th>Version</th><th class="num">Emailed</th><th class="num">Clicked</th><th class="num">Replied</th><th class="num">Demo or sign-up</th><th class="num">Bounced</th><th class="num">Unsubscribed</th></tr>
+      <?php foreach (['a' => 'A · designed email (banner, button)', 'b' => 'B · plain personal note (call-back link)'] as $v => $label): $r = $ab[$v]; ?>
+        <tr class="small"><td><b><?= e($label) ?></b></td><td class="num"><?= number_format($r['emailed']) ?></td>
+          <td class="num"><?= number_format($r['clicked']) ?> <span class="muted"><?= $pct($r['clicked'], $r['emailed']) ?></span></td>
+          <td class="num"><?= number_format($r['replied']) ?> <span class="muted"><?= $pct($r['replied'], $r['emailed']) ?></span></td>
+          <td class="num"><?= number_format($r['demo_or_signup']) ?> <span class="muted"><?= $pct($r['demo_or_signup'], $r['emailed']) ?></span></td>
+          <td class="num"><?= number_format($r['bounced']) ?></td><td class="num"><?= number_format($r['unsubscribed']) ?></td></tr>
+      <?php endforeach; ?>
+    </table></div>
+    <?php if ($note = (string) setting('nightly_review_note', '')): ?>
+      <details style="margin-top:10px"><summary class="small"><b>Last nightly review</b> <span class="muted">(<?= e((string) setting('nightly_review_at', '')) ?> UTC)</span></summary><div class="small" style="white-space:pre-wrap;margin-top:6px"><?= e($note) ?></div></details>
+    <?php endif; ?>
+  </div>
+
   <div class="card" id="traffic">
     <h2 style="margin-top:0">Website traffic</h2>
     <div class="kpis">

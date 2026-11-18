@@ -269,8 +269,59 @@ function prospect_pitch(string $kind): array
 }
 
 /** The email for a prospect at a step (0 = first email, 1 = follow-up, 2 = last note): [subject, html]. */
+/** The founding offer, shown in both email versions and on the call-back page while it is switched on. */
+function outreach_offer(): ?string
+{
+    return setting('outreach_offer', '1') === '1'
+        ? 'Founding offer for our first 20 businesses: we set everything up for you for free (just send us your list), and you get 50% off your first 3 months.'
+        : null;
+}
+
+/**
+ * Version B of the outreach emails: a short plain personal note (no images, no button) with one link to the
+ * call-back page. Cold emails that look personal reach the inbox more often and get more replies.
+ */
+function prospect_email_plain(array $p, int $step): array
+{
+    $x = prospect_pitch((string) $p['kind']);
+    $org = (string) $p['org'];
+    $hi = 'Hi ' . e($p['first_name'] ?: 'there') . ',';
+    $kids = in_array($p['kind'], ['daycare', 'school', 'tutoring'], true);
+    $question = $kids ? 'how do you keep track of who drops off and picks up each child at ' . e($org) . ' today? A paper sheet at the door?'
+        : ($p['kind'] === 'gym' ? 'how do you track member and trainer check-ins at ' . e($org) . ' today?'
+        : 'how does ' . e($org) . ' track staff hours today? Paper timesheets, or from memory at payroll time?');
+    $link = '<a href="' . e(prospect_link($p, $step, 'hello')) . '" style="color:#3B4BD8">pick a time for a quick call</a>';
+    $offer = outreach_offer();
+    $name = e((string) setting('outreach_name', ''));
+    $phone = trim((string) setting('outreach_phone', ''));
+    $sign = '<p style="margin:0 0 14px">' . $name . '<br>ClockInOut' . ($phone !== '' ? ' &middot; ' . e($phone) : '') . '</p>';
+    $par = fn($t) => '<p style="margin:0 0 14px">' . $t . '</p>';
+    if ($step === 0) {
+        $subject = 'Quick question about ' . $org;
+        $body = $par($hi) . $par('Quick question: ' . $question)
+            . $par('We built ClockInOut: ' . e($x['short']) . '.')
+            . ($offer ? $par(e($offer)) : '')
+            . $par('Worth a 10-minute look? You can ' . $link . ', or just reply to this email.') . $sign;
+    } elseif ($step === 1) {
+        $subject = 'Re: Quick question about ' . $org;
+        $body = $par($hi) . $par('Following up on my note. If ' . ($kids ? 'sign-in sheets at the door' : 'timesheets') . ' are still a hassle at ' . e($org) . ', I would be glad to set ClockInOut up for you this week' . ($offer ? ', for free' : '') . '.')
+            . $par('You can ' . $link . ', or reply "not now" and I will stop writing.') . $sign;
+    } else {
+        $subject = 'Last note for ' . $org;
+        $body = $par($hi) . $par('I have not heard back, so this is my last note.')
+            . ($offer ? $par('The founding offer (free setup and 50% off your first 3 months) stays open until we have 20 businesses.') : '')
+            . $par('If the timing is better later, you can ' . $link . ' any time. Thanks, and have a great week.') . $sign;
+    }
+    $foot = '<p style="margin:22px 0 0;font-size:12px;color:#8A8FA8">Not interested? <a href="' . e(scheme() . '://' . cfg('base_domain') . base_path() . '/unsubscribe?t=' . $p['token']) . '" style="color:#8A8FA8">Unsubscribe</a> and I won\'t email again.<br>'
+        . nl2br(e(trim((string) setting('outreach_address', '')))) . '</p>';
+    return [$subject, '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#1F2340;max-width:560px">' . $body . $foot . '</div>'];
+}
+
 function prospect_email(array $p, int $step): array
 {
+    if (($p['variant'] ?? 'a') === 'b') {
+        return prospect_email_plain($p, $step);
+    }
     $x = prospect_pitch((string) $p['kind']);
     $site = scheme() . '://' . cfg('base_domain') . base_path();
     // Tracked links (/r): count who clicked, then go to the same page as before
@@ -301,7 +352,8 @@ function prospect_email(array $p, int $step): array
             . '<tr><td style="padding:28px 32px 8px;font-size:16px;line-height:1.6">' . $para($hi) . $para($x['open'])
             . '<p style="margin:0 0 10px"><b>' . $app . ' ' . $x['lead'] . '</b></p>'
             . '<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:15px;line-height:1.5;margin:0 0 14px">' . $rows . '</table>'
-            . '<p style="margin:0 0 6px">Getting started is simple: upload your Excel list of people, open the page on a tablet, and you\'re live. Plans start at <b>$' . number_format(plans()['starter']['amount'] ?? 39, 0) . '/month</b>.</p></td></tr>'
+            . '<p style="margin:0 0 6px">Getting started is simple: upload your Excel list of people, open the page on a tablet, and you\'re live. Plans start at <b>$' . number_format(plans()['starter']['amount'] ?? 39, 0) . '/month</b>.</p>'
+            . (outreach_offer() ? '<p style="margin:12px 0 6px;padding:10px 12px;background:#FFF6E5;border-radius:8px"><b>' . e(outreach_offer()) . '</b></p>' : '') . '</td></tr>'
             . '<tr><td style="padding:4px 32px 0">' . $button . '</td></tr>'
             . '<tr><td style="padding:0 32px 26px;font-size:16px;line-height:1.6">'
             . $para('Prefer a quick walkthrough first? <a href="' . e($demo) . '" style="color:#5B4CE0;font-weight:bold">Book a live demo</a> and I\'ll show you with your own list.') . $sign . '</td></tr>';
@@ -348,7 +400,10 @@ function run_prospects(bool $force = false): array
     $due = rows("SELECT * FROM prospects WHERE (status = 'active' AND next_at <= ?) OR status = 'new'
                  ORDER BY status = 'new', next_at, id LIMIT 500", [$utc]);
     // Only those whose local time is a good moment right now (see prospect_send_window)
-    $due = array_slice(array_values(array_filter($due, fn($p) => $force || prospect_send_window($p['state']))), 0, $room);
+    // Business types paused by the nightly review get no NEW first emails (follow-ups continue)
+    $paused = array_filter(explode(',', (string) setting('outreach_pause_kinds', '')));
+    $due = array_slice(array_values(array_filter($due, fn($p) => ($force || prospect_send_window($p['state']))
+        && !($p['status'] === 'new' && in_array($p['kind'], $paused, true)))), 0, $room);
     $log = [];
     $sentIds = [];
     foreach ($due as $p) {
@@ -362,9 +417,19 @@ function run_prospects(bool $force = false): array
             update('prospects', ['status' => 'done', 'next_at' => null], 'id = ?', [$p['id']]);
             continue;
         }
+        if (empty($p['variant'])) { // A/B test: the share that gets the plain note is tuned nightly (ab_plain_pct)
+            $p['variant'] = random_int(1, 100) <= max(0, min(100, (int) setting('ab_plain_pct', '50'))) ? 'b' : 'a';
+            update('prospects', ['variant' => $p['variant']], 'id = ?', [$p['id']]);
+        }
         [$subject, $html] = prospect_email($p, $step);
         $unsub = scheme() . '://' . cfg('base_domain') . base_path() . '/unsubscribe/one-click?t=' . $p['token']; // Gmail / Yahoo "Unsubscribe" button
         $headers = ['List-Unsubscribe: <' . $unsub . '>, <mailto:' . contact_email() . '?subject=unsubscribe>', 'List-Unsubscribe-Post: List-Unsubscribe=One-Click'];
+        // Follow-ups thread under email 1 in their inbox (a real reply to our own message, so "Re:" is honest)
+        $first = $step > 0 ? (string) val('SELECT message_id FROM prospect_sends WHERE prospect_id = ? AND step = 1 AND message_id IS NOT NULL ORDER BY id LIMIT 1', [$p['id']]) : '';
+        if (preg_match('/^<[^<>\s]+>$/', $first)) {
+            $headers[] = 'In-Reply-To: ' . $first;
+            $headers[] = 'References: ' . $first;
+        }
         if (!send_mail([$p['email']], $subject, $html, [], 'contact', [], $headers)) {
             $log[] = 'prospect ' . $p['email'] . ': email failed: ' . ($GLOBALS['mail_error'] ?? '');
             break; // mailbox problem: try again next hour
@@ -375,7 +440,7 @@ function run_prospects(bool $force = false): array
             'status' => $next > 2 ? 'done' : 'active',
             'next_at' => $next > 2 ? null : gmdate('Y-m-d H:i:s', strtotime('+' . PROSPECT_GAPS[$next] . ' days')),
         ], 'id = ?', [$p['id']]);
-        $sid = insert('prospect_sends', ['prospect_id' => $p['id'], 'step' => $next, 'to_email' => $p['email'],
+        $sid = insert('prospect_sends', ['prospect_id' => $p['id'], 'step' => $next, 'to_email' => $p['email'], 'variant' => $p['variant'],
             'message_id' => $GLOBALS['mail_message_id'], 'server_reply' => $GLOBALS['mail_reply'], 'sent_at' => $utc]);
         $sentIds[$sid] = $GLOBALS['mail_raw'];
         if (!empty($GLOBALS['mail_in_sent'])) { // Microsoft 365 already filed it in Sent Items
@@ -411,4 +476,75 @@ function prospects_week_summary(): string
     } catch (Throwable $e) {
         return 'Not set up yet.';
     }
+}
+
+// ---------- Nightly sales review: numbers in, small safe adjustments out ----------
+
+/** Per email version (a = designed, b = plain note), prospects first emailed in the last $days days. */
+function outreach_ab_stats(int $days): array
+{
+    $since = gmdate('Y-m-d H:i:s', time() - $days * 86400);
+    $out = [];
+    foreach (['a', 'b'] as $v) {
+        $ids = "SELECT DISTINCT s.prospect_id FROM prospect_sends s WHERE s.variant = '$v' AND s.step = 1 AND s.sent_at >= ?";
+        $n = fn(string $types) => (int) val("SELECT COUNT(DISTINCT prospect_id) FROM prospect_events WHERE type IN ($types) AND prospect_id IN ($ids)", [$since]);
+        $emailed = (int) val("SELECT COUNT(*) FROM ($ids) x", [$since]);
+        $out[$v] = ['emailed' => $emailed, 'clicked' => $n("'clicked'"), 'replied' => $n("'replied'"), 'demo_or_signup' => $n("'demo','signed_up'"), 'bounced' => $n("'bounced'"), 'unsubscribed' => $n("'unsubscribed'")];
+    }
+    return $out;
+}
+
+/** Per kind of business: emailed, clicked, replied, interested (last $days days). */
+function outreach_kind_stats(int $days): array
+{
+    $since = gmdate('Y-m-d H:i:s', time() - $days * 86400);
+    $out = [];
+    foreach (rows("SELECT p.kind, e.type, COUNT(DISTINCT e.prospect_id) AS n FROM prospect_events e JOIN prospects p ON p.id = e.prospect_id
+                   WHERE e.at >= ? AND e.type IN ('sent','clicked','replied','demo','signed_up','bounced','unsubscribed') GROUP BY p.kind, e.type", [$since]) as $r) {
+        $out[$r['kind']][$r['type']] = (int) $r['n'];
+    }
+    foreach (array_count_values(array_column(rows("SELECT kind FROM prospects WHERE status = 'new'"), 'kind')) as $k => $q) {
+        $out[$k]['queued'] = $q;
+    }
+    return $out;
+}
+
+/**
+ * Applies the nightly review's adjustments, clamped to safe limits, and emails the review to you.
+ * Accepts: daily_cap (10–50; at most +10 per night), plain_pct (0–100), pause_kinds (list of kinds), offer (bool), note (text).
+ */
+function outreach_tune(array $t): array
+{
+    $applied = [];
+    if (isset($t['daily_cap'])) {
+        $cur = (int) setting('prospects_daily', '25');
+        $cap = max(10, min(50, min($cur + 10, (int) $t['daily_cap']))); // ramp slowly: a sudden jump hurts the sender reputation
+        setting_set('prospects_daily', (string) $cap);
+        $applied['daily_cap'] = $cap;
+    }
+    if (isset($t['plain_pct'])) {
+        setting_set('ab_plain_pct', (string) max(0, min(100, (int) $t['plain_pct'])));
+        $applied['plain_pct'] = (int) setting('ab_plain_pct');
+    }
+    if (isset($t['pause_kinds']) && is_array($t['pause_kinds'])) {
+        $kinds = array_values(array_intersect(array_map('strval', $t['pause_kinds']), array_keys(PROSPECT_KINDS)));
+        setting_set('outreach_pause_kinds', implode(',', $kinds));
+        $applied['pause_kinds'] = $kinds;
+    }
+    if (isset($t['offer'])) {
+        setting_set('outreach_offer', $t['offer'] ? '1' : '0');
+        $applied['offer'] = (bool) $t['offer'];
+    }
+    setting_set('nightly_review_at', gmdate('Y-m-d H:i:s'));
+    $note = mb_substr(trim((string) ($t['note'] ?? '')), 0, 4000);
+    if ($note !== '') {
+        setting_set('nightly_review_note', $note);
+        provider_alert('Nightly sales review · ' . (new DateTime('now', outreach_tz()))->format('D M j'),
+            '<h2 style="margin:0 0 8px">Nightly sales review</h2><div style="white-space:pre-wrap;line-height:1.5">' . e($note) . '</div>'
+            . '<p style="color:#6b7090;margin-top:14px">Applied for tomorrow: ' . e(json_encode($applied, JSON_UNESCAPED_SLASHES)) . '</p>'
+            . '<p><a href="https://' . e(cfg('base_domain') . base_path()) . '/super/sales">Open the sales dashboard</a></p>');
+    }
+    $GLOBALS['audit_system'] = true;
+    audit('Nightly sales review', null, true, json_encode($applied));
+    return ['ok' => true, 'applied' => $applied];
 }

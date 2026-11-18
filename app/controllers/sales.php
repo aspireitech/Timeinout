@@ -23,7 +23,7 @@ function super_sales(): void
 function platform_track_click(): void
 {
     $token = (string) input('t');
-    $to = in_array(input('to'), ['signup', 'demo', 'home'], true) ? (string) input('to') : 'home';
+    $to = in_array(input('to'), ['signup', 'demo', 'home', 'hello'], true) ? (string) input('to') : 'home';
     $p = preg_match('/^[a-f0-9]{32}$/', $token) ? row('SELECT * FROM prospects WHERE token = ?', [$token]) : null;
     if ($p && empty($_SESSION['super'])) { // your own clicks in a preview do not count
         $step = max(1, min(3, (int) input('s')));
@@ -168,4 +168,64 @@ function super_sales_list(): void
         send_download('clockinout-' . $m . '-' . $from . '-to-' . $to . '.csv', 'text/csv; charset=utf-8', csv_string($out));
     }
     view('platform/super_sales_list', compact('from', 'to', 'group', 'preset', 'm', 'title', 'cols', 'rows', 'kind', 'state', 'source'), 'platform');
+}
+
+/**
+ * /hello?t=<prospect token>: the call-back page linked from the plain outreach email. Two fields (name, phone,
+ * best time), prefilled from what we know. Saves a lead (source outreach), marks the prospect "Booked demo"
+ * and alerts you; also offers the free trial straight away.
+ */
+function platform_hello(): void
+{
+    $token = (string) input('t');
+    $p = preg_match('/^[a-f0-9]{32}$/', $token) ? row('SELECT * FROM prospects WHERE token = ?', [$token]) : null;
+    $times = ['morning' => 'Morning (9–12)', 'midday' => 'Around noon', 'afternoon' => 'Afternoon (1–5)', 'any' => 'Any time'];
+    $old = ['name' => (string) ($p['first_name'] ?? ''), 'phone' => (string) ($p['phone'] ?? ''), 'email' => (string) ($p['email'] ?? ''), 'company' => (string) ($p['org'] ?? ''), 'time' => 'any'];
+    $errors = [];
+    $sent = false;
+    if (is_post()) {
+        $d = [
+            'name'    => mb_substr(trim((string) input('name')), 0, 120),
+            'phone'   => mb_substr(preg_replace('/[^0-9+().\- ]/', '', (string) input('phone')), 0, 40),
+            'email'   => strtolower(mb_substr(trim((string) input('email')), 0, 190)),
+            'company' => mb_substr(trim((string) input('company')), 0, 160),
+            'time'    => isset($times[(string) input('time')]) ? (string) input('time') : 'any',
+        ];
+        if ($d['name'] === '') {
+            $errors['name'] = 'Please enter your name.';
+        }
+        if (strlen(preg_replace('/\D/', '', $d['phone'])) < 7) {
+            $errors['phone'] = 'Please enter a phone number.';
+        }
+        if ($d['email'] !== '' && !filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Please check the email address.';
+        }
+        if ($d['company'] === '') {
+            $errors['company'] = 'Please enter your organization.';
+        }
+        if (!$errors && (int) val('SELECT COUNT(*) FROM leads WHERE ip = ? AND created_at > ?', [client_ip(), gmdate('Y-m-d H:i:s', time() - 3600)]) >= 5) {
+            $errors['form'] = 'Too many requests from your network. Please try again later or email us.';
+        }
+        if (!$errors && (string) input('website') === '') { // hidden field: only bots fill it in
+            $industry = $p ? (prospect_pitch((string) $p['kind'])['industry'] ?? '') : '';
+            $lead = ['name' => $d['name'], 'email' => $d['email'] ?: ($p['email'] ?? ''), 'company' => $d['company'], 'phone' => $d['phone'],
+                'industry' => $industry, 'employees' => '', 'message' => 'Call-back request · best time: ' . $times[$d['time']] . ($p ? ' · from outreach email ' . strtoupper((string) $p['variant']) : '')];
+            $id = insert('leads', $lead + ['status' => 'new', 'ip' => client_ip(), 'source' => 'outreach', 'created_at' => gmdate('Y-m-d H:i:s')]);
+            $ok = lead_notify($lead + ['source' => 'outreach (call-back)']);
+            update('leads', ['emailed' => $ok ? 1 : 0], 'id = ?', [$id]);
+            if ($p && in_array($p['status'], ['new', 'active', 'done', 'replied'], true)) {
+                update('prospects', ['status' => 'demo', 'next_at' => null], 'id = ?', [$p['id']]);
+                prospect_event((int) $p['id'], 'demo');
+            }
+            if ($lead['email'] !== '') {
+                prospect_converted($lead['email'], 'demo');
+            }
+            $GLOBALS['audit_system'] = true;
+            audit('Call-back request', $d['company'] . ' — ' . $d['name'], true, 'best time ' . $times[$d['time']]);
+            $sent = true;
+        }
+        $old = $d;
+    }
+    view('platform/hello', ['old' => $old, 'errors' => $errors, 'sent' => $sent, 'times' => $times, 'p' => $p, 'token' => $p ? $token : '',
+        'metaTitle' => 'Quick call | ' . cfg('app_name'), 'metaDesc' => 'Tell us when to call: a 10-minute look at ClockInOut with your own people.'], 'platform');
 }

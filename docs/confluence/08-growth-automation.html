@@ -73,3 +73,30 @@
 <tr><td>Next (by you)</td><td>Capterra and G2 listings, 2–3 customer reviews, Chamber of Commerce, LinkedIn page, Crunchbase, AlternativeTo / SaaSHub</td><td>Use <code>?src=capterra</code>, <code>?src=g2</code>, <code>?src=chamber</code>…</td></tr>
 </tbody></table>
 <img src="{{IMGROOT}}/screens/47-landing-phone-bar.jpg" alt="Landing page on a phone with the start-trial bar" width="360">
+<h2>9. Email A/B test, founding offer and call-back page (since 18 Nov 2026)</h2>
+<table><thead><tr><th>Version</th><th>What the prospect gets</th></tr></thead><tbody>
+<tr><td><strong>A</strong> designed email</td><td>Banner image, orange button, checkmark list, founding offer box. Subject: "{org}: staff hours without the paper timesheet" (by business type).</td></tr>
+<tr><td><strong>B</strong> plain personal note</td><td>About 80 words, no images, signed by you, one link "pick a time for a quick call". Subject: "Quick question about {org}". Follow-ups thread under it ("Re: …").</td></tr>
+</tbody></table>
+<ol>
+<li>Each new prospect gets A or B at random (default 50/50) and keeps it for the follow-ups. Results: <code>/super → Sales dashboard → Email A/B test</code>.</li>
+<li><strong>Founding offer</strong> in both versions: free done-for-you setup and 50% off the first 3 months, for the first 20 businesses.</li>
+<li><strong>Call-back page</strong> <code>clockinoutapp.com/hello</code>: name, phone, best time (prefilled from the prospect). It saves a demo request, marks the prospect Booked demo and emails you. Call them at the time they chose.</li>
+</ol>
+<img src="{{IMGROOT}}/screens/55-callback-page.jpg" alt="Call-back page" width="1000">
+<h3>Create the FOUNDING50 code in Stripe (5 minutes, once)</h3>
+<ol>
+<li>Stripe → <strong>Product catalog → Coupons → + New</strong>: name "Founding customer", <strong>Percentage discount 50%</strong>, Duration <strong>Repeating, 3 months</strong>, Redemption limit <strong>20</strong> → Create.</li>
+<li>On that coupon → <strong>Promotion codes → + Add</strong>: code <code>FOUNDING50</code> → Create.</li>
+<li>Customers who sign up from outreach can enter it on the Stripe payment page ("Add promotion code"). For invoice (Wave) customers, apply 50% by hand for 3 months.</li>
+<li>The free setup: when they send their list, import it in their portal (Admin → Import) or ask Claude.</li>
+</ol>
+<h3>Nightly sales review (Claude, 9 PM Mountain)</h3>
+<p>Every night a Claude scheduled task reads the day's numbers and adjusts the next day within safe limits, then emails you "Nightly sales review":</p>
+<ul>
+<li>Shifts the A/B share towards the version that gets more clicks and replies (only with enough emails to judge).</li>
+<li>Raises the daily amount slowly (at most +10 a night, never over 50) while bounces stay under 3%, or lowers it if bounces or unsubscribes rise.</li>
+<li>Pauses new first emails to a business type that keeps getting nothing back (follow-ups continue).</li>
+<li>Lists who to call today.</li>
+</ul>
+<p>Change or stop it: claude.ai → scheduled tasks → "ClockInOut nightly sales review".</p>

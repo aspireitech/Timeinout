@@ -246,6 +246,7 @@ function stripe_checkout_url(array $t, string $plan, string $cycle = 'monthly'):
     } elseif ($email = owner_email($t)) {
         $params['customer_email'] = $email;
     }
+    $params['allow_promotion_codes'] = 'true'; // founding offer and other codes (e.g. FOUNDING50) created in Stripe
     return (string) stripe_request('POST', '/v1/checkout/sessions', $params)['url'];
 }
 

@@ -38,6 +38,7 @@ function prospect_link_target(string $to, ?array $p): string
     return match ($to) {
         'signup' => $site . '/signup?src=outreach' . ($industry !== '' ? '&industry=' . rawurlencode($industry) : ''),
         'demo'   => $site . '/demo?src=outreach',
+        'hello'  => $site . '/hello' . ($p ? '?t=' . rawurlencode((string) $p['token']) : ''),
         default  => $site . (($c = sales_campaign_for($p['kind'] ?? '')) ? '/for/' . $c : '/') . '?src=outreach', // the page for their kind of business
     };
 }
@@ -319,12 +320,12 @@ function sales_hot_leads(int $days = 7, int $limit = 50): array
 {
     $since = gmdate('Y-m-d H:i:s', time() - $days * 86400);
     $list = rows("SELECT p.*, MAX(e.at) AS last_click, COUNT(*) AS clicks,
-                         SUM(e.detail = 'signup') AS signup_clicks, SUM(e.detail = 'demo') AS demo_clicks
+                         SUM(e.detail = 'signup') AS signup_clicks, SUM(e.detail = 'demo') AS demo_clicks, SUM(e.detail = 'hello') AS hello_clicks
                   FROM prospect_events e JOIN prospects p ON p.id = e.prospect_id
                   WHERE e.type = 'clicked' AND e.at >= ? AND p.status IN ('new','active','done')
-                  GROUP BY p.id ORDER BY (SUM(e.detail = 'signup') > 0 OR SUM(e.detail = 'demo') > 0) DESC, MAX(e.at) DESC LIMIT " . (int) $limit, [$since]);
+                  GROUP BY p.id ORDER BY (SUM(e.detail = 'signup') > 0 OR SUM(e.detail = 'demo') > 0 OR SUM(e.detail = 'hello') > 0) DESC, MAX(e.at) DESC LIMIT " . (int) $limit, [$since]);
     foreach ($list as &$p) {
-        $p['looked_at'] = $p['demo_clicks'] ? 'the demo booking page' : ($p['signup_clicks'] ? 'the free-trial sign-up page' : 'your website');
+        $p['looked_at'] = $p['demo_clicks'] ? 'the demo booking page' : ($p['signup_clicks'] ? 'the free-trial sign-up page' : ($p['hello_clicks'] ? 'the call-back page (did not leave a number)' : 'your website'));
     }
     unset($p);
     return $list;
