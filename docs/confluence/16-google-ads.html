@@ -1,0 +1,97 @@
+<p>A small, measured Google Ads test for ClockInOut, plus the four demo videos for YouTube. Goal: find out, for about <strong>$350</strong>, whether people who search for an app like ours start a free trial. Written for someone who has never run Google Ads.</p>
+<div data-type="panel-info"><p><strong>Rules for the test:</strong> $12 a day for 4 weeks (about $350). Search ads only. United States only. Stop early if $200 brings no trial, demo or checklist sign-up. Keep going and raise the budget only when a trial costs less than about $60.</p></div>
+<h2>1. Before you start (10 minutes, once)</h2><ol><li>Upload the latest zip (it adds Google Ads conversion tracking and the free checklist).</li><li>Go to <a href="https://ads.google.com">ads.google.com</a>, sign in with the Google account that runs the Google Business Profile, and create an account. When Google offers a "Smart campaign" or asks for a goal, click <strong>Switch to Expert Mode</strong> (small link at the bottom), then <strong>Create an account without a campaign</strong>. Smart campaigns spend money on searches you cannot control.</li><li>Billing: country United States, time zone America/Denver, currency USD, add a card. New accounts often get an offer like "spend $500, get $500 credit": accept it if shown.</li><li><strong>Tools → Linked accounts → Google Analytics (GA4)</strong>: link it if you use GA4 (optional).</li></ol>
+<h2>2. Conversion tracking (so Google knows what a success is)</h2><ol><li>Google Ads → <strong>Goals → Conversions → Summary → + New conversion action → Website</strong>. Enter <code>clockinoutapp.com</code> → Scan → <strong>Add a conversion action manually</strong>.</li><li>Create <strong>Sign-up</strong>: category <em>Sign-up</em>, value: use the same value, $40; Count: <strong>One</strong>; click-through window 30 days. Save.</li><li>Create <strong>Lead</strong>: category <em>Submit lead form</em>, value $10; Count: <strong>One</strong>. Save.</li><li>For each one choose <strong>Use Google tag → Install the tag yourself</strong>. In the "event snippet" find <code>send_to: 'AW-123456789/AbCdEfGh'</code>. The part before the slash is the <strong>Conversion ID</strong> (same for both); the part after is the <strong>label</strong>.</li><li>Open <code>clockinoutapp.com/super</code> → <strong>Settings → Google Ads conversion tracking</strong>, paste the Conversion ID, the Sign-up label and the Lead label → <strong>Save settings</strong>.<br><img src="{{IMGROOT}}/screens/60-gads-settings.jpg" alt="Google Ads settings in /super" width="900"><br>You do <em>not</em> paste any code into the website: ClockInOut adds the tag itself, only on the public website, and fires Sign-up on the welcome page after a trial starts and Lead after a demo request, a call-back request or a checklist sign-up.</li><li>Check: start a test sign-up on your phone, then in Google Ads → Conversions the status changes from "Inactive" to "Recording conversions" within a few hours. Delete the test portal afterwards in /super → Subscribers.</li></ol>
+<h2>3. Create the campaign</h2><ol><li><strong>Campaigns → + New campaign → Create a campaign without a goal's guidance → Search</strong>. Results: tick <em>Website visits</em>, enter <code>https://clockinoutapp.com</code>. Name: <code>Search – US – Test</code>.</li><li><strong>Bidding:</strong> Clicks → tick <em>Set a maximum cost per click bid limit</em> → <strong>$3.00</strong>. (Switch to "Conversions" only after the account has 15 or more conversions in 30 days.)</li><li><strong>Networks:</strong> untick <em>Search Partners</em> and untick <em>Display Network</em>.</li><li><strong>Locations:</strong> United States. Open <em>Location options</em> → choose <strong>Presence: people in or regularly in your included locations</strong>.</li><li><strong>Languages:</strong> English. <strong>Audience segments:</strong> skip. <strong>Broad match:</strong> off.</li><li><strong>More settings → Ad schedule:</strong> Monday–Friday, 7:00 AM – 7:00 PM. <strong>Campaign URL options → Final URL suffix:</strong> <code>src=gads</code> (so the Sales dashboard shows these visits and sign-ups under the source <code>gads</code>).</li><li><strong>Budget:</strong> $12.00 per day.</li><li>Create the four ad groups below. In each one, type the keywords exactly as shown: <code>"quotes"</code> = phrase match, <code>[brackets]</code> = exact match. Put one keyword per line.</li></ol>
+<h2>4. Ad groups, keywords and ads</h2>
+<h3>Childcare &amp; schools</h3><p><strong>Final URL:</strong> <code>https://clockinoutapp.com/for/schools</code></p>
+<p><strong>Keywords</strong> (copy as is):</p><pre>[daycare sign in app]
+[daycare sign in sign out app]
+[child care check in app]
+&quot;childcare sign in software&quot;
+&quot;preschool sign in app&quot;
+&quot;digital sign in sheet for daycare&quot;
+&quot;after school program check in app&quot;
+&quot;school pickup sign out app&quot;
+&quot;daycare attendance app&quot;
+&quot;kids check in system&quot;</pre>
+<p><strong>Responsive search ad</strong>: Headlines (15, each 30 characters or less):</p><ol><li>Daycare Sign-In App</li><li>Safe Pickups, Every Day</li><li>Parents Sign Out in 5 Seconds</li><li>Know Who Picked Up</li><li>Live List of Who Is Here</li><li>Try It Free for 7 Days</li><li>No Credit Card Needed</li><li>Any Tablet or Phone</li><li>We Import Your List for You</li><li>Reports in Your Inbox at 7 AM</li><li>Replace the Paper Sign-In</li><li>Authorized Pickups Only</li><li>Missed Sign-Out Reminders</li><li>From $39/Month</li><li>Set Up in Minutes</li></ol>
+<p>Descriptions (4, each 90 characters or less):</p><ol><li>Parents tap their child&#x27;s name and choose who is picking up. Every pickup is on record.</li><li>Live list of who is still here, emergency roll call and daily reports. Try it free 7 days.</li><li>Works on any tablet or phone. Send us your roster in any format and we set it up for you.</li><li>Founding offer: free setup and 50% off your first 3 months. No credit card to start.</li></ol>
+<p>Display path: <code>clockinoutapp.com/daycare/sign-in</code>. Pin headline 1 to position 1 (click the pin icon) so the main promise always shows.</p>
+<h3>Tutoring &amp; learning centers</h3><p><strong>Final URL:</strong> <code>https://clockinoutapp.com/for/tutoring</code></p>
+<p><strong>Keywords</strong> (copy as is):</p><pre>[tutoring center attendance software]
+[learning center check in app]
+[tutoring center sign in app]
+&quot;student sign in app&quot;
+&quot;student check in system&quot;
+&quot;tutoring attendance tracking&quot;</pre>
+<p><strong>Responsive search ad</strong>: Headlines (15, each 30 characters or less):</p><ol><li>Tutoring Center Sign-In App</li><li>Know Who Is in Class Now</li><li>Student Sign-In in Seconds</li><li>Attendance for Billing</li><li>Worksheet Pickup Log</li><li>Try It Free for 7 Days</li><li>No Credit Card Needed</li><li>Any Tablet or Phone</li><li>We Import Your Student List</li><li>Reports for Any Date Range</li><li>Parents Sign In and Out</li><li>Adult Learners Sign Selves</li><li>Tutor Hours Tracked Too</li><li>From $39/Month</li><li>Set Up in Minutes</li></ol>
+<p>Descriptions (4, each 90 characters or less):</p><ol><li>Students and parents sign in at a tablet by the door. Every session is on record.</li><li>See who is here, log worksheet pickups and pull attendance for any month in seconds.</li><li>Send us your student list in any format and we set it up for you. Try it free 7 days.</li><li>Founding offer: free setup and 50% off your first 3 months. No credit card to start.</li></ol>
+<p>Display path: <code>clockinoutapp.com/tutoring/sign-in</code>. Pin headline 1 to position 1 (click the pin icon) so the main promise always shows.</p>
+<h3>Staff time clock</h3><p><strong>Final URL:</strong> <code>https://clockinoutapp.com/for/offices</code></p>
+<p><strong>Keywords</strong> (copy as is):</p><pre>[employee time clock app]
+[ipad time clock app]
+[tablet time clock]
+&quot;time clock kiosk&quot;
+&quot;clock in clock out app&quot;
+&quot;small business time clock&quot;
+&quot;employee sign in app&quot;
+&quot;staff attendance app&quot;
+&quot;qr code time clock&quot;
+&quot;punch clock app&quot;</pre>
+<p><strong>Responsive search ad</strong>: Headlines (15, each 30 characters or less):</p><ol><li>Time Clock on Any Tablet</li><li>Staff Clock In With a Tap</li><li>QR Badge Clock-In</li><li>Payroll-Ready Hours</li><li>Export Hours to CSV</li><li>Try It Free for 7 Days</li><li>No Credit Card Needed</li><li>No Hardware to Buy</li><li>We Import Your Staff List</li><li>Missed Clock-Out Reminders</li><li>Live List of Who Is In</li><li>Visitor Sign-In Included</li><li>Replace Paper Timesheets</li><li>From $39/Month</li><li>Set Up in Minutes</li></ol>
+<p>Descriptions (4, each 90 characters or less):</p><ol><li>Staff tap their name or scan a QR badge at the door. Hours total themselves up.</li><li>Download payroll-ready hours as CSV, see who is in now, and get reports by email daily.</li><li>Works on any tablet or phone. Send us your staff list and we set it up. Free for 7 days.</li><li>Founding offer: free setup and 50% off your first 3 months. No credit card to start.</li></ol>
+<p>Display path: <code>clockinoutapp.com/time-clock/app</code>. Pin headline 1 to position 1 (click the pin icon) so the main promise always shows.</p>
+<h3>Visitor sign-in</h3><p><strong>Final URL:</strong> <code>https://clockinoutapp.com/</code></p>
+<p><strong>Keywords</strong> (copy as is):</p><pre>[visitor sign in app]
+[ipad visitor sign in]
+[visitor management system small business]
+&quot;front desk sign in app&quot;
+&quot;digital sign in sheet&quot;
+&quot;guest check in app&quot;</pre>
+<p><strong>Responsive search ad</strong>: Headlines (15, each 30 characters or less):</p><ol><li>Visitor Sign-In on Any iPad</li><li>Digital Sign-In Sheet</li><li>Know Who Is in the Building</li><li>Emergency Roll Call List</li><li>Staff and Visitors, One App</li><li>Try It Free for 7 Days</li><li>No Credit Card Needed</li><li>No Hardware to Buy</li><li>Set Up in Minutes</li><li>From $39/Month</li><li>Replace the Paper Logbook</li><li>Visitor Reason and Host</li><li>Daily Reports by Email</li><li>Works on Any Tablet</li><li>Simple Front Desk Kiosk</li></ol>
+<p>Descriptions (4, each 90 characters or less):</p><ol><li>Visitors sign in at a tablet with name, company and who they are visiting.</li><li>Staff clock in on the same kiosk. Live list of who is in and an emergency roll call.</li><li>Works on any tablet or phone. Set up in minutes. Try it free for 7 days, no credit card.</li><li>Founding offer: free setup and 50% off your first 3 months for our first 20 businesses.</li></ol>
+<p>Display path: <code>clockinoutapp.com/visitor/sign-in</code>. Pin headline 1 to position 1 (click the pin icon) so the main promise always shows.</p>
+<h2>5. Negative keywords (stop paying for the wrong searches)</h2><p><strong>Tools → Shared library → Negative keyword lists → +</strong>, name <code>Not buyers</code>, paste the list below, then apply it to the campaign.</p><pre>jobs
+job
+hiring
+salary
+career
+login
+log in
+sign in page
+adp
+paychex
+kronos
+ukg
+homebase
+when i work
+deputy
+brightwheel login
+procare login
+template
+printable
+pdf
+excel
+word
+free printable
+sheet template
+definition
+meaning
+how to make
+course
+training
+certification
+reddit
+diy
+arduino
+github
+open source</pre>
+<h2>6. Assets (extra lines under the ad, free to add)</h2><ul><li><strong>Sitelinks:</strong> Pricing → <code>/#pricing</code> · Book a demo → <code>/demo</code> · Free checklist → <code>/checklist/care</code> · Start free trial → <code>/signup</code>.</li><li><strong>Callouts:</strong> No credit card · Set up in minutes · We import your list · Any tablet or phone · Free QR badges · Real people answer email.</li><li><strong>Structured snippet</strong> (Types): Daycares, Schools, Tutoring centers, Clinics, Gyms, Offices.</li><li><strong>Images:</strong> upload the logo and two screenshots (kiosk and dashboard) from <code>docs/img/screens/</code>.</li></ul>
+<h2>7. Every Monday: 15-minute check</h2><table><thead><tr><th>Look at</th><th>Where</th><th>Do this</th></tr></thead><tbody><tr><td>Search terms</td><td>Campaign → Insights and reports → Search terms</td><td>Add anything that is not a buyer (jobs, login to another app, free templates) as a negative keyword.</td></tr><tr><td>Clicks and cost per click</td><td>Keywords</td><td>Pause keywords that spent more than $40 with no conversion.</td></tr><tr><td>Conversions</td><td>Goals → Conversions, and /super → Sales dashboard → Website traffic → source <code>gads</code></td><td>Compare: visits from gads, trials, demos, checklist sign-ups.</td></tr><tr><td>Ads</td><td>Ads → Asset details</td><td>After 2 weeks, replace headlines rated "Low" with a new idea.</td></tr></tbody></table>
+<h2>8. After 4 weeks: decide</h2><ul><li><strong>Trial costs under $60</strong> (spend ÷ trials): raise the budget to $25/day, keep the best ad group, test a second ad.</li><li><strong>Clicks but no trials:</strong> the page or the offer is the problem, not the ads: look at the landing page with fresh eyes, test the checklist as the main ask.</li><li><strong>Few clicks:</strong> raise the max CPC to $4 or add more keywords from the search terms report.</li><li><strong>Nothing after $200:</strong> pause, and put the money into Capterra/GetApp listings or a local directory instead.</li></ul>
+<h2>9. Demo videos (YouTube Shorts, Instagram Reels, Google Business Profile)</h2><p>Four vertical videos, 34–41 seconds each, with voice-over and captions, made from the demo portal with example data:</p><img src="{{IMGROOT}}/screens/61-video-frames.jpg" alt="Frames from the safe pickup video" width="1000"><table><thead><tr><th>File</th><th>Title for YouTube</th><th>Best for</th></tr></thead><tbody><tr><td><code>clockinout-safe-pickup.mp4</code></td><td>Sign a child out in 5 seconds | Daycare pickup app #Shorts</td><td>Daycares, schools, after-school</td></tr><tr><td><code>clockinout-qr-badges.mp4</code></td><td>Clock in with one scan: QR badge time clock #Shorts</td><td>Every business</td></tr><tr><td><code>clockinout-missed-signout.mp4</code></td><td>Forgot to sign out? Automatic next-morning reminder #Shorts</td><td>Daycares, offices</td></tr><tr><td><code>clockinout-staff-hours.mp4</code></td><td>Payroll-ready staff hours in one click #Shorts</td><td>Offices, clinics, gyms, shops</td></tr></tbody></table><ol><li>Create the channel: <a href="https://youtube.com">youtube.com</a> → your picture → <strong>Create a channel</strong> → use the name <strong>ClockInOut</strong> (choose "Use a custom name" so it is a brand channel). Add the logo, banner and the link <code>https://clockinoutapp.com/?src=youtube</code> under Customization → Basic info → Links.</li><li>Upload: <strong>Create → Upload video</strong> → pick the file. Title from the table, description below, audience "No, it's not made for kids", visibility Public. Vertical videos under 60 seconds become Shorts automatically.</li><li>Description (same for all, change the first line): <pre>See how ClockInOut works at your front door.
+Try it free for 7 days, no credit card: https://clockinoutapp.com/?src=youtube
+Free checklist: https://clockinoutapp.com/checklist/care?src=youtube
+
+#daycare #childcare #timeclock #smallbusiness #attendance</pre></li><li>Post the same files as Google Business Profile updates (Add update → photo/video) and on LinkedIn/Facebook with the link <code>?src=linkedin</code> / <code>?src=facebook</code>.</li><li>Upload one video a week rather than all four on one day: the channel looks active for a month.</li></ol>
