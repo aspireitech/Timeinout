@@ -142,6 +142,7 @@ $tile = function (string $label, string $value, string $sub, array $delta, ?stri
       <?= $tile('On a phone', $web['visits'] ? sales_pct($web['mobile'] / max(1, $web['views']), 0) : '–', 'of page views', ['', '']) ?>
       <?= $tile('Demo requests', number_format($web['demos']), 'all sources', ['', ''], m: 'web_demos') ?>
       <?= $tile('Sign-ups (trials)', number_format($web['signups']), 'all sources', ['', ''], m: 'web_signups') ?>
+      <?= $tile('Checklist sign-ups', number_format($web['subscribers']), 'emails from the free checklist', ['', ''], 'Visitors who left their email in the free checklist slide-in. They get the checklist now and one free-trial email 3 days later.', m: 'subscribers') ?>
       <?= $tile('Visit → lead', sales_pct($web['conv']), 'visits that became a demo request or sign-up', ['', ''], 'A good small-business software site converts 2–5% of visits.') ?>
     </div>
     <div class="multiples" style="margin-bottom:14px">

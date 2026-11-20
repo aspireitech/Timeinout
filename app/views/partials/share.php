@@ -35,8 +35,12 @@ $_ogImgUrl = $_ogOrigin . base_path() . '/assets/img/og/' . $_ogImg;
 <?php else: ?>
 <?php if ($_gsv = setting('google_site_verification', '')): ?><meta name="google-site-verification" content="<?= e($_gsv) ?>">
 <?php endif; ?>
-<?php if ($_ga = setting('ga4_id', '')): ?><script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($_ga) ?>"></script>
-<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', <?= json_encode($_ga) ?>);</script>
+<?php $_ga = setting('ga4_id', ''); $_aw = setting('gads_id', ''); if ($_ga !== '' || $_aw !== ''): ?><script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($_ga !== '' ? $_ga : $_aw) ?>"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date());<?php if ($_ga !== ''): ?> gtag('config', <?= json_encode($_ga) ?>);<?php endif; ?><?php if ($_aw !== ''): ?> gtag('config', <?= json_encode($_aw) ?>);<?php endif; ?>
+<?php // Google Ads conversion on a success page (a view sets $GLOBALS['gads_conv'] to 'signup' or 'lead'); counted once per page view
+$_conv = (string) ($GLOBALS['gads_conv'] ?? ''); $_lab = $_aw !== '' && in_array($_conv, ['signup', 'lead'], true) ? setting('gads_label_' . $_conv, '') : '';
+if ($_lab !== ''): ?> gtag('event', 'conversion', {send_to: <?= json_encode($_aw . '/' . $_lab) ?>});<?php endif; ?>
+<?php if ($_ga !== '' && in_array($_conv, ['signup', 'lead'], true)): ?> gtag('event', <?= json_encode($_conv === 'signup' ? 'sign_up' : 'generate_lead') ?>);<?php endif; ?></script>
 <?php endif; ?>
 <script type="application/ld+json"><?= json_encode([
     '@context' => 'https://schema.org',

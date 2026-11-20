@@ -11,7 +11,7 @@
     </ul>
   </div>
 
-  <?php if ($sent): ?>
+  <?php if ($sent): $GLOBALS['gads_conv'] = 'lead'; ?>
     <div class="lead-card">
       <div class="lead-capsule ok">
         <div class="lead-capsule-ic"><?= icon('check', 26) ?></div>

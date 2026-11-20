@@ -99,6 +99,7 @@ function platform_signup(): void
             $mailed = welcome_email($t, $d['email'], $d['admin_name']);
             subdomain_todo_email($t); // you: create name.<domain> in hPanel within 24 hours
             prospect_converted($d['email'], 'signed_up'); // no more outreach emails
+            subscriber_converted($d['email']);
             prospect_converted_cookie('signed_up'); // clicked an outreach email, signed up with another address
             provider_alert('New sign-up: ' . $t['name'] . (lead_source() ? ' (via ' . lead_source() . ')' : ''),
                 '<p><b>' . e($t['name']) . '</b> started a free trial.</p><p>Owner: ' . e($d['admin_name']) . ' &lt;' . e($d['email']) . '&gt;<br>Industry: '
@@ -365,6 +366,14 @@ function super_settings(): void
         setting_set('google_site_verification', preg_match('/^[A-Za-z0-9_-]{10,100}$/', $gsv) ? $gsv : '');
         $ga = strtoupper(trim((string) input('ga4_id')));
         setting_set('ga4_id', preg_match('/^G-[A-Z0-9]{4,20}$/', $ga) ? $ga : '');
+        // Google Ads: conversion ID (AW-123456789) and the two conversion labels (sign-up, lead = demo / call-back / checklist)
+        $aw = strtoupper(trim((string) input('gads_id')));
+        setting_set('gads_id', preg_match('/^AW-[0-9]{6,15}$/', $aw) ? $aw : '');
+        foreach (['gads_label_signup', 'gads_label_lead'] as $gk) {
+            $lab = trim((string) input($gk));
+            setting_set($gk, preg_match('/^[A-Za-z0-9_-]{6,40}$/', $lab) ? $lab : '');
+        }
+        setting_set('popup_on', input('popup_on') === '1' ? '1' : '0');
         foreach (array_keys(plans()) as $pk) {
             setting_set('stripe_price_' . $pk, mb_substr(trim((string) input('stripe_price_' . $pk)), 0, 120));
             setting_set('stripe_price_' . $pk . '_annual', mb_substr(trim((string) input('stripe_price_' . $pk . '_annual')), 0, 120));

@@ -11,7 +11,7 @@
     </ul>
     <?php if ($offer): ?><p style="background:#FFF6E5;border-radius:12px;padding:12px 14px;margin-top:14px"><b><?= e($offer) ?></b></p><?php endif; ?>
   </div>
-  <?php if ($sent): ?>
+  <?php if ($sent): $GLOBALS['gads_conv'] = 'lead'; ?>
     <div class="lead-card">
       <div class="lead-capsule ok"><div class="lead-capsule-ic"><?= icon('check', 26) ?></div>
         <div><b>Thank you, <?= e($old['name']) ?>!</b><span>We will call you at <?= e($old['phone']) ?> (<?= e(strtolower($times[$old['time']])) ?>), usually within one business day.</span></div></div>

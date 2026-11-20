@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 23;
+const SCHEMA_VERSION = 24;
 
 function setting(string $key, $default = null)
 {
@@ -107,6 +107,9 @@ function migrate(): void
         }
         if ($v < 23) {
             migration_23();
+        }
+        if ($v < 24) {
+            migration_24();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -550,4 +553,25 @@ function migration_23(): void
     if (!column_exists('prospect_sends', 'variant')) {
         q('ALTER TABLE prospect_sends ADD COLUMN variant CHAR(1) NULL');
     }
+}
+
+/** Website email sign-ups (free checklist slide-in): one row per address, with an unsubscribe token. */
+function migration_24(): void
+{
+    q('CREATE TABLE IF NOT EXISTS subscribers (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(190) NOT NULL,
+        kind VARCHAR(10) NOT NULL,
+        source VARCHAR(40) NULL,
+        token CHAR(32) NOT NULL,
+        ip VARCHAR(45) NULL,
+        created_at DATETIME NOT NULL,
+        welcome_sent TINYINT(1) NOT NULL DEFAULT 0,
+        followup_sent TINYINT(1) NOT NULL DEFAULT 0,
+        signed_up_at DATETIME NULL,
+        unsubscribed_at DATETIME NULL,
+        UNIQUE KEY email (email),
+        UNIQUE KEY token (token),
+        KEY created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }

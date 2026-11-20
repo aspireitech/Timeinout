@@ -8,6 +8,7 @@ require APP_DIR . '/controllers/prospects.php';
 require APP_DIR . '/controllers/sales.php';
 require APP_DIR . '/controllers/maintenance.php';
 require APP_DIR . '/controllers/features.php';
+require APP_DIR . '/controllers/subscribers.php';
 
 /**
  * Tiny router. Patterns like /admin/students/{id} pass `id` as a named argument.
@@ -57,6 +58,10 @@ function platform_routes(string $path): void
         ['GET|POST', '/signup',              'platform_signup'],
         ['GET|POST', '/demo',                'platform_demo'],
         ['GET|POST', '/hello',               'platform_hello'],
+        ['POST',     '/subscribe',           'platform_subscribe'],
+        ['GET|POST', '/subscribe/stop',      'platform_subscribe_stop'],
+        ['GET',      '/checklist/care',      'platform_checklist_care'],
+        ['GET',      '/checklist/work',      'platform_checklist_work'],
         ['GET',      '/whats-new',           'platform_whats_new'],
         ['GET',      '/status',              'platform_status'],
         ['GET',      '/status.json',         'platform_status_json'],

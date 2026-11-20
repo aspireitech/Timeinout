@@ -1,3 +1,4 @@
+<?php $GLOBALS['gads_conv'] = 'signup'; ?>
 <?php $portal = tenant_url($t, '/'); $login = tenant_url($t, '/login?welcome=1&email=' . urlencode($email)); ?>
 <div style="max-width:620px;margin:10px auto 40px">
   <div class="card" style="text-align:center">

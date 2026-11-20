@@ -8,7 +8,7 @@
 //     prospect's token), so the prospect is marked converted even if they sign up with another email address.
 // Bots and link scanners are left out. Rows older than 400 days are deleted by the hourly job.
 
-const TRAFFIC_PAGES = '#^/(signup|demo|hello|whats-new|status|for/[a-z-]+|linkedin|facebook|email|web|friend)?$#';
+const TRAFFIC_PAGES = '#^/(signup|demo|hello|checklist/(?:care|work)|whats-new|status|for/[a-z-]+|linkedin|facebook|email|web|friend)?$#';
 
 function traffic_is_bot(): bool
 {
@@ -137,9 +137,10 @@ function traffic_report(string $start, string $end): array
     }
     unset($v);
     uasort($bySource, fn($a, $b) => [$b['visits'], $b['signups']] <=> [$a['visits'], $a['signups']]);
+    $subs = (int) val('SELECT COUNT(*) FROM subscribers WHERE created_at >= ? AND created_at < ?', [$start, $end]);
     $pages = rows('SELECT path, COUNT(*) AS n FROM site_visits WHERE at >= ? AND at < ? AND landing = 1 GROUP BY path ORDER BY n DESC LIMIT 10', [$start, $end]);
     $demos = array_sum(array_column($bySource, 'demos'));
     $signups = array_sum(array_column($bySource, 'signups'));
     return ['views' => (int) $tot['views'], 'visits' => (int) $tot['visits'], 'mobile' => (int) $tot['mobile'], 'by_source' => $bySource, 'pages' => $pages,
-            'demos' => $demos, 'signups' => $signups, 'conv' => $tot['visits'] ? ($demos + $signups) / (int) $tot['visits'] : null];
+            'demos' => $demos, 'signups' => $signups, 'subscribers' => $subs, 'conv' => $tot['visits'] ? ($demos + $signups) / (int) $tot['visits'] : null];
 }

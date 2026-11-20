@@ -65,6 +65,15 @@
         <div class="field"><label for="g-ga">Google Analytics 4 measurement ID (optional)</label><input type="text" id="g-ga" name="ga4_id" value="<?= e(setting('ga4_id', '')) ?>" placeholder="G-XXXXXXXXXX"></div>
       </div>
       <?php if (setting('google_site_verification', '') !== ''): ?><p class="small" style="margin:0 0 8px"><span class="badge in">Search Console tag is on the website</span> Now press <b>Verify</b> in Search Console.</p><?php endif; ?>
+      <h3 style="margin-top:14px"><?= icon('chart') ?> Google Ads conversion tracking</h3>
+      <p class="muted small">Google Ads → Goals → Conversions → New conversion action → Website → set up manually with code. Create two: <b>Sign-up</b> (counts a new free trial) and <b>Lead</b> (demo request, call-back request or checklist download). From each "Install the tag yourself" page copy the ID <code>AW-…</code> (the same for both) and the label after the slash in <code>send_to</code>.</p>
+      <div class="grid c3">
+        <div class="field"><label for="g-aw">Conversion ID</label><input type="text" id="g-aw" name="gads_id" value="<?= e(setting('gads_id', '')) ?>" placeholder="AW-123456789"></div>
+        <div class="field"><label for="g-ls">Sign-up label</label><input type="text" id="g-ls" name="gads_label_signup" value="<?= e(setting('gads_label_signup', '')) ?>" placeholder="AbCdEfGhIjK"></div>
+        <div class="field"><label for="g-ll">Lead label</label><input type="text" id="g-ll" name="gads_label_lead" value="<?= e(setting('gads_label_lead', '')) ?>" placeholder="LmNoPqRsTuV"></div>
+      </div>
+      <label class="check"><input type="checkbox" name="popup_on" value="1" <?= setting('popup_on', '1') === '1' ? 'checked' : '' ?>>
+        <span><b>Free checklist slide-in</b> on the home and landing pages (after 40 seconds or 60% scroll, at most once a month per visitor)</span></label>
       <button class="btn btn-primary">Save settings</button>
     </form>
   </div>

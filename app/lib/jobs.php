@@ -18,6 +18,7 @@ function run_hourly_jobs(bool $forceReports = false, bool $forceScorecard = fals
         'scorecard' => fn() => send_scorecard($forceScorecard),
         'hotlist'   => fn() => run_hot_leads(),
         'traffic'   => fn() => traffic_purge(),
+        'subscribers' => fn() => run_subscribers(),
     ];
     $lines = [];
     $errors = 0;

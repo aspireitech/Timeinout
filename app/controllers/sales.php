@@ -64,6 +64,7 @@ const SALES_LISTS = [
     'bounced' => 'Bounced', 'opened' => 'Opened (estimate)', 'clicked' => 'Clicked a link', 'replied' => 'Replied', 'interested' => 'Interested (replied, demo or sign-up)',
     'demo' => 'Booked a demo', 'signed_up' => 'Signed up', 'unsubscribed' => 'Unsubscribed',
     'visits' => 'Website visits', 'web_demos' => 'Demo requests (all sources)', 'web_signups' => 'Sign-ups (all sources)', 'paying' => 'Paying customers from outreach',
+    'subscribers' => 'Checklist sign-ups (email list)',
 ];
 
 /** /super/sales/list?m=<metric>&range…: the records behind a number on the dashboard, with CSV export. */
@@ -138,6 +139,13 @@ function super_sales_list(): void
             $rows[] = ['when' => $r['at'], 'source' => $r['source'], 'ref' => (string) $r['ref'], 'pages' => $r['pages'], 'views' => (int) $r['views'], 'device' => $r['device']];
         }
         $cols = ['when' => 'When', 'source' => 'Source', 'ref' => 'Came from site', 'pages' => 'Pages viewed', 'views' => 'Page views', 'device' => 'Device'];
+    } elseif ($m === 'subscribers') {
+        $sq = $source !== '' ? " AND COALESCE(source, 'direct') = ?" : '';
+        foreach (rows("SELECT * FROM subscribers WHERE created_at >= ? AND created_at < ? $sq ORDER BY created_at DESC LIMIT 2000", array_merge([$start, $end], $source !== '' ? [$source] : [])) as $r) {
+            $rows[] = ['when' => $r['created_at'], 'email' => $r['email'], 'type' => CHECKLISTS[$r['kind']]['title'] ?? $r['kind'], 'source' => $r['source'] ?: 'direct',
+                'now' => $r['unsubscribed_at'] ? 'Unsubscribed' : ($r['signed_up_at'] ? 'Signed up' : ((int) $r['followup_sent'] ? 'Follow-up sent' : ((int) $r['welcome_sent'] ? 'Checklist sent' : 'Waiting to send')))];
+        }
+        $cols = ['when' => 'When', 'email' => 'Email', 'type' => 'Checklist', 'source' => 'Source', 'now' => 'Status now'];
     } elseif ($m === 'web_demos') {
         $sq = $source !== '' ? " AND COALESCE(source, 'direct') = ?" : '';
         foreach (rows("SELECT * FROM leads WHERE created_at >= ? AND created_at < ? $sq ORDER BY created_at DESC LIMIT 2000", array_merge([$start, $end], $source !== '' ? [$source] : [])) as $r) {

@@ -24,6 +24,7 @@
   function f() { var on = window.scrollY > 520; b.classList.toggle('on', on); b.setAttribute('aria-hidden', on ? 'false' : 'true'); }
   window.addEventListener('scroll', f, { passive: true }); f(); })();</script>
 <?php endif; ?>
+<?php if (setting('popup_on', '1') === '1' && preg_match('#^/(for/[a-z-]+)?$#', (string) ($GLOBALS['request_path'] ?? ''))) { require APP_DIR . '/views/partials/checklist_popup.php'; } ?>
 <script src="<?= asset('js/home.js') ?>"></script>
 </body>
 </html>
