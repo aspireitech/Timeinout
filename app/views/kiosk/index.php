@@ -3,7 +3,7 @@ $t = tenant();
 $min = tenant_now()->modify('-' . (int) $t['allow_past_days'] . ' days')->format('Y-m-d');
 $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
 ?>
-<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>">
+<div id="kiosk" data-api="<?= e(url('/api')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-today="<?= e($today) ?>" data-tz="<?= e(tenant_tz()) ?>" data-relative="<?= (int) ($t['allow_typed_relative'] ?? 1) ?>" data-badges="<?= feature_on('qr_badges', $t) && (checkin_mode('members', $t) !== 'tap' || checkin_mode('staff', $t) !== 'tap') ? 1 : 0 ?>" data-mode-members="<?= e(checkin_mode('members', $t)) ?>" data-mode-staff="<?= e(checkin_mode('staff', $t)) ?>">
   <header class="k-top">
     <div class="k-org">
       <?php if ($t['logo_path']): ?><img src="<?= e(upload_url($t['logo_path'])) ?>" alt=""><?php else: ?><span class="logo-mark"><?= e(initials($t['name'])) ?></span><?php endif; ?>
@@ -36,6 +36,32 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <?php endforeach; ?>
         <?php if (!$tiles): ?><p class="k-hint">No buttons are set up yet. An admin can add them in Admin → Kiosk tiles.</p><?php endif; ?>
       </div>
+      <?php if (feature_on('qr_badges', $t) && (checkin_mode('members', $t) !== 'tap' || checkin_mode('staff', $t) !== 'tap')): ?>
+        <div style="text-align:center;margin-top:18px">
+          <button type="button" class="btn btn-lg" id="scan-btn" style="background:#161B36;color:#fff;border-radius:999px;padding:14px 28px"><?= icon('grid', 22) ?> Scan my badge</button>
+          <div class="k-hint" style="margin-top:6px">Have a QR badge? Tap here and hold it up to the camera. A badge scanner works too.</div>
+        </div>
+      <?php endif; ?>
+    </section>
+
+    <!-- QR badge: camera scan -->
+    <section data-step="scan" class="hidden">
+      <div class="k-panel" style="text-align:center">
+        <button class="k-back" id="scan-back"><?= icon('back', 18) ?> Back</button>
+        <h2>Hold your badge up to the camera</h2>
+        <div style="position:relative;max-width:520px;margin:10px auto;border-radius:18px;overflow:hidden;background:#000">
+          <video id="scan-video" playsinline muted style="width:100%;display:block"></video>
+          <div style="position:absolute;inset:18%;border:4px solid #F2A93B;border-radius:18px;pointer-events:none"></div>
+        </div>
+        <canvas id="scan-canvas" class="hidden"></canvas>
+        <div class="k-hint" id="scan-hint">Looking for a QR code…</div>
+        <div class="k-error hidden"></div>
+        <button type="button" class="btn btn-ghost hidden" id="forgot-btn" style="margin-top:10px">Forgot my badge?</button>
+        <div class="hidden" id="desk-form" style="max-width:320px;margin:12px auto 0">
+          <div class="field"><label for="desk-pin">Front desk: type your code</label><input type="password" id="desk-pin" inputmode="numeric" maxlength="8" autocomplete="off"></div>
+          <button type="button" class="btn btn-primary btn-block" id="desk-go">Find the name</button>
+        </div>
+      </div>
     </section>
 
     <!-- Step 2: find your name -->
@@ -59,6 +85,18 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <div class="who" id="who-g"></div>
         <h2 id="guardian-title">Who is with them?</h2>
         <div class="pick-grid" id="guardians"></div>
+        <div class="rel-form hidden" id="rel-form">
+          <div class="field"><label for="rel-name">Your full name</label><input type="text" id="rel-name" maxlength="80" autocomplete="off" placeholder="e.g. Rose Martin"></div>
+          <div class="field"><label id="rel-label">Relationship</label>
+            <div class="rel-chips" role="group" aria-labelledby="rel-label">
+              <?php foreach (['Grandmother', 'Grandfather', 'Aunt', 'Uncle', 'Sister', 'Brother', 'Cousin', 'Stepparent', 'Nanny / babysitter', 'Family friend', 'Neighbor', 'Other'] as $rel): ?>
+                <button type="button" class="rel-chip" aria-pressed="false" data-rel="<?= e($rel) ?>"><?= e($rel) ?></button>
+              <?php endforeach; ?>
+            </div>
+            <input type="text" id="rel-other" class="hidden" maxlength="40" autocomplete="off" placeholder="Type the relationship" style="margin-top:10px"></div>
+          <div class="k-error hidden" id="rel-error"></div>
+          <button class="btn btn-primary btn-lg btn-block" id="rel-go" type="button"><?= icon('check') ?> Submit</button>
+        </div>
       </div>
     </section>
 
@@ -83,7 +121,7 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
         <button class="k-back" id="mat-back"><?= icon('back', 18) ?> Back</button>
         <div class="who" id="who-m"></div>
         <h2>What are you picking up?</h2>
-        <div class="mat-grid">
+        <div class="mat-grid" id="mat-grid">
           <?php foreach ($materials as $m): ?>
             <label class="mat"><input type="checkbox" name="mat" value="<?= (int) $m['id'] ?>"> <?= e($m['name']) ?></label>
           <?php endforeach; ?>
@@ -132,7 +170,8 @@ $yesterday = tenant_now()->modify('-1 day')->format('Y-m-d');
 
   <footer class="k-foot">
     <?php if (is_admin()): ?><a href="<?= e(url('/admin')) ?>"><?= icon('settings', 14) ?> Admin</a>
-    <?php elseif ($ku = current_user()): ?><span class="muted">Kiosk signed in as <?= e($ku['name']) ?></span> · <a href="<?= e(url('/logout')) ?>">Sign out</a>
+    <?php elseif ($ku = current_user()): ?><span class="muted">Kiosk signed in as <?= e($ku['name']) ?></span> · <a href="<?= e(url('/account/password')) ?>">Change password</a> · <a href="<?= e(url('/logout')) ?>">Sign out</a>
     <?php else: ?><a href="<?= e(url('/login')) ?>">Staff login</a><?php endif; ?>
   </footer>
 </div>
+<?php if (feature_on('qr_badges', $t)): ?><script src="<?= asset('js/vendor/jsQR.js') ?>"></script><?php endif; ?>

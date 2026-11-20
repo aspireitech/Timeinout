@@ -1,0 +1,46 @@
+<p>All email goes out through Microsoft 365 using Microsoft Graph, from two mailboxes.</p>
+<table><thead><tr><th>Mailbox</th><th>Sends</th></tr></thead><tbody>
+<tr><td><code>contact@clockinoutapp.com</code></td><td>Sign-in codes, welcome emails, trial emails, outreach to leads, alerts to you, scorecard. Replies from leads arrive here.</td></tr>
+<tr><td><code>reports@clockinoutapp.com</code></td><td>Customer attendance reports (replies go to contact@)</td></tr>
+</tbody></table>
+<h2>How it is connected (one-time setup, already done)</h2>
+<ol>
+<li>Microsoft Entra admin center → App registrations → New registration (single tenant).</li>
+<li>API permissions → Microsoft Graph → Application permissions <strong>Mail.Send</strong> and <strong>Mail.Read</strong> → Grant admin consent (Mail.Read lets the site read replies and bounces in contact@; added 16 Nov 2026).</li>
+<li>Certificates &amp; secrets → New client secret → copy the <strong>Value</strong> once.</li>
+<li>Put tenant ID, client ID and client secret in <code>app/config.php</code> under <code>graph</code>, with <code>'mail' =&gt; ['driver' =&gt; 'graph']</code>.</li>
+<li>Recommended: restrict the app to the two mailboxes with an Exchange ApplicationAccessPolicy.</li>
+</ol>
+<div data-type="panel-warning"><p><strong>The client secret expires</strong> (6, 12 or 24 months). Put the expiry date in your calendar. When it expires all email stops: create a new secret in Entra → update <code>config.php</code> → test.</p></div>
+<h2>Test email</h2>
+<ol><li><code>/super → Settings</code> → bottom of the page → <strong>Send a test email</strong> → choose contact or reports → Send.</li><li>Check the inbox (and spam).</li></ol>
+<img src="{{IMGROOT}}/screens/13-super-settings.jpg" alt="Provider settings page" width="900">
+<h2>DNS records for good delivery (Namecheap → Advanced DNS)</h2>
+<table><thead><tr><th>Record</th><th>Purpose</th><th>Where to get the value</th></tr></thead><tbody>
+<tr><td>MX</td><td>Receive mail in Microsoft 365</td><td>Microsoft 365 admin → Settings → Domains → clockinoutapp.com</td></tr>
+<tr><td>TXT SPF (<code>v=spf1 include:spf.protection.outlook.com -all</code>)</td><td>Says Microsoft may send for the domain</td><td>Same page</td></tr>
+<tr><td>CNAME <code>selector1._domainkey</code> and <code>selector2._domainkey</code></td><td>DKIM signing</td><td>Microsoft Defender → Email authentication → DKIM</td></tr>
+<tr><td>TXT <code>_dmarc</code></td><td>DMARC policy</td><td>e.g. <code>v=DMARC1; p=quarantine; rua=mailto:contact@clockinoutapp.com</code></td></tr>
+</tbody></table>
+<p>Check any time at <a href="https://mxtoolbox.com/SuperTool.aspx">mxtoolbox.com</a> (SPF, DKIM with selector1, DMARC). Status: configured and working (copies land in the inbox).</p>
+<h2>Who gets alerts</h2>
+<p>All provider alerts go to contact@ plus every address in <code>/super → Settings → Alerts to you → "Also send alerts to"</code> (up to 5).</p>
+<h2>Outreach on Microsoft 365: Sent Items, replies and bounces</h2>
+<ol>
+<li><strong>Sent Items:</strong> outreach emails are sent as a complete message (MIME) through Graph, so Microsoft files each one in contact@'s <strong>Sent Items</strong>, and the Gmail/Yahoo "Unsubscribe" button header and our Message-ID are kept. Other emails (sign-in codes, reports, alerts) are not copied.</li>
+<li><strong>Proof per email:</strong> <code>/super → Prospects → Delivery log</code> shows "Accepted by Microsoft 365 (202)" and "copy in Sent" for each email.</li>
+<li><strong>Replies and bounces:</strong> every hour, before sending, the site reads new messages in contact@'s inbox through Graph (read-only; nothing is moved, marked or deleted). A bounce ("Undeliverable") marks the prospect Bounced with the reason; a reply marks them Replied, stops their emails and emails you an alert; out-of-office replies are only noted.</li>
+<li><strong>Forged mail is ignored:</strong> a message whose sender check failed (DMARC fail, or SPF and DKIM both fail) cannot change a prospect.</li>
+</ol>
+<img src="{{IMGROOT}}/screens/44-prospects-delivery-log.jpg" alt="Delivery log" width="1000">
+<h3>Keep the app limited to the two mailboxes</h3>
+<p>The Entra screen always says "Read mail in <em>all</em> mailboxes"; the limit is set in Exchange with an <strong>application access policy</strong>, which covers both Mail.Send and Mail.Read. Check it in Exchange Online PowerShell (as an admin):</p>
+<pre>Connect-ExchangeOnline
+Test-ApplicationAccessPolicy -Identity contact@clockinoutapp.com -AppId &lt;Client ID&gt;   # must say Granted
+Test-ApplicationAccessPolicy -Identity &lt;any other mailbox&gt; -AppId &lt;Client ID&gt;          # must say Denied</pre>
+<p>If both say Granted, create the policy: a mail-enabled security group with contact@ and reports@, then <code>New-ApplicationAccessPolicy -AppId &lt;Client ID&gt; -PolicyScopeGroupId &lt;group email&gt; -AccessRight RestrictAccess -Description "ClockInOut mailboxes only"</code>.</p>
+<h3>If the Delivery log shows a problem</h3>
+<table><thead><tr><th>Message</th><th>Fix</th></tr></thead><tbody>
+<tr><td>"Microsoft 365 refused to show the inbox"</td><td>Add Mail.Read (Application) + Grant admin consent; or the access policy does not include contact@.</td></tr>
+<tr><td>"Sent copies and inbox check are off. Why: …"</td><td>Follow the sentence: it names exactly what is missing in <code>app/config.php</code>.</td></tr>
+</tbody></table>

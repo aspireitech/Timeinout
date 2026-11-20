@@ -31,7 +31,7 @@
   <?php endif; ?>
   <form method="post" action="<?= e(url('/login')) ?>">
     <?= csrf_field() ?>
-    <div class="field"><label for="email">Email</label><input type="email" id="email" name="email" value="<?= e($email) ?>" required <?= $email ? '' : 'autofocus' ?>></div>
+    <div class="field"><label for="email">Email or user ID</label><input type="text" id="email" name="email" value="<?= e($email) ?>" autocomplete="username" autocapitalize="none" spellcheck="false" required <?= $email ? '' : 'autofocus' ?>></div>
     <div class="field"><label for="password">Password</label><input type="password" id="password" name="password" required <?= $email ? 'autofocus' : '' ?>></div>
     <button class="btn btn-primary btn-lg btn-block" type="submit">Sign in</button>
   </form>

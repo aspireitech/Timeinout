@@ -1,0 +1,193 @@
+<p>What is backed up, where every copy lives, how to restore on the <strong>same hosting</strong> or <strong>move to a new provider</strong>, and how to prove afterwards that <strong>every credential works</strong>. Every step was tested in a restore drill on 16 Nov 2026.</p>
+<div data-type="panel-warning"><p><strong>Two files are never in the backup folder and cannot be recreated:</strong> <code>app/config.php</code> and <code>app/keys/app.key</code>. Keep both in the password manager (two copies). Without <code>app.key</code>, encrypted data (contacts, customer database passwords, stored secrets) can never be read again.</p></div>
+<img src="{{IMGROOT}}/backup-dr.png" alt="What is backed up and where the copies live" width="1100">
+
+<h2>1. What is backed up</h2>
+<table><thead><tr><th>What</th><th>How</th><th>Where</th><th>Your copy outside the server</th></tr></thead><tbody>
+<tr><td>Platform database (customers, billing, prospects, settings…)</td><td>Automatic, 2:00 every night</td><td><code>backups/DATE_TIME/main_&lt;db&gt;.sql.gz</code></td><td>Weekly download (section 3)</td></tr>
+<tr><td>Each customer's own database</td><td>Automatic, same job</td><td><code>backups/DATE_TIME/&lt;slug&gt;_&lt;db&gt;.sql.gz</code></td><td>Same download</td></tr>
+<tr><td>Customer logos</td><td>Automatic, same job</td><td><code>backups/DATE_TIME/uploads_logos.zip</code></td><td>Same download</td></tr>
+<tr><td>Checksums and list of files</td><td>Automatic</td><td><code>SHA256SUMS</code>, <code>MANIFEST.txt</code> (which file is which portal)</td><td>Same download</td></tr>
+<tr><td><code>app/config.php</code> (database, Microsoft 365, settings)</td><td>By you, once and after every change</td><td>Server only</td><td>Password manager</td></tr>
+<tr><td><code>app/keys/app.key</code> (encryption key)</td><td>By you, once</td><td>Server only</td><td>Password manager, 2 copies</td></tr>
+<tr><td>Code</td><td>Every update</td><td>GitHub <code>aspireitech/Timeinout</code>, branch <code>main</code></td><td>GitHub itself</td></tr>
+<tr><td>Whole hosting account</td><td>Hostinger snapshots (plan feature)</td><td>hPanel → Files → Backups</td><td>Hostinger</td></tr>
+<tr><td>Stripe, Microsoft 365 mail, DNS, Google, Metricool</td><td>Kept by each service</td><td>Their own clouds</td><td>Nothing to back up; only their keys (credentials register)</td></tr>
+</tbody></table>
+<p>Kept on the server for 14 days (<code>'backup_keep_days'</code> in config.php). Backups are blocked from the web (<code>backups/.htaccess</code>: <code>Require all denied</code>).</p>
+
+<h2>2. The nightly backup job</h2>
+<ol>
+<li>hPanel → <strong>Advanced → Cron Jobs</strong>. The job must exist, daily at 2:00:<pre><code class="language-bash">/usr/bin/php /home/USER/domains/clockinoutapp.com/public_html/cron/backup.php</code></pre>(USER = your hosting user, shown at the top of hPanel → File Manager; never write it in public places).</li>
+<li>Run it once by hand to test: on the Cron Jobs page click <strong>Run</strong>/"View output", or over SSH run the same command. A good run prints one line per database and <code>Saved to …/backups/2026-11-16_0200</code>.</li>
+<li>Check the folder: File Manager → <code>public_html/backups/</code> → newest folder → open <code>MANIFEST.txt</code>. It lists every database with its row count, the logo archive, and the restore commands.</li>
+<li>The job tests that every .sql.gz opens and writes a SHA-256 checksum per file. A failed database prints <code>FAILED</code> and the job ends with an error (shown in the cron output and as a red "Nightly backup" on <code>/status</code>).</li>
+</ol>
+<pre><code class="language-text">ClockInOut backup 2026-11-16 21:44 UTC
+
+clockinout (main)                            2572 rows
+uploads_logos.zip                               3 files
+
+Restore one database:  gunzip -c FILE.sql.gz | mysql -h HOST -u USER -p DATABASE   (or phpMyAdmin → Import)
+Check a downloaded copy: sha256sum -c SHA256SUMS   (Windows: certutil -hashfile FILE SHA256)
+Not in this folder (keep them in the password manager): app/config.php and app/keys/app.key</code></pre>
+
+<h2>3. Weekly off-site copy (5 minutes, every Monday)</h2>
+<ol>
+<li>hPanel → File Manager → <code>public_html/backups/</code> → right-click the newest folder → <strong>Compress</strong> → zip → download it.</li>
+<li>Save it to OneDrive or Google Drive in a folder "ClockInOut backups". Keep 4–8 weeks.</li>
+<li>Check the download is not damaged: unzip it, then
+<pre><code class="language-bash"># Mac / Linux, inside the folder
+shasum -a 256 -c SHA256SUMS
+# Windows PowerShell, one file at a time; compare with the line in SHA256SUMS
+Get-FileHash .\main_clockinout.sql.gz -Algorithm SHA256</code></pre>Every file must say OK / match.</li>
+</ol>
+
+<h2>4. Recovery objectives</h2>
+<p>Data loss at most 1 day (nightly backup). Restore on the same hosting: 15–30 minutes. Move to a new provider: 1–3 hours, plus DNS time.</p>
+
+<h2>5. Restore: the two paths</h2>
+<img src="{{IMGROOT}}/restore-flow.png" alt="Restore flow: same hosting or new provider" width="1100">
+
+<h2>6. Path A — restore on the same Hostinger account</h2>
+<h3>A1. One customer's data is wrong or lost (customer with its own database)</h3>
+<ol>
+<li>File Manager → <code>backups/</code> → the newest folder from <strong>before</strong> the problem → <code>MANIFEST.txt</code> → find the line with the portal name; the file is <code>&lt;slug&gt;_&lt;database&gt;.sql.gz</code>.</li>
+<li>hPanel → <strong>Databases → phpMyAdmin</strong> → open that customer's database → <strong>Import</strong> → choose the .sql.gz → <strong>Go</strong>. The file replaces the tables with the backed-up version.</li>
+<li>Or over SSH:
+<pre><code class="language-bash">cd ~/domains/clockinoutapp.com/public_html/backups/2026-11-16_0200
+gunzip -c acme_u_acme.sql.gz | mysql -u DB_USER -p DB_NAME   # asks for the database password</code></pre></li>
+<li>Run the restore check (section 8).</li>
+</ol>
+<h3>A2. Customer in the shared database</h3>
+<ol>
+<li>phpMyAdmin → create an empty scratch database (e.g. <code>restore_tmp</code>) → Import the <code>main_….sql.gz</code> into it.</li>
+<li>Copy only that customer's rows back (every table has <code>tenant_id</code>). Ask Claude to write the exact SQL for the tables you need; never import the main file over the live database for one customer.</li>
+<li>Delete <code>restore_tmp</code> afterwards.</li>
+</ol>
+<h3>A3. The whole platform database is damaged</h3>
+<ol>
+<li>Put the site in a safe state: rename <code>public/index.php</code> to <code>index.off.php</code> and upload a one-line <code>index.php</code> that says "Back soon" (optional).</li>
+<li>phpMyAdmin → platform database → <strong>Import</strong> <code>main_….sql.gz</code> (or <code>gunzip -c main_….sql.gz | mysql -u DB_USER -p DB_NAME</code>).</li>
+<li>Put <code>index.php</code> back. Open the site once (the database upgrades itself if the backup is older than the code).</li>
+<li>Run the restore check.</li>
+</ol>
+<h3>A4. The code is broken (after an update or a hack)</h3>
+<ol>
+<li>Download the last good release zip (your previous upload, or GitHub → <code>aspireitech/Timeinout</code> → Code → Download ZIP of <code>main</code>).</li>
+<li>File Manager → <code>public_html</code> → Upload → Extract → overwrite. <code>app/config.php</code>, <code>app/keys/</code>, <code>backups/</code> and <code>public/uploads/</code> are not in the zip, so they are kept.</li>
+<li>After a hack: also change every password and key in the credentials register (section 9), then run the restore check.</li>
+</ol>
+<h3>A5. Logos missing</h3>
+<p>Unzip <code>uploads_logos.zip</code> from the backup folder into <code>public_html/public/uploads/logos/</code>.</p>
+<h3>A6. The whole account is broken</h3>
+<p>hPanel → <strong>Files → Backups</strong> → restore the newest Hostinger snapshot; then A1–A3 for anything newer than the snapshot; then the restore check.</p>
+
+<h2>7. Path B — move to a new hosting provider (or a new Hostinger account)</h2>
+<div data-type="panel-info"><p>Do steps 1–6 while the old site still runs. Customers notice nothing until step 8, and only for minutes.</p></div>
+<ol>
+<li><strong>Collect</strong> (old host or your off-site copies):
+<ul><li>the newest backup folder (section 3; take a fresh one on the old host if it still works: run <code>cron/backup.php</code> by hand)</li>
+<li><code>app/config.php</code> and <code>app/keys/app.key</code> from the password manager</li>
+<li>the code: GitHub <code>main</code> → Download ZIP</li></ul></li>
+<li><strong>New server requirements</strong>: PHP 8.1 or newer with <code>pdo_mysql</code>, <code>openssl</code>, <code>curl</code>, <code>mbstring</code>, <code>zlib</code>, <code>zip</code>; MySQL or MariaDB; cron jobs; free SSL (Let's Encrypt); SSH access is helpful.</li>
+<li><strong>Upload the code</strong> into the web folder (the folder the domain points to), so that <code>.htaccess</code> and the <code>public/</code> folder are directly inside it. Then put back the secrets:
+<pre><code class="language-bash">cd ~/path/to/webfolder
+mkdir -p app/keys backups app/sessions public/uploads/logos
+# upload config.php to app/ and app.key to app/keys/ (File Manager or scp), then:
+chmod 600 app/config.php app/keys/app.key
+chmod 755 backups app/sessions public/uploads/logos</code></pre></li>
+<li><strong>Databases</strong>: in the new panel create the platform database and one database per customer that had its own (names in <code>MANIFEST.txt</code>). Same names and passwords as before are easiest. Then import:
+<pre><code class="language-bash">cd ~/restore/2026-11-16_0200
+gunzip -c main_clockinout.sql.gz | mysql -u NEW_DB_USER -p NEW_DB_NAME
+# one line per customer database listed in MANIFEST.txt:
+gunzip -c acme_u_acme.sql.gz | mysql -u ACME_DB_USER -p ACME_DB_NAME
+sha256sum -c SHA256SUMS     # before importing: every file OK</code></pre>No SSH? Use the new panel's phpMyAdmin → Import, one file at a time.</li>
+<li><strong>Update the logins that changed</strong>:
+<ul><li>platform database: <code>app/config.php</code> → <code>'db'</code> → host, name, user, pass</li>
+<li>a customer database: <code>/super → Subscribers</code> → that portal → database details (saved encrypted)</li></ul></li>
+<li><strong>Logos</strong>: unzip <code>uploads_logos.zip</code> into <code>public/uploads/logos/</code>.</li>
+<li><strong>Cron jobs</strong> with the new paths (find the PHP path with <code>which php</code> or the panel's help):
+<pre><code class="language-text">hourly   /usr/bin/php /home/NEWUSER/…/webfolder/cron/send_reports.php
+daily 2:00  /usr/bin/php /home/NEWUSER/…/webfolder/cron/backup.php</code></pre></li>
+<li><strong>Run the restore check now</strong> (section 8). Everything except "reaches this server" must be OK before DNS is switched.</li>
+<li><strong>Switch DNS</strong>: a day before, lower the TTL to 5 minutes in Namecheap. Then Namecheap → Domain List → clockinoutapp.com → <strong>Advanced DNS</strong> → A records <code>@</code>, <code>www</code> and <code>*</code> (wildcard for customer subdomains) → the new server's IP. Do not change the MX, SPF, DKIM and DMARC records: email stays at Microsoft 365.</li>
+<li><strong>SSL</strong> on the new server for <code>clockinoutapp.com</code>, <code>www</code> and the wildcard (or one certificate per customer subdomain).</li>
+<li><strong>Run the restore check again</strong> until "https://clockinoutapp.com reaches this server" and the subdomain lines are OK (DNS can take minutes to hours).</li>
+<li>Keep the old host for one week, then cancel it.</li>
+</ol>
+
+<h2>8. After any restore: prove every credential works</h2>
+<p>The <strong>restore check</strong> tests each credential for real and says where to fix what fails. It never shows a secret.</p>
+<ul>
+<li>Browser: <code>/super → Restore check (top menu)</code> (page <code>/super/check</code>). Optionally type your email to also receive a real test email.</li>
+<li>Server: <pre><code class="language-bash">php ~/domains/clockinoutapp.com/public_html/cron/verify_restore.php --send-test=you@example.com</code></pre>It first upgrades a restored database to the current code, then prints OK / WARN / FAIL with a "fix:" line, and ends with exit code 0 (all good) or 1 (something failed).</li>
+</ul>
+<img src="{{IMGROOT}}/screens/49-restore-check-cli.jpg" alt="Restore check on the command line" width="1000">
+<img src="{{IMGROOT}}/screens/48-restore-check-page.jpg" alt="Restore check in the provider console" width="1000">
+<p>The example above is a test machine: it correctly reports that the hourly job is not running there and that clockinoutapp.com still reaches the live server, which is exactly what you see on a new server before DNS is switched.</p>
+<h3>Every credential: where it is, how it is tested, where to fix it</h3>
+<table><thead><tr><th>Credential</th><th>Stored in</th><th>Restore check line</th><th>If it fails: where to update</th></tr></thead><tbody>
+<tr><td>Encryption key</td><td><code>app/keys/app.key</code></td><td>Encryption key opens the stored data</td><td>Put back the ORIGINAL file from the password manager. A new key cannot read old data.</td></tr>
+<tr><td>Platform database login</td><td><code>app/config.php</code> → <code>'db'</code></td><td>Platform database login</td><td>Panel → Databases (user, password, host) → same values in config.php</td></tr>
+<tr><td>Customer database logins</td><td>Platform database, encrypted</td><td>Portal "…" own database</td><td><code>/super → Subscribers</code> → portal → database details</td></tr>
+<tr><td>Microsoft 365 app (tenant ID, client ID, client secret)</td><td><code>app/config.php</code> → <code>'graph'</code></td><td>Microsoft 365 sign-in</td><td>Entra admin center → App registrations → ClockInOut → Certificates &amp; secrets → New client secret → config.php. Secrets expire: calendar reminder.</td></tr>
+<tr><td>Mail.Read permission and mailbox limit</td><td>Entra + Exchange access policy</td><td>Microsoft 365 inbox read</td><td>Entra → API permissions → Mail.Read → Grant admin consent; <code>Test-ApplicationAccessPolicy</code> (page 4)</td></tr>
+<tr><td>Mail passwords (only if SMTP is used)</td><td><code>app/config.php</code> → <code>'mail_senders'</code></td><td>SMTP login</td><td>Mail provider → mailbox password → config.php</td></tr>
+<tr><td>Stripe key (a restricted <code>rk_live_…</code> key is recommended)</td><td>Platform database, encrypted</td><td>Stripe key can start a plan payment / can open the card and plan page</td><td>Stripe → Developers → API keys → the key → Edit → permissions <strong>Checkout Sessions: Write</strong> and <strong>Customer portal: Write</strong> (optional: Prices: Read, so the check can also verify price IDs) → or a new key in <code>/super → Settings</code></td></tr>
+<tr><td>Stripe webhook signing secret and URL</td><td>Platform database, encrypted</td><td>Stripe webhook signing secret</td><td>Stripe → Developers → Webhooks → endpoint <code>https://clockinoutapp.com/webhooks/stripe</code> → Signing secret → /super → Settings</td></tr>
+<tr><td>Stripe price IDs</td><td>Platform database</td><td>Stripe price …</td><td>Stripe → Product catalog → price → copy ID → /super → Settings</td></tr>
+<tr><td>Wave token</td><td>Platform database, encrypted</td><td>Wave token</td><td>Wave → Settings → Developer → token → /super → Settings</td></tr>
+<tr><td>Google sign-in for /super</td><td>Platform database (secret encrypted)</td><td>Google sign-in for /super</td><td>Google Cloud → Credentials → OAuth client (redirect <code>https://clockinoutapp.com/super/google/callback</code>) → /super → Sign-in</td></tr>
+<tr><td>Prospect finder key</td><td>Hash in the database; key in Claude</td><td>Prospect finder key</td><td><code>/super → Prospects → Replace finder key</code> → claude.ai → Cloud environment "Timeinout" → network secret</td></tr>
+<tr><td>DNS and SSL</td><td>Namecheap and the hosting panel</td><td>… reaches this server; subdomain lines</td><td>Namecheap → Advanced DNS → A @, www, * → server IP; panel → SSL</td></tr>
+<tr><td>Cron jobs</td><td>Hosting panel</td><td>Hourly job ran / Nightly backup ran</td><td>Panel → Cron Jobs with the paths in section 7 step 7</td></tr>
+<tr><td>Search Console / GA4</td><td>Platform database</td><td>Search Console tag</td><td><code>/super → Settings → Google Search Console &amp; Analytics</code></td></tr>
+<tr><td>Metricool, Facebook, Atlassian, GitHub</td><td>Their own accounts</td><td>Not needed for the site</td><td>Unchanged by a move; log in to each once to confirm</td></tr>
+</tbody></table>
+<h3>Then test by hand (5 minutes)</h3>
+<ul data-type="task-list">
+<li data-type="task-item"><input type="checkbox"> Home page and a <code>/for/…</code> page open with HTTPS</li>
+<li data-type="task-item"><input type="checkbox"> <code>/super</code> sign-in (Google or emailed code)</li>
+<li data-type="task-item"><input type="checkbox"> One portal: admin sign-in with the emailed code, kiosk sign-in and sign-out</li>
+<li data-type="task-item"><input type="checkbox"> Admin → Reports → email a report to yourself</li>
+<li data-type="task-item"><input type="checkbox"> <code>/status</code> all green; <code>/super → Prospects</code> shows "Inbox checked" after the next hour</li>
+</ul>
+
+<h2>9. If you suspect a break-in</h2>
+<ol>
+<li>Restore the code (A4) and the database from before the break-in (A1–A3).</li>
+<li>Change, in this order: hosting panel password, database passwords (panel → then config.php / portal settings), Microsoft client secret (Entra → new secret, delete the old one), Stripe secret key (roll it) and webhook secret, Wave token, Google OAuth secret, prospect finder key, /super break-glass password and recovery codes.</li>
+<li>Do <strong>not</strong> replace <code>app.key</code> (old data would become unreadable) unless the key itself leaked; then ask Claude for a re-encryption plan first.</li>
+<li>Run the restore check; read <code>/super → Audit log</code> for what happened.</li>
+</ol>
+
+<h2>10. Every upload is security-checked first</h2>
+<p>Every update zip is built only after the release check passes: PHP syntax, no secrets or local files in the code, security headers, protected folders, form protection (CSRF) and verified webhooks, no request data in database queries or redirects, no new unescaped output in pages, and database changes that only add. If any check fails, no zip is built.</p>
+<pre><code class="language-bash">php cron/release_check.php --zip ClockInOut-update.zip</code></pre>
+<img src="{{IMGROOT}}/screens/50-release-check.jpg" alt="Release security check" width="1000">
+
+<h2>11. Practice once a quarter (restore drill, 20 minutes)</h2>
+<ol>
+<li>phpMyAdmin → create an empty database <code>drill_YYYYMM</code>.</li>
+<li>Import the newest <code>main_….sql.gz</code> into it; the import must finish without errors.</li>
+<li>Check the row counts against <code>MANIFEST.txt</code> (phpMyAdmin shows rows per table).</li>
+<li>Verify your off-site copy with <code>SHA256SUMS</code> (section 3) and that config.php and app.key in the password manager match the server (compare the first lines).</li>
+<li>Run the restore check on the live site; then delete the drill database.</li>
+</ol>
+
+<h2>12. Other runbooks</h2>
+<table><thead><tr><th>Problem</th><th>What to do</th></tr></thead><tbody>
+<tr><td>Site shows errors after an update</td><td>A4 (previous zip). To read the error: <code>'debug' =&gt; true</code> in config.php, reload, then back to <code>false</code>.</td></tr>
+<tr><td>Locked out of /super</td><td>Google → emailed code → break-glass password + recovery code. All lost: SSH, in the site folder <code>php cron/super_password.php --recovery</code>; then new recovery codes.</td></tr>
+<tr><td>Email stopped</td><td>Restore check → "Microsoft 365 sign-in": usually an expired client secret (section 8 table). While down: break-glass for /super; admin sign-in codes can be turned off temporarily in /super → Settings.</td></tr>
+<tr><td>A portal was deleted by mistake</td><td>Within 30 days: <code>/super → Subscribers → Deleted → Restore</code>. Later: <code>backups/deleted/</code> or A1.</td></tr>
+<tr><td>Nothing automatic happens</td><td>Restore check → Jobs lines; panel → Cron Jobs → View output.</td></tr>
+</tbody></table>
+
+<h2>13. Offline copy of these documents</h2>
+<ol>
+<li>Download <code>ClockInOut-Docs-Offline.zip</code> (attached to the home page of this space; refreshed with every documentation update).</li>
+<li>Extract it to a folder that is backed up (e.g. <code>D:\Project\ClockInOut-Docs</code>) and open <code>index.html</code>: all pages, diagrams and screenshots work without internet.</li>
+<li>Keep secrets out of that folder; they belong in the password manager.</li>
+</ol>

@@ -38,10 +38,11 @@ if (cfg('force_https') && empty($_SERVER['HTTPS']) && ($_SERVER['HTTP_X_FORWARDE
     header('Location: https://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
     exit;
 }
+header_remove('X-Powered-By'); // do not advertise the PHP version
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
-header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+header('Permissions-Policy: camera=(self), microphone=(), geolocation=()'); // camera: kiosk QR badge scanning
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com; base-uri 'self'");
 if (is_https()) {
     header('Strict-Transport-Security: max-age=31536000');
@@ -63,14 +64,53 @@ try {
 
 $GLOBALS['request_path'] = $path;
 
+// Google Analytics on the public website only (customer portals keep the strict policy above)
+if ($resolved === null && (setting('ga4_id', '') !== '' || setting('gads_id', '') !== '')) {
+    $ga = ' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com';
+    $aw = setting('gads_id', '') !== '' ? ' https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com' : ''; // Google Ads conversions
+    $fr = $aw !== '' ? '; frame-src https://td.doubleclick.net https://www.googletagmanager.com' : '';
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com$aw; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:$ga$aw; connect-src 'self'$ga$aw$fr; frame-ancestors 'self'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com; base-uri 'self'", true);
+}
+
+if ($path === '/__ping') { // lets the app check that a portal's subdomain reaches it (subdomain_live)
+    header('Content-Type: text/plain');
+    $who = 'clockinout:' . ($resolved['slug'] ?? ($resolved === null ? 'platform' : 'unknown'));
+    // Restore check: proves the address reaches THIS server's database, not an old host (?n=<one-time value>)
+    $n = (string) ($_GET['n'] ?? '');
+    if (preg_match('/^[a-f0-9]{32}$/', $n)) {
+        $who .= hash_equals((string) setting('ping_nonce', ''), $n) ? ':this-server' : ':other-server';
+    }
+    exit($who);
+}
+
+if ($path === '/robots.txt') {
+    seo_robots($resolved === null); // customer portals and unknown hosts: keep out of search engines
+}
+
 if ($resolved === false) {
     not_found('There is no portal at this address. Check the spelling, or sign up for a new one.');
 }
 
 if ($resolved === null) {
+    traffic_record($path); // website visits for the sales dashboard (main pages, people only)
     platform_routes($path);
 } else {
+    if (!empty($resolved['deleted_at'])) {
+        http_response_code(410);
+        view('partials/error', ['code' => 410, 'message' => 'This portal has been closed. Please contact your service provider.']);
+    }
     $GLOBALS['tenant'] = $resolved;
+    // A portal with its own database: every query from here on runs there
+    if (tenant_db_config($resolved)) {
+        try {
+            tenant_db_migrate($resolved);
+            use_tenant_db($resolved);
+        } catch (Throwable $ex) {
+            http_response_code(503);
+            view('partials/error', ['code' => 503, 'message' => 'This portal\'s database is not reachable right now. Please try again in a few minutes.'
+                . (cfg('debug') ? ' (' . $ex->getMessage() . ')' : '')]);
+        }
+    }
     // Suspended by the provider: everything is closed. A cancelled or unpaid subscription is
     // handled by billing_gate(), which still lets admins sign in and renew under Billing.
     if ($resolved['status'] === 'suspended') {
