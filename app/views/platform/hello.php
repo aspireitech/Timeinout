@@ -16,7 +16,7 @@
       <div class="lead-capsule ok"><div class="lead-capsule-ic"><?= icon('check', 26) ?></div>
         <div><b>Thank you, <?= e($old['name']) ?>!</b><span>We will call you at <?= e($old['phone']) ?> (<?= e(strtolower($times[$old['time']])) ?>), usually within one business day.</span></div></div>
       <h3 style="margin-top:22px">Can't wait?</h3>
-      <p class="muted">Start your free 7-day trial now. It takes a minute and needs no credit card.</p>
+      <p class="muted">Start your free <?= trial_length() ?>-day trial now. It takes a minute and needs no credit card.</p>
       <a class="btn btn-primary btn-block" href="<?= e($signup) ?>">Start my free trial</a>
     </div>
   <?php else: ?>
@@ -39,7 +39,7 @@
           <?php if (isset($errors['email'])): ?><div class="err"><?= e($errors['email']) ?></div><?php endif; ?></div>
       </div>
       <button class="btn btn-primary btn-lg btn-block">Call me back</button>
-      <p class="muted small" style="text-align:center;margin-top:10px">Prefer to try it yourself? <a href="<?= e($signup) ?>">Start a free 7-day trial</a>, no credit card.</p>
+      <p class="muted small" style="text-align:center;margin-top:10px">Prefer to try it yourself? <a href="<?= e($signup) ?>">Start a free <?= trial_length() ?>-day trial</a>, no credit card.</p>
     </form>
   <?php endif; ?>
 </div>

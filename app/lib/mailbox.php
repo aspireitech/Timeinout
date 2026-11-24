@@ -452,8 +452,19 @@ function mailbox_is_graph(): bool
  */
 function mailbox_check_graph(array &$log, array &$replied): void
 {
-    $box = (string) ((mail_config('contact')['from_email'] ?? '') ?: contact_email());
-    $since = (string) setting('graph_inbox_since', '');
+    // The main mailbox, plus the separate outreach mailbox (second domain) when one is set
+    $boxes = ['graph_inbox_since' => (string) ((mail_config('contact')['from_email'] ?? '') ?: contact_email())];
+    if (($ob = outreach_from_email()) !== null && strcasecmp($ob, $boxes['graph_inbox_since']) !== 0) {
+        $boxes['graph_inbox_since_outreach'] = $ob;
+    }
+    foreach ($boxes as $key => $box) {
+        mailbox_check_graph_box($box, $key, $log, $replied);
+    }
+}
+
+function mailbox_check_graph_box(string $box, string $sinceKey, array &$log, array &$replied): void
+{
+    $since = (string) setting($sinceKey, '');
     if ($since === '') { // first check: look back to the earliest outreach email still in progress
         $first = (string) (val("SELECT MIN(last_sent_at) FROM prospects WHERE status IN ('new','active','done')") ?: gmdate('Y-m-d H:i:s'));
         $since = gmdate('Y-m-d\\TH:i:s\\Z', max(strtotime($first . ' UTC') - 86400, time() - 30 * 86400));
@@ -486,5 +497,5 @@ function mailbox_check_graph(array &$log, array &$replied): void
         }
         $url = $d['@odata.nextLink'] ?? null;
     }
-    setting_set('graph_inbox_since', $latest);
+    setting_set($sinceKey, $latest);
 }

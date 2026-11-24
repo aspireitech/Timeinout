@@ -28,7 +28,7 @@
   </div>
   <div class="ck-cta no-print">
     <h3 style="margin:0 0 6px">Tick it all off in a week</h3>
-    <p class="muted" style="margin:0 0 10px">Try <?= e(cfg('app_name')) ?> free for 7 days. No credit card.</p>
+    <p class="muted" style="margin:0 0 10px">Try <?= e(cfg('app_name')) ?> free for <?= trial_length() ?> days. No credit card.</p>
     <a class="btn btn-primary" href="<?= e(base_path() . '/signup?industry=' . ($kind === 'care' ? 'school' : 'office') . $q) ?>">Start my free trial</a>
     <a class="btn btn-ghost" href="<?= e(base_path() . '/demo' . ($q ? '?' . ltrim($q, '&') : '')) ?>">Book a demo</a>
     <?php if (!$thanks): ?>

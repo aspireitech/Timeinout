@@ -1,7 +1,7 @@
 <?php
 $labels = ['active' => ['Active', 'in'], 'trial' => ['Free trial', 'student'], 'grace' => ['Trial ended', 'warn'], 'expired' => ['Subscription needed', 'danger'], 'suspended' => ['Suspended', 'danger']];
 [$stateLabel, $stateCls] = $labels[$state];
-$current = $plans[$t['plan']] ?? null;
+$current = $t['plan'] === 'free' ? FREE_PLAN : ($plans[$t['plan']] ?? null);
 $stripe = stripe_ready();
 $wave = wave_ready();
 $payStatus = ['paid' => ['Paid', 'in'], 'open' => ['Waiting for payment', 'warn'], 'failed' => ['Failed', 'danger'], 'refunded' => ['Refunded', 'gray']];
@@ -26,6 +26,10 @@ $payStatus = ['paid' => ['Paid', 'in'], 'open' => ['Waiting for payment', 'warn'
     <form method="post" action="<?= e(url('/admin/billing/portal')) ?>"><?= csrf_field() ?><button class="btn btn-primary"><?= icon('card') ?> Manage card &amp; plan</button></form>
   <?php endif; ?>
 </div>
+
+<?php if (!empty($t['founding']) && $t['plan'] !== 'free'): ?>
+  <div class="flash success"><?= icon('check', 18) ?> <span><b>Founding customer:</b> when you pay by card, click <b>Add promotion code</b> and enter <b><?= e(founding_code()) ?></b> for 50% off for as long as you stay.</span></div>
+<?php endif; ?>
 
 <?php if ($t['wave_invoice_id']): ?>
   <div class="flash info"><?= icon('mail', 18) ?> An invoice has been emailed to you. Your plan activates as soon as it is paid.</div>
@@ -66,6 +70,12 @@ $payStatus = ['paid' => ['Paid', 'in'], 'open' => ['Waiting for payment', 'warn'
     </div>
   <?php endforeach; ?>
 </div>
+<?php if (free_plan_on() && $t['plan'] !== 'free'): $fp = FREE_PLAN; ?>
+<div class="card" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
+  <div><h3 style="margin:0 0 4px">Free plan · $0</h3><p class="muted small" style="margin:0">Up to <?= (int) $fp['max_people'] ?> people and <?= (int) $fp['max_logins'] ?> admin login, kiosk, safe pickups, daily report and <?= (int) $fp['report_days'] ?> days of reports. Free for as long as you like.</p></div>
+  <form method="post" action="<?= e(url('/admin/billing/free')) ?>" data-confirm="Switch to the Free plan (up to <?= (int) $fp['max_people'] ?> people)?"><?= csrf_field() ?><button class="btn btn-ghost">Use the Free plan</button></form>
+</div>
+<?php endif; ?>
 <?php endif; ?>
 
 <div class="card" style="margin-top:18px">

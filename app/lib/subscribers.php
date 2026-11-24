@@ -111,8 +111,8 @@ function run_subscribers(): array
         $who = $s['kind'] === 'care' ? 'every drop-off and pickup' : 'every clock-in and clock-out';
         $body = '<p>Hi,</p><p>A few days ago you downloaded our checklist. The quickest way to tick most of it off: put a tablet by the door and let '
             . e(cfg('app_name')) . ' record ' . $who . ', with a live list of who is here and reports in your inbox at 7:00.</p>'
-            . '<p>Try it free for 7 days. No credit card, and it takes about a minute to set up.</p>'
-            . ($offer ? '<p style="background:#FFF6E5;border-radius:10px;padding:10px 12px"><b>' . e($offer) . '</b> Use code <b>FOUNDING50</b> when you subscribe.</p>' : '');
+            . '<p>Try it free for ' . trial_length() . ' days. No credit card, and it takes about a minute to set up.</p>'
+            . ($offer ? '<p style="background:#FFF6E5;border-radius:10px;padding:10px 12px"><b>' . e($offer) . '</b> Your code for 50% off for life: <b>' . e(founding_code()) . '</b>.</p>' : '');
         $url = scheme() . '://' . cfg('base_domain') . base_path() . '/signup?src=checklist&industry=' . ($s['kind'] === 'care' ? 'school' : 'office');
         if (send_mail([(string) $s['email']], 'Tick off the whole checklist in a week', subscriber_email($s, 'Ready to try it?', $body, 'Start my free trial', $url))) {
             update('subscribers', ['followup_sent' => 1], 'id = ?', [$s['id']]);

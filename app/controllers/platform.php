@@ -95,7 +95,16 @@ function platform_signup(): void
         }
         if (!$errors) {
             login_attempt('signup', $d['email'], true); // counts sign-ups per network and per email (signup_abuse)
-            $t = subdomain_check(provision_tenant($d)); // links use /s/name until name.<domain> really works
+            $founding = founding_left() > 0; // first 20 sign-ups: 90 days free, then 50% off for life with the founding code
+            if ($founding) {
+                $d['trial_days'] = FOUNDING_TRIAL_DAYS;
+            }
+            $t = provision_tenant($d);
+            if ($founding) {
+                update('tenants', ['founding' => 1], 'id = ?', [$t['id']]);
+                $t['founding'] = 1;
+            }
+            $t = subdomain_check($t); // links use /s/name until name.<domain> really works
             $mailed = welcome_email($t, $d['email'], $d['admin_name']);
             subdomain_todo_email($t); // you: create name.<domain> in hPanel within 24 hours
             prospect_converted($d['email'], 'signed_up'); // no more outreach emails
@@ -288,7 +297,7 @@ function super_update_tenant(int $id): void
     $plan = (string) input('plan');
     $t = row('SELECT * FROM tenants WHERE id = ?', [$id]);
     audit_note($t ? $t['name'] . ' (' . $t['slug'] . ')' : "#$id", $t ? audit_diff($t, ['status' => $status, 'plan' => $plan]) : null);
-    if (in_array($status, ['trial', 'active', 'suspended', 'cancelled'], true) && isset(plans()[$plan])) {
+    if (in_array($status, ['trial', 'active', 'suspended', 'cancelled'], true) && (isset(plans()[$plan]) || $plan === 'free')) {
         $extra = [];
         $addon = (string) input('addon_status');
         if (in_array($addon, ['', 'requested', 'active', 'cancel_requested'], true)) {
@@ -374,6 +383,10 @@ function super_settings(): void
             setting_set($gk, preg_match('/^[A-Za-z0-9_-]{6,40}$/', $lab) ? $lab : '');
         }
         setting_set('popup_on', input('popup_on') === '1' ? '1' : '0');
+        setting_set('trial_days', (string) max(1, min(365, (int) input('trial_days', '30'))));
+        setting_set('free_plan_on', input('free_plan_on') === '1' ? '1' : '0');
+        $fc = strtoupper(trim((string) input('founding_code')));
+        setting_set('founding_code', preg_match('/^[A-Z0-9]{3,30}$/', $fc) ? $fc : 'FOUNDING50');
         foreach (array_keys(plans()) as $pk) {
             setting_set('stripe_price_' . $pk, mb_substr(trim((string) input('stripe_price_' . $pk)), 0, 120));
             setting_set('stripe_price_' . $pk . '_annual', mb_substr(trim((string) input('stripe_price_' . $pk . '_annual')), 0, 120));
@@ -547,7 +560,7 @@ function super_portal_new(): void
     require_super();
     $plans = plans();
     $old = ['org_name' => '', 'slug' => '', 'industry' => 'school', 'state' => '', 'city' => '', 'admin_name' => '', 'email' => '',
-        'plan' => (string) array_key_first($plans), 'status' => 'active', 'trial_days' => (string) cfg('trial_days', 7), 'timezone' => '',
+        'plan' => (string) array_key_first($plans), 'status' => 'active', 'trial_days' => (string) trial_length(), 'timezone' => '',
         'db_mode' => 'dedicated', 'db_host' => 'localhost', 'db_port' => '3306', 'db_name' => '', 'db_user' => '', 'demo' => ''];
     $errors = [];
     if (is_post()) {
@@ -561,7 +574,7 @@ function super_portal_new(): void
             'email'      => strtolower(trim((string) input('email'))),
             'plan'       => isset($plans[(string) input('plan')]) ? (string) input('plan') : (string) array_key_first($plans),
             'status'     => input('status') === 'trial' ? 'trial' : 'active',
-            'trial_days' => max(1, min(365, (int) input('trial_days', '7'))),
+            'trial_days' => max(1, min(365, (int) input('trial_days', (string) trial_length()))),
             'timezone'   => valid_tz((string) input('timezone')) ? (string) input('timezone') : '',
             'demo'       => input('demo') === '1',
             'password'   => temp_password(),

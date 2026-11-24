@@ -39,6 +39,7 @@ function prospect_link_target(string $to, ?array $p): string
         'signup' => $site . '/signup?src=outreach' . ($industry !== '' ? '&industry=' . rawurlencode($industry) : ''),
         'demo'   => $site . '/demo?src=outreach',
         'hello'  => $site . '/hello' . ($p ? '?t=' . rawurlencode((string) $p['token']) : ''),
+        'video'  => $site . (($c = sales_campaign_for($p['kind'] ?? '')) ? '/for/' . $c : '/') . '?src=outreach#video', // the 40-second demo video
         default  => $site . (($c = sales_campaign_for($p['kind'] ?? '')) ? '/for/' . $c : '/') . '?src=outreach', // the page for their kind of business
     };
 }

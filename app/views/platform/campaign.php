@@ -17,8 +17,9 @@ $trial = e(base_path() . '/signup?industry=' . $c['industry'] . '&src=' . $src);
       <span class="eyebrow"><?= e($c['eyebrow']) ?></span>
       <h1><?= $c['title'] ?></h1>
       <p class="lead"><?= e($c['lead']) ?></p>
-      <div class="hero-cta"><a class="btn btn-primary" href="<?= $trial ?>">Start free trial</a><a class="btn btn-ghost" href="<?= $demo ?>">Book a live demo</a></div>
-      <div class="checks"><span>Free <?= (int) cfg('trial_days', 7) ?>-day trial</span><span>No credit card</span><span>Any tablet or phone</span></div>
+      <?php if ($fl = founding_left()): ?><p class="offer-pill"><b>Founding offer:</b> first 3 months free, we set it up for you, then 50% off for life · <b><?= $fl ?> of <?= FOUNDING_SLOTS ?> places left</b></p><?php endif; ?>
+      <div class="hero-cta"><a class="btn btn-primary" href="<?= $trial ?>">Start free, no card</a><a class="btn btn-ghost" href="#video">Watch the 40-second demo</a></div>
+      <div class="checks"><span><?= founding_left() ? FOUNDING_TRIAL_DAYS : trial_length() ?> days free</span><span>We set it up for you</span><span>Any tablet or phone</span></div>
     </div>
     <div class="camp-visual" aria-hidden="true">
       <div class="camp-device">
@@ -29,6 +30,12 @@ $trial = e(base_path() . '/signup?industry=' . $c['industry'] . '&src=' . $src);
         <div class="camp-report"><span>Daily report</span><b>Emailed 07:00</b></div>
       </div>
     </div>
+  </section>
+
+  <?php $_vid = in_array($c['industry'], ['school', 'tutoring'], true) ? 'safe-pickup' : 'staff-hours'; ?>
+  <section class="block" id="video">
+    <div class="head"><span class="eyebrow">See it in 40 seconds</span><h2>What it looks like at your front door</h2></div>
+    <div class="videos"><figure><video controls preload="none" playsinline poster="<?= e(asset('video/' . $_vid . '.jpg')) ?>" src="<?= e(asset('video/' . $_vid . '.mp4')) ?>"></video></figure></div>
   </section>
 
   <section class="block">
@@ -53,6 +60,8 @@ $trial = e(base_path() . '/signup?industry=' . $c['industry'] . '&src=' . $src);
       <div class="step"><h3>Put a tablet at the door</h3><p>People tap their name to sign in or out. You get live attendance and reports by email.</p></div>
     </div>
   </section>
+
+  <?php require APP_DIR . '/views/partials/founder.php'; ?>
 
   <section class="final">
     <h2>See it with your own front door in mind.</h2>

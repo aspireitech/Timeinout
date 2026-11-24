@@ -282,7 +282,7 @@ function clean_slug(string $s): string
     return substr(trim(preg_replace('/-+/', '-', $s), '-'), 0, 30);
 }
 
-/** A free address made from the business name ("South Jordan Kumon" → southjordankumon). */
+/** A free address made from the business name ("Sunshine Learning Center" → sunshinelearningcenter). */
 function suggest_slug(string $org, string $state = ''): string
 {
     $words = preg_split('/[^a-z0-9]+/', strtolower($org), -1, PREG_SPLIT_NO_EMPTY);
@@ -334,7 +334,7 @@ function provision_tenant(array $d): array
         'slug'          => $d['slug'],
         'plan'          => $d['plan'],
         'status'        => $d['status'] ?? 'trial',
-        'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+' . (int) ($d['trial_days'] ?? cfg('trial_days', 7)) . ' days')),
+        'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+' . (int) ($d['trial_days'] ?? trial_length()) . ' days')),
         'timezone'      => $d['timezone'],
         'welcome_title' => 'Welcome to ' . $d['org_name'],
         'welcome_text'  => 'Tap a button below to sign in or out.',

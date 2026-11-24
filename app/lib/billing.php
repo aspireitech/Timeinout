@@ -57,7 +57,49 @@ const PLAN_CATALOG = [
 function tenant_plan(?array $t = null): array
 {
     $t ??= tenant();
+    if (($t['plan'] ?? '') === 'free') {
+        return FREE_PLAN;
+    }
     return plans()[$t['plan'] ?? ''] ?? [];
+}
+
+/** Free plan (kept out of plans() so Stripe, invoices and price settings never see it). On/off: setting free_plan_on. */
+const FREE_PLAN = ['name' => 'Free', 'amount' => 0, 'annual' => 0, 'price' => '$0', 'limit' => 'Up to 10 people', 'max_people' => 10, 'max_logins' => 1, 'report_days' => 30,
+    'tagline' => 'For very small teams, free forever.', 'popular' => false,
+    'features' => ['1 admin login', 'Check-in kiosk on any tablet or phone', 'Safe pickups and visitor sign-in', 'Live attendance and daily email report', 'Reports for the last 30 days']];
+
+function free_plan_on(): bool
+{
+    return setting('free_plan_on', '1') === '1';
+}
+
+/** Length of the free trial for new sign-ups (/super → Settings, default 30 days). */
+function trial_length(): int
+{
+    return max(1, min(365, (int) setting('trial_days', '30')));
+}
+
+/** Founding customers: the first FOUNDING_SLOTS sign-ups get a 90-day trial and the 50%-for-life code. */
+const FOUNDING_SLOTS = 20;
+const FOUNDING_TRIAL_DAYS = 90;
+
+function founding_left(): int
+{
+    if (setting('outreach_offer', '1') !== '1') {
+        return 0;
+    }
+    try {
+        return max(0, FOUNDING_SLOTS - (int) val('SELECT COUNT(*) FROM tenants WHERE founding = 1'));
+    } catch (Throwable $e) {
+        return 0;
+    }
+}
+
+/** The promotion code founding customers enter at checkout (Stripe: 50% off, duration forever). */
+function founding_code(): string
+{
+    $c = strtoupper(trim((string) setting('founding_code', 'FOUNDING50')));
+    return preg_match('/^[A-Z0-9]{3,30}$/', $c) ? $c : 'FOUNDING50';
 }
 
 /** Active students and staff in this portal (visitors do not count). */

@@ -187,7 +187,7 @@ function report_email_html(array $t, string $title, array $r, string $portalUrl)
         $h .= '</ul>';
     }
     $h .= '<p style="margin:22px 6px 6px"><a href="' . e($portalUrl) . '" style="background:' . $c . ';color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Open full report</a></p>'
-        . '</div></div><p style="text-align:center;font-size:11px;color:#888">Sent by ' . e(cfg('app_name')) . '. Change report emails in Admin → Reports.</p></div>';
+        . '</div></div><p style="text-align:center;font-size:11px;color:#888">Sent by ' . e(cfg('app_name')) . '. Change report emails in Admin → Reports.<br>' . powered_by_html('report') . '</p></div>';
     return $h;
 }
 

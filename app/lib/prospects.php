@@ -19,7 +19,8 @@ const PROSPECT_KINDS = [
 /** Days to wait after email 1 and after the follow-up. */
 const PROSPECT_GAPS = [1 => 4, 2 => 5];
 /** Personal mailbox domains: several contacts on these are not the same organization. */
-const FREEMAIL = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'comcast.net', 'me.com'];
+const FREEMAIL = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'live.com', 'msn.com', 'comcast.net', 'me.com',
+    'att.net', 'sbcglobal.net', 'bellsouth.net', 'verizon.net', 'cox.net', 'charter.net', 'earthlink.net', 'ymail.com', 'rocketmail.com', 'protonmail.com', 'proton.me', 'mail.com', 'gmx.com'];
 /** Franchise mailbox domains: each center is its own business (e.g. draper@mathnasium.com), so they count like personal mailboxes. */
 const SHARED_DOMAINS = ['ikumon.com', 'kumon.com', 'mathnasium.com', 'sylvanlearning.com', 'huntingtonhelps.com', 'clubztutoring.com', 'tutordoctor.com',
     'thetutoringcenter.com', 'eyelevel.com', 'goddardschools.com', 'primroseschools.com', 'kiddieacademy.com', 'thelearningexperience.com',
@@ -96,6 +97,7 @@ function prospect_clean(array $r): array
         'state'      => preg_match('/^[A-Z]{2}$/', $state) ? $state : null,
         'kind'       => isset(PROSPECT_KINDS[$kind]) ? $kind : 'other',
         'found_at'   => $s('source', 255) ?: null,
+        'notes'      => $s('notes', 300) ?: null, // e.g. "capacity: 85" from a licensing list (used in the email)
     ];
 }
 
@@ -272,8 +274,9 @@ function prospect_pitch(string $kind): array
 /** The founding offer, shown in both email versions and on the call-back page while it is switched on. */
 function outreach_offer(): ?string
 {
-    return setting('outreach_offer', '1') === '1'
-        ? 'Founding offer for our first 20 businesses: we set everything up for you for free (just send us your list), and you get 50% off your first 3 months.'
+    $left = founding_left();
+    return $left > 0
+        ? 'Founding offer, only ' . $left . ' places left: your first 3 months are free, we set everything up for you (just send us your list), then 50% off for life.'
         : null;
 }
 
@@ -287,7 +290,8 @@ function prospect_email_plain(array $p, int $step): array
     $org = (string) $p['org'];
     $hi = 'Hi ' . e($p['first_name'] ?: 'there') . ',';
     $kids = in_array($p['kind'], ['daycare', 'school', 'tutoring'], true);
-    $question = $kids ? 'how do you keep track of who drops off and picks up each child at ' . e($org) . ' today? A paper sheet at the door?'
+    $cap = preg_match('/capacity[: ]+(\d{2,4})/i', (string) ($p['notes'] ?? ''), $cm) ? (int) $cm[1] : 0; // from licensing lists
+    $question = $kids ? ($cap ? 'with up to ' . $cap . ' children a day, ' : '') . 'how do you keep track of who drops off and picks up each child at ' . e($org) . ' today? A paper sheet at the door?'
         : ($p['kind'] === 'gym' ? 'how do you track member and trainer check-ins at ' . e($org) . ' today?'
         : 'how does ' . e($org) . ' track staff hours today? Paper timesheets, or from memory at payroll time?');
     $link = '<a href="' . e(prospect_link($p, $step, 'hello')) . '" style="color:#3B4BD8">pick a time for a quick call</a>';
@@ -299,9 +303,10 @@ function prospect_email_plain(array $p, int $step): array
     if ($step === 0) {
         $subject = 'Quick question about ' . $org;
         $body = $par($hi) . $par('Quick question: ' . $question)
-            . $par('We built ClockInOut: ' . e($x['short']) . '.')
+            . $par($kids ? 'ClockInOut replaces the sheet with a tablet at the door: parents tap their child\'s name and choose who is picking up, you see who is still here, and every drop-off and pickup is on record when licensing asks.'
+                : 'We built ClockInOut: ' . e($x['short']) . '.')
             . ($offer ? $par(e($offer)) : '')
-            . $par('Worth a 10-minute look? You can ' . $link . ', or just reply to this email.') . $sign;
+            . $par('Here is a <a href="' . e(prospect_link($p, $step, 'video')) . '" style="color:#3B4BD8">40-second video</a> of how it works. Worth a 10-minute look? You can ' . $link . ', or just reply to this email.') . $sign;
     } elseif ($step === 1) {
         $subject = 'Re: Quick question about ' . $org;
         $body = $par($hi) . $par('Following up on my note. If ' . ($kids ? 'sign-in sheets at the door' : 'timesheets') . ' are still a hassle at ' . e($org) . ', I would be glad to set ClockInOut up for you this week' . ($offer ? ', for free' : '') . '.')
@@ -309,7 +314,7 @@ function prospect_email_plain(array $p, int $step): array
     } else {
         $subject = 'Last note for ' . $org;
         $body = $par($hi) . $par('I have not heard back, so this is my last note.')
-            . ($offer ? $par('The founding offer (free setup and 50% off your first 3 months) stays open until we have 20 businesses.') : '')
+            . ($offer ? $par('The founding offer (3 months free, we do the setup, then 50% off for life) stays open until we have 20 businesses.') : '')
             . $par('If the timing is better later, you can ' . $link . ' any time. Thanks, and have a great week.') . $sign;
     }
     $foot = '<p style="margin:22px 0 0;font-size:12px;color:#8A8FA8">Not interested? <a href="' . e(scheme() . '://' . cfg('base_domain') . base_path() . '/unsubscribe?t=' . $p['token']) . '" style="color:#8A8FA8">Unsubscribe</a> and I won\'t email again.<br>'
@@ -333,7 +338,7 @@ function prospect_email(array $p, int $step): array
     $font = 'font-family:Arial,Helvetica,sans-serif;';
     $para = fn($html) => '<p style="margin:0 0 14px">' . $html . '</p>';
     $button = '<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:6px auto 4px"><tr><td align="center" bgcolor="#F2A93B" style="background-color:#F2A93B;border-radius:28px;padding:14px 32px">'
-        . '<a href="' . e($signup) . '" style="color:#161B36;' . $font . 'font-size:17px;font-weight:bold;text-decoration:none">Start my free 7-day trial &rarr;</a></td></tr></table>'
+        . '<a href="' . e($signup) . '" style="color:#161B36;' . $font . 'font-size:17px;font-weight:bold;text-decoration:none">Start my free ' . trial_length() . '-day trial &rarr;</a></td></tr></table>'
         . '<p style="margin:0 0 18px;text-align:center;font-size:13px;color:#6B7090">No credit card. Your own account in about a minute.</p>';
     $phone = trim((string) setting('outreach_phone', ''));
     $sign = '<p style="margin:0">Best,<br><b>' . e((string) setting('outreach_name', '')) . '</b><br>' . $app
@@ -361,7 +366,7 @@ function prospect_email(array $p, int $step): array
         $subject = 'Quick follow-up for ' . $org;
         $body = '<tr><td style="padding:28px 32px 8px;font-size:16px;line-height:1.6">' . $para($hi)
             . $para('A quick follow-up on my note last week. ' . $app . ' can be running at ' . e($org) . ' this afternoon: ' . e($x['short']) . '.')
-            . $para('You can try it free for 7 days with your own list, or reply with a good time and I\'ll show you in 10 minutes.') . '</td></tr>'
+            . $para('You can try it free for ' . trial_length() . ' days with your own list, or reply with a good time and I\'ll show you in 10 minutes.') . '</td></tr>'
             . '<tr><td style="padding:0 32px">' . $button . '</td></tr>'
             . '<tr><td style="padding:0 32px 26px;font-size:16px;line-height:1.6">' . $sign . '</td></tr>';
     } else {
@@ -374,7 +379,7 @@ function prospect_email(array $p, int $step): array
     if (setting('outreach_track_opens', '0') === '1') { // optional, off by default: see /super/sales
         $body .= '<tr><td><img src="' . e($site . '/o?t=' . rawurlencode((string) $p['token']) . '&s=' . ($step + 1)) . '" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px"></td></tr>';
     }
-    $html = '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' . e(ucfirst($x['short'])) . '. Try it free for 7 days.</div>'
+    $html = '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' . e(ucfirst($x['short'])) . '. Try it free for ' . trial_length() . ' days.</div>'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FA"><tr><td align="center" style="padding:24px 12px">'
         . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;' . $font . 'color:#161B36">'
         . $body . $foot . '</table></td></tr></table>';
@@ -391,8 +396,8 @@ function run_prospects(bool $force = false): array
     $cap = max(1, min(100, (int) setting('prospects_daily', '25')));
     $dayStart = (clone $now)->setTime(0, 0)->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     $sentToday = (int) val('SELECT COUNT(*) FROM prospects WHERE last_sent_at >= ?', [$dayStart]);
-    // Spread the day's emails over the ~4-5 sending hours: at most cap/4 per hourly run (7 when the cap is 25)
-    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap / 4));
+    // Spread the day's emails over the sending hours: at most cap/6 per hourly run (5 when the cap is 25), a pause between each
+    $room = min($cap - $sentToday, $force ? $cap : (int) ceil($cap / 6));
     if ($room <= 0) {
         return [];
     }
@@ -430,7 +435,10 @@ function run_prospects(bool $force = false): array
             $headers[] = 'In-Reply-To: ' . $first;
             $headers[] = 'References: ' . $first;
         }
-        if (!send_mail([$p['email']], $subject, $html, [], 'contact', [], $headers)) {
+        if ($sentIds || $log) {
+            outreach_pause(); // a few minutes between emails: bursts of identical emails look like spam to Gmail and Outlook
+        }
+        if (!send_mail([$p['email']], $subject, $html, [], 'outreach', [], $headers)) {
             $log[] = 'prospect ' . $p['email'] . ': email failed: ' . ($GLOBALS['mail_error'] ?? '');
             break; // mailbox problem: try again next hour
         }
@@ -548,3 +556,12 @@ function outreach_tune(array $t): array
     audit('Nightly sales review', null, true, json_encode($applied));
     return ['ok' => true, 'applied' => $applied];
 }
+
+/** Waits 40-90 seconds between outreach emails when the hourly job runs from the command line (never on a web request). */
+function outreach_pause(): void
+{
+    if (PHP_SAPI === 'cli' && !getenv('OUTREACH_NO_PAUSE')) {
+        sleep(random_int(40, 90));
+    }
+}
+

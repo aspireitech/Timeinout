@@ -67,7 +67,7 @@ $GLOBALS['request_path'] = $path;
 // Google Analytics on the public website only (customer portals keep the strict policy above)
 if ($resolved === null && (setting('ga4_id', '') !== '' || setting('gads_id', '') !== '')) {
     $ga = ' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com';
-    $aw = setting('gads_id', '') !== '' ? ' https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com' : ''; // Google Ads conversions
+    $aw = setting('gads_id', '') !== '' ? ' https://www.googleadservices.com https://googleads.g.doubleclick.net https://ad.doubleclick.net https://www.google.com' : ''; // Google Ads conversions
     $fr = $aw !== '' ? '; frame-src https://td.doubleclick.net https://www.googletagmanager.com' : '';
     header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com$aw; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:$ga$aw; connect-src 'self'$ga$aw$fr; frame-ancestors 'self'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com; base-uri 'self'", true);
 }

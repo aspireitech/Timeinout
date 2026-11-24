@@ -46,7 +46,8 @@ function reminder_message(array $t, array $ev, string $mode): array
     $time = fmt_time($ev['event_time']);
     $org = (string) $t['name'];
     $box = fn(string $inner) => '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#161B36;font-size:15px;line-height:1.55">'
-        . '<p style="font-size:13px;color:#6B7090;margin:0 0 14px">' . e($org) . '</p>' . $inner . '</div>';
+        . '<p style="font-size:13px;color:#6B7090;margin:0 0 14px">' . e($org) . '</p>' . $inner
+        . '<p style="font-size:11px;color:#A0A4BC;margin-top:18px">' . powered_by_html('reminder') . '</p></div>';
     if ($ev['person_type'] === 'teacher') {
         if ($mode === 'parents') {
             return [null, 'off'];

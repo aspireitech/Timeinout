@@ -72,6 +72,14 @@
         <div class="field"><label for="g-ls">Sign-up label</label><input type="text" id="g-ls" name="gads_label_signup" value="<?= e(setting('gads_label_signup', '')) ?>" placeholder="AbCdEfGhIjK"></div>
         <div class="field"><label for="g-ll">Lead label</label><input type="text" id="g-ll" name="gads_label_lead" value="<?= e(setting('gads_label_lead', '')) ?>" placeholder="LmNoPqRsTuV"></div>
       </div>
+      <h3 style="margin-top:14px"><?= icon('dollar') ?> Trial, Free plan and founding offer</h3>
+      <div class="grid c3">
+        <div class="field"><label for="g-td">Free trial length (days)</label><input type="number" min="1" max="365" id="g-td" name="trial_days" value="<?= trial_length() ?>"></div>
+        <div class="field"><label for="g-fc">Founding promotion code (Stripe)</label><input type="text" id="g-fc" name="founding_code" value="<?= e(founding_code()) ?>"></div>
+        <div class="field"><label>Founding places left</label><div style="padding:10px 0"><b><?= founding_left() ?></b> of <?= FOUNDING_SLOTS ?> <span class="muted small">(first <?= FOUNDING_SLOTS ?> sign-ups get <?= FOUNDING_TRIAL_DAYS ?> days free; on/off with the outreach offer switch)</span></div></div>
+      </div>
+      <label class="check"><input type="checkbox" name="free_plan_on" value="1" <?= free_plan_on() ? 'checked' : '' ?>>
+        <span><b>Free plan</b>: up to <?= FREE_PLAN['max_people'] ?> people and <?= FREE_PLAN['max_logins'] ?> login, offered in Admin → Billing and on the pricing page</span></label>
       <label class="check"><input type="checkbox" name="popup_on" value="1" <?= setting('popup_on', '1') === '1' ? 'checked' : '' ?>>
         <span><b>Free checklist slide-in</b> on the home and landing pages (after 40 seconds or 60% scroll, at most once a month per visitor)</span></label>
       <button class="btn btn-primary">Save settings</button>

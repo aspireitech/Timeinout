@@ -23,7 +23,7 @@ function super_sales(): void
 function platform_track_click(): void
 {
     $token = (string) input('t');
-    $to = in_array(input('to'), ['signup', 'demo', 'home', 'hello'], true) ? (string) input('to') : 'home';
+    $to = in_array(input('to'), ['signup', 'demo', 'home', 'hello', 'video'], true) ? (string) input('to') : 'home';
     $p = preg_match('/^[a-f0-9]{32}$/', $token) ? row('SELECT * FROM prospects WHERE token = ?', [$token]) : null;
     if ($p && empty($_SESSION['super'])) { // your own clicks in a preview do not count
         $step = max(1, min(3, (int) input('s')));
@@ -112,7 +112,7 @@ function super_sales_list(): void
         foreach (rows($sql, array_merge([$type, $start, $end], $fp)) as $r) {
             $detail = match ($m) {
                 'emails' => $stepName($r['step']),
-                'clicked' => 'Looked at: ' . implode(', ', array_map(fn($x) => ['signup' => 'trial sign-up', 'demo' => 'demo page', 'home' => 'website'][$x] ?? $x, array_filter(explode(',', (string) $r['details'])))) . ((int) $r['n'] > 1 ? ' · ' . (int) $r['n'] . ' clicks' : ''),
+                'clicked' => 'Looked at: ' . implode(', ', array_map(fn($x) => ['signup' => 'trial sign-up', 'demo' => 'demo page', 'home' => 'website', 'video' => 'demo video', 'hello' => 'call-back page'][$x] ?? $x, array_filter(explode(',', (string) $r['details'])))) . ((int) $r['n'] > 1 ? ' · ' . (int) $r['n'] . ' clicks' : ''),
                 'opened' => 'Opened ' . $stepName($r['step']),
                 'found' => 'Added by ' . $r['added_by'],
                 default => $notes[(int) $r['id']] ?? '',

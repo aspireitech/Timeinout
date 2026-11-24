@@ -1042,6 +1042,29 @@ function admin_billing(): void
         'people' => people_count(), 'logins' => (int) val('SELECT COUNT(*) FROM users WHERE tenant_id = ?', [tid()])]);
 }
 
+/** Free plan: up to 10 people and 1 login, forever. Only for portals not paying for a plan (a paid subscription is changed in Stripe). */
+function admin_billing_free(): void
+{
+    require_admin();
+    $t = tenant();
+    if (!free_plan_on() || ($t['status'] === 'active' && $t['plan'] !== 'free' && $t['billing_provider'])) {
+        flash('error', 'The Free plan is not available for this portal. Contact us if you want to change your plan.');
+        redirect(url('/admin/billing'));
+    }
+    $people = people_count();
+    $logins = (int) val('SELECT COUNT(*) FROM users WHERE tenant_id = ?', [tid()]);
+    if ($people > FREE_PLAN['max_people'] || $logins > FREE_PLAN['max_logins']) {
+        flash('error', 'The Free plan is for up to ' . FREE_PLAN['max_people'] . ' people and ' . FREE_PLAN['max_logins'] . ' login. You have ' . $people . ' people and '
+            . $logins . ' login' . ($logins === 1 ? '' : 's') . ': mark people inactive or remove logins first, or choose a paid plan.');
+        redirect(url('/admin/billing'));
+    }
+    update('tenants', ['plan' => 'free', 'status' => 'active'], 'id = ?', [tid()]);
+    audit_note('Free plan', 'Up to ' . FREE_PLAN['max_people'] . ' people');
+    provider_alert($t['name'] . ' chose the Free plan', '<p><b>' . e($t['name']) . '</b> (' . e(tenant_url($t, '/')) . ') switched to the Free plan (' . $people . ' people).</p>');
+    flash('success', 'You are on the Free plan: up to ' . FREE_PLAN['max_people'] . ' people, free for as long as you like. Upgrade any time here.');
+    redirect(url('/admin/billing'));
+}
+
 /** No online payment set up for this plan yet: the customer picks it and the provider is emailed to send an invoice. */
 function admin_billing_request(): void
 {

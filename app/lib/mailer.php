@@ -25,6 +25,10 @@ function mail_config(string $sender = 'contact'): array
     if ((cfg('mail')['driver'] ?? '') === 'graph') {
         $m['driver'] = 'graph'; // Microsoft Graph chosen in config.php always wins
     }
+    if ($sender === 'outreach' && ($ob = outreach_from_email()) !== null) {
+        $m['from_email'] = $ob; // cold outreach from its own domain, so the main domain's reputation stays clean
+        $m['from_name'] = trim((string) setting('outreach_name', '')) ?: ($m['from_name'] ?? '');
+    }
     $s = cfg('mail_senders', [])[$sender] ?? [];
     foreach (['from_email', 'from_name', 'user', 'pass'] as $k) {
         if (($s[$k] ?? '') !== '') {
@@ -314,4 +318,18 @@ function graph_send(string $from, string $fromName, array $to, array $bcc, strin
     }
     error_log('Graph mail error: ' . $GLOBALS['mail_error']);
     return false;
+}
+
+/** "Powered by ClockInOut" line for emails customers' staff and families receive (a link back, tagged by source). */
+function powered_by_html(string $from): string
+{
+    $url = scheme() . '://' . cfg('base_domain') . base_path() . '/?src=powered-' . preg_replace('/[^a-z]/', '', $from);
+    return 'Powered by <a href="' . e($url) . '" style="color:#8A8FA8">' . e(cfg('app_name')) . '</a>: sign-in and sign-out for schools and small businesses';
+}
+
+/** The separate mailbox outreach is sent from (/super → Prospects), or null to use the main contact mailbox. Graph driver only. */
+function outreach_from_email(): ?string
+{
+    $e = strtolower(trim((string) setting('outreach_from_email', '')));
+    return $e !== '' && filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : null;
 }

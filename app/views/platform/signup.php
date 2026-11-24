@@ -6,7 +6,7 @@
       <?= csrf_field() ?><?php if (isset($errors['form'])): ?><div class="flash error" style="margin-bottom:12px"><?= e($errors['form']) ?></div><?php endif; ?><div class="lead-hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div><?php if ($old['src']): ?><input type="hidden" name="src" value="<?= e($old['src']) ?>"><?php endif; ?>
       <div class="field">
         <label for="org_name">Business name</label>
-        <input type="text" id="org_name" name="org_name" value="<?= e($old['org_name']) ?>" placeholder="South Jordan Kumon" required autofocus>
+        <input type="text" id="org_name" name="org_name" value="<?= e($old['org_name']) ?>" placeholder="Sunshine Learning Center" required autofocus>
         <?php if (isset($errors['org_name'])): ?><div class="err"><?= e($errors['org_name']) ?></div><?php endif; ?>
       </div>
 
@@ -83,7 +83,7 @@
       </div>
       <label class="check" style="margin:6px 0 18px"><input type="checkbox" name="demo" value="1" <?= $old['demo'] ? 'checked' : '' ?>> Add sample people so I can try it right away</label>
       <button class="btn btn-primary btn-lg btn-block" type="submit">Create my space</button>
-      <p class="muted small" style="text-align:center;margin-top:12px"><?= (int) cfg('trial_days', 30) ?>-day free trial · no card needed · cancel anytime</p>
+      <p class="muted small" style="text-align:center;margin-top:12px"><?= founding_left() ? FOUNDING_TRIAL_DAYS . '-day free trial (founding offer)' : trial_length() . '-day free trial' ?> · no card needed · cancel anytime</p>
     </form>
   </div>
 </div>

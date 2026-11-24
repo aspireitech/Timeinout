@@ -8,10 +8,10 @@
       <h3>Customer</h3>
       <div class="grid c2">
         <div class="field"><label for="p-org">Business name</label>
-          <input type="text" id="p-org" name="org_name" value="<?= e($old['org_name']) ?>" placeholder="South Jordan Kumon" required autofocus>
+          <input type="text" id="p-org" name="org_name" value="<?= e($old['org_name']) ?>" placeholder="Sunshine Learning Center" required autofocus>
           <?php if (isset($errors['org_name'])): ?><div class="err"><?= e($errors['org_name']) ?></div><?php endif; ?></div>
         <div class="field"><label for="p-slug">Web address</label>
-          <div class="slug-input"><input type="text" id="p-slug" name="slug" value="<?= e($old['slug']) ?>" placeholder="utsjkumon" pattern="[a-z0-9-]{3,30}" required><span>.<?= e(cfg('base_domain')) ?></span></div>
+          <div class="slug-input"><input type="text" id="p-slug" name="slug" value="<?= e($old['slug']) ?>" placeholder="sunshinelc" pattern="[a-z0-9-]{3,30}" required><span>.<?= e(cfg('base_domain')) ?></span></div>
           <?php if (isset($errors['slug'])): ?><div class="err"><?= e($errors['slug']) ?></div><?php else: ?><div class="hint">3–30 lowercase letters, numbers or dashes.</div><?php endif; ?></div>
       </div>
       <div class="grid c2">
@@ -51,9 +51,9 @@
         <span><b>Own database</b> (recommended): this customer's data is stored only in its own database.<br>
         <span class="muted small">First create a new, empty MySQL database and user in your hosting panel (Hostinger: Websites → Databases → MySQL Databases), then enter them here.</span></span></label>
       <div class="grid c2" style="margin-top:8px">
-        <div class="field"><label for="p-dbn">Database name</label><input type="text" id="p-dbn" name="db_name" value="<?= e($old['db_name']) ?>" placeholder="<?= e($dbPrefix) ?>utsjkumon" data-db-prefix="<?= e($dbPrefix) ?>" maxlength="64">
-          <div class="hint">Filled in from the address. In hPanel type the part after your account prefix (e.g. <code>cio_utsjkumon</code>).</div></div>
-        <div class="field"><label for="p-dbu">Database user</label><input type="text" id="p-dbu" name="db_user" value="<?= e($old['db_user']) ?>" placeholder="<?= e($dbPrefix) ?>utsjkumon" maxlength="64">
+        <div class="field"><label for="p-dbn">Database name</label><input type="text" id="p-dbn" name="db_name" value="<?= e($old['db_name']) ?>" placeholder="<?= e($dbPrefix) ?>sunshinelc" data-db-prefix="<?= e($dbPrefix) ?>" maxlength="64">
+          <div class="hint">Filled in from the address. In hPanel type the part after your account prefix (e.g. <code>cio_sunshinelc</code>).</div></div>
+        <div class="field"><label for="p-dbu">Database user</label><input type="text" id="p-dbu" name="db_user" value="<?= e($old['db_user']) ?>" placeholder="<?= e($dbPrefix) ?>sunshinelc" maxlength="64">
           <div class="hint" id="p-dbu-hint">Usually the same as the database name. At most 32 characters.</div></div>
       </div>
       <div class="grid c2">

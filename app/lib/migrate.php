@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 24;
+const SCHEMA_VERSION = 25;
 
 function setting(string $key, $default = null)
 {
@@ -110,6 +110,9 @@ function migrate(): void
         }
         if ($v < 24) {
             migration_24();
+        }
+        if ($v < 25) {
+            migration_25();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -574,4 +577,12 @@ function migration_24(): void
         UNIQUE KEY token (token),
         KEY created_at (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** Founding customers (first 20 sign-ups: 90-day trial and 50% off for life). */
+function migration_25(): void
+{
+    if (!column_exists('tenants', 'founding')) {
+        q('ALTER TABLE tenants ADD COLUMN founding TINYINT(1) NOT NULL DEFAULT 0');
+    }
 }

@@ -65,6 +65,8 @@ function super_prospects_settings(): void
     setting_set('imap_sent_folder', ''); // found again on the next send
     setting_set('outreach_name', mb_substr(trim((string) input('outreach_name')), 0, 80));
     setting_set('outreach_phone', mb_substr(trim((string) input('outreach_phone')), 0, 40));
+    $ofe = strtolower(trim((string) input('outreach_from_email')));
+    setting_set('outreach_from_email', $ofe !== '' && filter_var($ofe, FILTER_VALIDATE_EMAIL) ? $ofe : '');
     setting_set('outreach_address', mb_substr(trim((string) input('outreach_address')), 0, 300));
     $tz = (string) input('outreach_tz');
     setting_set('outreach_tz', valid_tz($tz) ? $tz : 'America/Denver');
@@ -259,7 +261,7 @@ function super_prospects_test(): void
     foreach ($list as $to) {
         foreach ([0, 1, 2] as $step) {
             [$subject, $html] = prospect_email($sample, $step);
-            if (send_mail([$to], '[TEST ' . ($step + 1) . '/3] ' . $subject, $html)) {
+            if (send_mail([$to], '[TEST ' . ($step + 1) . '/3] ' . $subject, $html, [], 'outreach')) {
                 $sent++;
             } else {
                 $error = $to . ': ' . (string) ($GLOBALS['mail_error'] ?? 'unknown error');
