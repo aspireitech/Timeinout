@@ -12,7 +12,7 @@
       <span class="eyebrow">Replace the paper sign-in sheet</span>
       <h1>Sign in and out at the door. <span class="tick">Know who's here.</span></h1>
       <p class="lead">One tablet by the door: staff clock in, parents sign children out, visitors sign in. You see who is here right now, and hours and reports arrive in your inbox.</p>
-      <?php if ($fl = founding_left()): ?><p class="offer-pill"><b>Founding offer:</b> first 3 months free, then 50% off for life · <b><?= $fl ?> of <?= FOUNDING_SLOTS ?> places left</b></p><?php endif; ?>
+      <?php if ($fl = founding_left()): ?><p class="offer-pill"><b>Founding offer:</b> first 3 months free, then 50% off for life · <b><?= e((string) $fl) ?> of <?= FOUNDING_SLOTS ?> places left</b></p><?php endif; ?>
       <div class="hero-cta"><a class="btn btn-primary" href="<?= e(base_path()) ?>/signup<?= $sq ? '?' . $sq : '' ?>">Start free, no card</a><a class="btn btn-ghost" href="#video">Watch the 40-second demo</a></div>
       <div class="checks"><span><?= founding_left() ? FOUNDING_TRIAL_DAYS : trial_length() ?> days free</span><span>We set it up for you</span><?php if (free_plan_on()): ?><span>Free plan up to <?= FREE_PLAN['max_people'] ?> people</span><?php endif; ?></div>
     </div>

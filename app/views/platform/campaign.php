@@ -17,7 +17,7 @@ $trial = e(base_path() . '/signup?industry=' . $c['industry'] . '&src=' . $src);
       <span class="eyebrow"><?= e($c['eyebrow']) ?></span>
       <h1><?= $c['title'] ?></h1>
       <p class="lead"><?= e($c['lead']) ?></p>
-      <?php if ($fl = founding_left()): ?><p class="offer-pill"><b>Founding offer:</b> first 3 months free, we set it up for you, then 50% off for life · <b><?= $fl ?> of <?= FOUNDING_SLOTS ?> places left</b></p><?php endif; ?>
+      <?php if ($fl = founding_left()): ?><p class="offer-pill"><b>Founding offer:</b> first 3 months free, we set it up for you, then 50% off for life · <b><?= e((string) $fl) ?> of <?= FOUNDING_SLOTS ?> places left</b></p><?php endif; ?>
       <div class="hero-cta"><a class="btn btn-primary" href="<?= $trial ?>">Start free, no card</a><a class="btn btn-ghost" href="#video">Watch the 40-second demo</a></div>
       <div class="checks"><span><?= founding_left() ? FOUNDING_TRIAL_DAYS : trial_length() ?> days free</span><span>We set it up for you</span><span>Any tablet or phone</span></div>
     </div>
