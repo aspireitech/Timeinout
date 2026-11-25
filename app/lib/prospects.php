@@ -338,7 +338,7 @@ function prospect_email(array $p, int $step): array
     $font = 'font-family:Arial,Helvetica,sans-serif;';
     $para = fn($html) => '<p style="margin:0 0 14px">' . $html . '</p>';
     $button = '<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:6px auto 4px"><tr><td align="center" bgcolor="#F2A93B" style="background-color:#F2A93B;border-radius:28px;padding:14px 32px">'
-        . '<a href="' . e($signup) . '" style="color:#161B36;' . $font . 'font-size:17px;font-weight:bold;text-decoration:none">Start my free ' . trial_length() . '-day trial &rarr;</a></td></tr></table>'
+        . '<a href="' . e($signup) . '" style="color:#161B36;' . $font . 'font-size:17px;font-weight:bold;text-decoration:none">' . (founding_left() ? 'Start my 3 months free' : 'Start my free ' . trial_length() . '-day trial') . ' &rarr;</a></td></tr></table>'
         . '<p style="margin:0 0 18px;text-align:center;font-size:13px;color:#6B7090">No credit card. Your own account in about a minute.</p>';
     $phone = trim((string) setting('outreach_phone', ''));
     $sign = '<p style="margin:0">Best,<br><b>' . e((string) setting('outreach_name', '')) . '</b><br>' . $app

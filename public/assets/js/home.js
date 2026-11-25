@@ -11,3 +11,9 @@
     name.textContent = n; stamp.textContent = txt; stamp.className = 'stamp ' + cls;
   }, 4000);
 })();
+
+// Demo videos: only one plays at a time (starting one pauses the others).
+document.addEventListener('play', function (e) {
+  if (!(e.target instanceof HTMLVideoElement)) return;
+  document.querySelectorAll('video').forEach(function (v) { if (v !== e.target && !v.paused) v.pause(); });
+}, true);
