@@ -324,6 +324,9 @@ function prospect_email_plain(array $p, int $step): array
 
 function prospect_email(array $p, int $step): array
 {
+    if (($p['variant'] ?? '') === 'k' || (empty($p['variant']) && prospect_is_kumon($p) && kumon_reference() !== '')) {
+        return prospect_email_kumon($p, $step);
+    }
     if (($p['variant'] ?? 'a') === 'b') {
         return prospect_email_plain($p, $step);
     }
@@ -422,8 +425,9 @@ function run_prospects(bool $force = false): array
             update('prospects', ['status' => 'done', 'next_at' => null], 'id = ?', [$p['id']]);
             continue;
         }
-        if (empty($p['variant'])) { // A/B test: the share that gets the plain note is tuned nightly (ab_plain_pct)
-            $p['variant'] = random_int(1, 100) <= max(0, min(100, (int) setting('ab_plain_pct', '50'))) ? 'b' : 'a';
+        if (empty($p['variant'])) { // A/B test: the share that gets the plain note is tuned nightly (ab_plain_pct); Kumon centers get their own email (k)
+            $p['variant'] = prospect_is_kumon($p) && kumon_reference() !== '' ? 'k'
+                : (random_int(1, 100) <= max(0, min(100, (int) setting('ab_plain_pct', '50'))) ? 'b' : 'a');
             update('prospects', ['variant' => $p['variant']], 'id = ?', [$p['id']]);
         }
         [$subject, $html] = prospect_email($p, $step);
@@ -563,5 +567,56 @@ function outreach_pause(): void
     if (PHP_SAPI === 'cli' && !getenv('OUTREACH_NO_PAUSE')) {
         sleep(random_int(40, 90));
     }
+}
+
+/** A Kumon center (by name or its center mailbox on ikumon.com / kumon.com). */
+function prospect_is_kumon(array $p): bool
+{
+    return (bool) preg_match('/kumon/i', (string) ($p['org'] ?? '')) || (bool) preg_match('/@(i?kumon)\.com$/i', (string) ($p['email'] ?? ''));
+}
+
+/** The Kumon center that uses ClockInOut and agreed to be named (/super → Prospects; empty = no Kumon email). */
+function kumon_reference(): string
+{
+    return trim((string) setting('kumon_reference', 'Kumon of South Jordan, Utah'));
+}
+
+/**
+ * The email for Kumon centers: a plain note from one instructor's world to another, naming the Kumon center that
+ * really uses ClockInOut (owner's permission), and saying plainly that ClockInOut is independent of Kumon.
+ */
+function prospect_email_kumon(array $p, int $step): array
+{
+    $ref = e(kumon_reference());
+    $org = (string) $p['org'];
+    $hi = 'Hi ' . e($p['first_name'] ?: 'there') . ',';
+    $video = '<a href="' . e(prospect_link($p, $step, 'video')) . '" style="color:#3B4BD8">40-second video</a>';
+    $call = '<a href="' . e(prospect_link($p, $step, 'hello')) . '" style="color:#3B4BD8">pick a time for a quick call</a>';
+    $offer = outreach_offer();
+    $name = e((string) setting('outreach_name', ''));
+    $phone = trim((string) setting('outreach_phone', ''));
+    $sign = '<p style="margin:0 0 14px">' . $name . '<br>ClockInOut' . ($phone !== '' ? ' &middot; ' . e($phone) : '') . '</p>';
+    $par = fn($t) => '<p style="margin:0 0 14px">' . $t . '</p>';
+    if ($step === 0) {
+        $subject = 'How ' . kumon_reference() . ' handles sign-in and worksheet pickups';
+        $body = $par($hi)
+            . $par($ref . ' uses ClockInOut at the front door: students and parents sign in and out on a tablet, worksheet pickups are logged with who collected them, and attendance for any month is ready in seconds.')
+            . $par('It fits the way a Kumon center runs: parents sign children out and choose who is picking up, older students sign themselves in, and you see who is in class right now.')
+            . ($offer ? $par(e($offer)) : '')
+            . $par('Here is a ' . $video . ' of how it works. Would it help at ' . e($org) . '? You can ' . $call . ', or just reply.') . $sign;
+    } elseif ($step === 1) {
+        $subject = 'Re: How ' . kumon_reference() . ' handles sign-in and worksheet pickups';
+        $body = $par($hi) . $par('Following up on my note. If the paper sign-in sheet and worksheet handovers take time at ' . e($org) . ', I would be glad to set ClockInOut up for you this week' . ($offer ? ', for free' : '') . ': send us your student list and we do the rest.')
+            . $par('You can ' . $call . ', or reply "not now" and I will stop writing.') . $sign;
+    } else {
+        $subject = 'Last note for ' . $org;
+        $body = $par($hi) . $par('I have not heard back, so this is my last note.')
+            . ($offer ? $par('The founding offer (3 months free, we do the setup, then 50% off for life) stays open until we have 20 centers.') : '')
+            . $par('If the timing is better later, you can ' . $call . ' any time. Thanks, and have a great week.') . $sign;
+    }
+    $foot = '<p style="margin:22px 0 0;font-size:12px;color:#8A8FA8">ClockInOut is an independent company, not affiliated with or endorsed by Kumon. '
+        . 'Not interested? <a href="' . e(scheme() . '://' . cfg('base_domain') . base_path() . '/unsubscribe?t=' . $p['token']) . '" style="color:#8A8FA8">Unsubscribe</a> and I won\'t email again.<br>'
+        . nl2br(e(trim((string) setting('outreach_address', '')))) . '</p>';
+    return [$subject, '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#1F2340;max-width:560px">' . $body . $foot . '</div>'];
 }
 

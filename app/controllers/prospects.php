@@ -65,6 +65,7 @@ function super_prospects_settings(): void
     setting_set('imap_sent_folder', ''); // found again on the next send
     setting_set('outreach_name', mb_substr(trim((string) input('outreach_name')), 0, 80));
     setting_set('outreach_phone', mb_substr(trim((string) input('outreach_phone')), 0, 40));
+    setting_set('kumon_reference', mb_substr(trim((string) input('kumon_reference')), 0, 80));
     $ofe = strtolower(trim((string) input('outreach_from_email')));
     setting_set('outreach_from_email', $ofe !== '' && filter_var($ofe, FILTER_VALIDATE_EMAIL) ? $ofe : '');
     setting_set('outreach_address', mb_substr(trim((string) input('outreach_address')), 0, 300));
