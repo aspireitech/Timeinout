@@ -40,6 +40,10 @@ function api_guard(): void
 function api_search(): void
 {
     api_guard();
+    $group = in_array(input('type'), ['teacher', 'staff'], true) ? 'staff' : 'members';
+    if (input('tile') !== 'pickup' && checkin_mode($group) === 'scan' && !desk_unlocked($group)) {
+        json_out(['error' => 'Please scan your badge. Forgot it? Ask the front desk.'], 403);
+    }
     $q = mb_substr((string) input('q'), 0, 50);
     if ($q === '') {
         json_out([]);
@@ -65,12 +69,24 @@ function api_search(): void
     ], $list));
 }
 
+/** Items currently shown on the kiosk (hidden ones are left out). */
+function api_materials(): void
+{
+    api_guard();
+    json_out(array_map(fn($m) => ['id' => (int) $m['id'], 'name' => $m['name']],
+        rows('SELECT id, name FROM materials WHERE tenant_id = ? AND active = 1 ORDER BY sort_order, name', [tid()])));
+}
+
 /** Only the guardians linked to the chosen student. */
 function api_guardians(): void
 {
     api_guard();
     $sid = (int) input('student_id');
     $list = rows('SELECT id, name, relationship FROM guardians WHERE tenant_id = ? AND student_id = ? ORDER BY id', [tid(), $sid]);
+    if (!$list) { // nobody on file (e.g. an adult learner): they sign themselves in and out
+        $st = row('SELECT first_name, last_name FROM students WHERE id = ? AND tenant_id = ?', [$sid, tid()]);
+        json_out($st ? [['id' => 0, 'name' => 'Self', 'relationship' => 'Signing in or out on their own', 'initials' => initials(full_name($st)), 'self' => true]] : []);
+    }
     json_out(array_map(fn($g) => ['id' => (int) $g['id'], 'name' => $g['name'], 'relationship' => $g['relationship'], 'initials' => initials($g['name'])], $list));
 }
 
@@ -143,10 +159,25 @@ function api_record(): void
     if (!$person) {
         json_out(['error' => 'Person not found.'], 404);
     }
+    // "Scan badge only": a sign-in/out needs this person's own badge (or the front-desk code)
+    if (in_array($tile['type'], ['members', 'staff'], true) && !checkin_allowed($type, $personId)) {
+        json_out(['error' => 'Please scan your badge to sign in or out. Forgot it? Tap "Forgot my badge?" and ask the front desk.'], 403);
+    }
 
     $guardian = null;
     if ($type === 'student' && $tile['needs_contact']) {
         $guardian = row('SELECT * FROM guardians WHERE id = ? AND student_id = ? AND tenant_id = ?', [$guardianId, $personId, tid()]);
+        if (!$guardian && $guardianId === 0 && !val('SELECT 1 FROM guardians WHERE student_id = ? AND tenant_id = ?', [$personId, tid()])) {
+            $guardian = ['id' => null, 'name' => 'Self']; // only allowed when no guardian is on file
+        }
+        if (!$guardian && $guardianId === -1 && (tenant()['allow_typed_relative'] ?? 1)) { // "Authorized relative": name typed at the kiosk
+            $rName = mb_substr(preg_replace('/\s+/u', ' ', trim((string) ($in['relative_name'] ?? ''))), 0, 80);
+            $rRel = mb_substr(trim((string) ($in['relative_relationship'] ?? '')), 0, 40) ?: 'Authorized relative';
+            if (mb_strlen($rName) < 3 || !str_contains($rName, ' ')) {
+                json_out(['error' => 'Please type your first and last name.'], 422);
+            }
+            $guardian = ['id' => null, 'name' => mb_substr($rName . ' (' . $rRel . ')', 0, 120)];
+        }
         if (!$guardian) {
             json_out(['error' => 'Please choose who is with them.'], 422);
         }

@@ -2,7 +2,7 @@
 // Automatic database upgrades. Each request does one cheap version check; new
 // tables/columns are added once, so uploading a new zip is all an update needs.
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 25;
 
 function setting(string $key, $default = null)
 {
@@ -47,6 +47,72 @@ function migrate(): void
         }
         if ($v < 3) {
             migration_3();
+        }
+        if ($v < 4) {
+            migration_4();
+        }
+        if ($v < 5) {
+            migration_5();
+        }
+        if ($v < 6) {
+            migration_6();
+        }
+        if ($v < 7) {
+            migration_7();
+        }
+        if ($v < 8) {
+            migration_8();
+        }
+        if ($v < 9) {
+            migration_9();
+        }
+        if ($v < 10) {
+            migration_10();
+        }
+        if ($v < 11) {
+            migration_11();
+        }
+        if ($v < 12) {
+            migration_12();
+        }
+        if ($v < 13) {
+            migration_13();
+        }
+        if ($v < 14) {
+            migration_14();
+        }
+        if ($v < 15) {
+            migration_15();
+        }
+        if ($v < 16) {
+            migration_16();
+        }
+        if ($v < 17) {
+            migration_17();
+        }
+        if ($v < 18) {
+            migration_18();
+        }
+        if ($v < 19) {
+            migration_19();
+        }
+        if ($v < 20) {
+            migration_20();
+        }
+        if ($v < 21) {
+            migration_21();
+        }
+        if ($v < 22) {
+            migration_22();
+        }
+        if ($v < 23) {
+            migration_23();
+        }
+        if ($v < 24) {
+            migration_24();
+        }
+        if ($v < 25) {
+            migration_25();
         }
         q("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [(string) SCHEMA_VERSION]);
     } finally {
@@ -174,5 +240,349 @@ function migration_3(): void
         if (!val('SELECT 1 FROM kiosk_tiles WHERE tenant_id = ?', [$t['id']])) {
             seed_tiles((int) $t['id'], $t['industry'] ?: 'school');
         }
+    }
+}
+
+/** Dedicated databases per portal, and demo-request leads. */
+function migration_4(): void
+{
+    foreach ([
+        ['db_host', 'VARCHAR(190) NULL'],
+        ['db_port', 'SMALLINT UNSIGNED NULL'],
+        ['db_name', 'VARCHAR(64) NULL'],
+        ['db_user', 'VARCHAR(64) NULL'],
+        ['db_pass', 'VARCHAR(512) NULL'],
+    ] as [$col, $def]) {
+        if (!column_exists('tenants', $col)) {
+            q("ALTER TABLE tenants ADD COLUMN $col $def");
+        }
+    }
+    q("CREATE TABLE IF NOT EXISTS leads (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(120) NOT NULL,
+        email VARCHAR(190) NOT NULL,
+        company VARCHAR(160) NULL,
+        phone VARCHAR(40) NULL,
+        industry VARCHAR(30) NULL,
+        employees VARCHAR(10) NULL,
+        message TEXT NULL,
+        status ENUM('new','contacted','qualified','won','lost') NOT NULL DEFAULT 'new',
+        notes TEXT NULL,
+        ip VARCHAR(45) NULL,
+        emailed TINYINT(1) NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL,
+        KEY ix_leads_time (created_at),
+        KEY ix_leads_status (status, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Deleted portals: closed at once, data kept for DELETE_GRACE_DAYS, then removed. */
+function migration_5(): void
+{
+    if (!column_exists('tenants', 'deleted_at')) {
+        q('ALTER TABLE tenants ADD COLUMN deleted_at DATETIME NULL');
+    }
+}
+
+/** Logins by user ID (email optional for staff) and "must change password at first sign-in". */
+function migration_6(): void
+{
+    if (!column_exists('users', 'username')) {
+        q('ALTER TABLE users ADD COLUMN username VARCHAR(40) NULL AFTER email');
+        q('ALTER TABLE users ADD UNIQUE KEY uq_user_username (tenant_id, username)');
+    }
+    if (!column_exists('users', 'must_change_password')) {
+        q('ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0');
+    }
+    q('ALTER TABLE users MODIFY email VARCHAR(190) NULL');
+}
+
+/** Extra info from imported columns (encrypted JSON) and remembered column choices per portal. */
+function migration_7(): void
+{
+    foreach (['students', 'teachers'] as $table) {
+        if (!column_exists($table, 'extra')) {
+            q("ALTER TABLE $table ADD COLUMN extra TEXT NULL");
+        }
+    }
+    q("CREATE TABLE IF NOT EXISTS import_maps (
+        tenant_id INT UNSIGNED NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        mapping TEXT NOT NULL,
+        updated_at DATETIME NOT NULL,
+        PRIMARY KEY (tenant_id, type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Feature requests sent from customer portals (stored in the main database). */
+function migration_8(): void
+{
+    q("CREATE TABLE IF NOT EXISTS feature_requests (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        tenant_id INT UNSIGNED NULL,
+        portal VARCHAR(160) NULL,
+        user_name VARCHAR(120) NULL,
+        user_email VARCHAR(190) NULL,
+        title VARCHAR(150) NOT NULL,
+        category VARCHAR(20) NOT NULL,
+        priority VARCHAR(20) NOT NULL,
+        details TEXT NOT NULL,
+        problem TEXT NULL,
+        people VARCHAR(60) NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'new',
+        reply TEXT NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        KEY ix_fr_tenant (tenant_id, created_at),
+        KEY ix_fr_status (status, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Which campaign page or link a demo request came from (?src=…). */
+function migration_9(): void
+{
+    if (!column_exists('leads', 'source')) {
+        q('ALTER TABLE leads ADD COLUMN source VARCHAR(40) NULL AFTER message');
+    }
+}
+
+/** V10: monthly or yearly billing per portal. */
+function migration_10(): void
+{
+    if (!column_exists('tenants', 'billing_cycle')) {
+        q("ALTER TABLE tenants ADD COLUMN billing_cycle VARCHAR(10) NOT NULL DEFAULT 'monthly' AFTER billing_provider");
+    }
+}
+
+/** V11: kiosk may offer "Authorized relative" with a typed name. */
+function migration_11(): void
+{
+    if (!column_exists('tenants', 'allow_typed_relative')) {
+        q('ALTER TABLE tenants ADD COLUMN allow_typed_relative TINYINT(1) NOT NULL DEFAULT 1 AFTER allow_past_days');
+    }
+}
+
+/** V12: where a self sign-up came from (?src=, e.g. linkedin-schools). */
+function migration_12(): void
+{
+    if (!column_exists('tenants', 'source')) {
+        q('ALTER TABLE tenants ADD COLUMN source VARCHAR(40) NULL AFTER industry');
+    }
+}
+
+/** V13: is name.<base_domain> reachable yet? 0 = send people to <base_domain>/s/name instead. */
+function migration_13(): void
+{
+    if (!column_exists('tenants', 'subdomain_ok')) {
+        q('ALTER TABLE tenants ADD COLUMN subdomain_ok TINYINT(1) NOT NULL DEFAULT 1 AFTER custom_domain');
+    }
+}
+
+/** V14: which trial follow-up emails, provider alerts and weekly scorecards were already sent. */
+function migration_14(): void
+{
+    q('CREATE TABLE IF NOT EXISTS nurture_log (
+        tenant_id INT UNSIGNED NOT NULL,
+        kind VARCHAR(40) NOT NULL,
+        sent_at DATETIME NOT NULL,
+        PRIMARY KEY (tenant_id, kind)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** V15: prospects for the automatic outreach emails (platform table). */
+function migration_15(): void
+{
+    q('CREATE TABLE IF NOT EXISTS prospects (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        org VARCHAR(160) NOT NULL,
+        first_name VARCHAR(60) NULL,
+        email VARCHAR(190) NOT NULL,
+        phone VARCHAR(40) NULL,
+        website VARCHAR(255) NULL,
+        city VARCHAR(60) NULL,
+        state VARCHAR(4) NULL,
+        kind VARCHAR(30) NOT NULL DEFAULT \'other\',
+        found_at VARCHAR(255) NULL,
+        status VARCHAR(20) NOT NULL DEFAULT \'new\',
+        step TINYINT UNSIGNED NOT NULL DEFAULT 0,
+        next_at DATETIME NULL,
+        last_sent_at DATETIME NULL,
+        token CHAR(32) NOT NULL,
+        notes TEXT NULL,
+        added_by VARCHAR(20) NOT NULL DEFAULT \'manual\',
+        created_at DATETIME NOT NULL,
+        UNIQUE KEY uq_prospect_email (email),
+        UNIQUE KEY uq_prospect_token (token),
+        KEY ix_prospect_due (status, next_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** V16: optional features per portal, the industry add-on pack and the support plan (all off / regular by default). */
+function migration_16(): void
+{
+    foreach (['features' => 'TEXT NULL', 'addon_status' => 'VARCHAR(20) NULL', 'support_plan' => "VARCHAR(20) NOT NULL DEFAULT 'regular'",
+              'support_status' => 'VARCHAR(20) NULL'] as $col => $def) {
+        if (!column_exists('tenants', $col)) {
+            q("ALTER TABLE tenants ADD COLUMN $col $def");
+        }
+    }
+}
+
+/** V17: personal QR badge code for every student and staff member (NULL until QR badges are used). */
+function migration_17(): void
+{
+    foreach (['students', 'teachers'] as $table) {
+        if (!column_exists($table, 'badge_code')) {
+            q("ALTER TABLE $table ADD COLUMN badge_code VARCHAR(24) NULL, ADD KEY ix_{$table}_badge (tenant_id, badge_code)");
+        }
+    }
+}
+
+/** V18: how each group checks in (tap / scan / both) and the hashed front-desk code for "Forgot my badge?". */
+function migration_18(): void
+{
+    foreach (['checkin_modes' => 'VARCHAR(80) NULL', 'desk_pin_hash' => 'VARCHAR(255) NULL'] as $col => $def) {
+        if (!column_exists('tenants', $col)) {
+            q("ALTER TABLE tenants ADD COLUMN $col $def");
+        }
+    }
+}
+
+/** Outreach delivery log: one row per email, with the mail server's answer and any bounce or reply (platform table). */
+function migration_19(): void
+{
+    q('CREATE TABLE IF NOT EXISTS prospect_sends (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        prospect_id INT UNSIGNED NOT NULL,
+        step TINYINT UNSIGNED NOT NULL,
+        to_email VARCHAR(190) NOT NULL,
+        message_id VARCHAR(190) NULL,
+        server_reply VARCHAR(255) NULL,
+        in_sent TINYINT(1) NOT NULL DEFAULT 0,
+        sent_at DATETIME NOT NULL,
+        outcome VARCHAR(20) NULL,
+        outcome_at DATETIME NULL,
+        outcome_note VARCHAR(255) NULL,
+        KEY prospect (prospect_id),
+        KEY message (message_id),
+        KEY sent (sent_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/**
+ * Sales dashboard: one dated row per outreach event (found, sent, bounced, opened, clicked, replied, demo, signed_up,
+ * unsubscribed) (platform table). Filled from what is already known; dates before this table existed are estimates.
+ */
+function migration_20(): void
+{
+    q('CREATE TABLE IF NOT EXISTS prospect_events (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        prospect_id INT UNSIGNED NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        step TINYINT UNSIGNED NULL,
+        at DATETIME NOT NULL,
+        KEY at_type (at, type),
+        KEY prospect (prospect_id, type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    if ((int) val('SELECT COUNT(*) FROM prospect_events')) {
+        return;
+    }
+    q("INSERT INTO settings (k, v) VALUES ('sales_events_since', ?) ON DUPLICATE KEY UPDATE v = v", [gmdate('Y-m-d H:i:s')]);
+    q("INSERT INTO prospect_events (prospect_id, type, at) SELECT id, 'found', created_at FROM prospects");
+    // Emails already sent: the last one at last_sent_at, earlier ones 4 and 5 days apart before it
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', step, last_sent_at FROM prospects WHERE step >= 1 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', 1, last_sent_at - INTERVAL 4 DAY FROM prospects WHERE step = 2 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', 2, last_sent_at - INTERVAL 5 DAY FROM prospects WHERE step = 3 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, step, at) SELECT id, 'sent', 1, last_sent_at - INTERVAL 9 DAY FROM prospects WHERE step = 3 AND last_sent_at IS NOT NULL");
+    q("INSERT INTO prospect_events (prospect_id, type, at) SELECT id, CASE status WHEN 'demo' THEN 'demo' ELSE status END, COALESCE(last_sent_at, created_at)
+       FROM prospects WHERE status IN ('replied','demo','signed_up','unsubscribed','bounced')");
+}
+
+/** Which link a prospect clicked (hot list), and website visits without cookies (traffic on the sales dashboard; platform table). */
+function migration_21(): void
+{
+    if (!column_exists('prospect_events', 'detail')) {
+        q('ALTER TABLE prospect_events ADD COLUMN detail VARCHAR(20) NULL');
+    }
+    q('CREATE TABLE IF NOT EXISTS site_visits (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        at DATETIME NOT NULL,
+        vid CHAR(16) NOT NULL,
+        path VARCHAR(120) NOT NULL,
+        source VARCHAR(40) NOT NULL,
+        ref_host VARCHAR(80) NULL,
+        device VARCHAR(8) NOT NULL,
+        landing TINYINT(1) NOT NULL DEFAULT 0,
+        KEY at (at),
+        KEY vid (vid, at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** Missed sign-out reminders: who gets them (per portal), and a log so each person is reminded once per day. */
+function migration_22(): void
+{
+    foreach (['signout_mode' => "VARCHAR(10) NOT NULL DEFAULT 'both'", 'signout_weekdays' => 'TINYINT(1) NOT NULL DEFAULT 1', 'closing_time' => 'TIME NULL'] as $col => $def) {
+        if (column_exists('tenants', $col)) {
+            continue;
+        }
+        q("ALTER TABLE tenants ADD COLUMN $col $def");
+    }
+    q('CREATE TABLE IF NOT EXISTS reminder_log (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        tenant_id INT UNSIGNED NOT NULL,
+        person_type VARCHAR(10) NOT NULL,
+        person_id INT UNSIGNED NOT NULL,
+        event_date DATE NOT NULL,
+        status VARCHAR(12) NOT NULL,
+        created_at DATETIME NOT NULL,
+        UNIQUE KEY once (tenant_id, person_type, person_id, event_date),
+        KEY recent (tenant_id, person_type, person_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    q('CREATE TABLE IF NOT EXISTS reminder_optout (
+        tenant_id INT UNSIGNED NOT NULL,
+        person_type VARCHAR(10) NOT NULL,
+        person_id INT UNSIGNED NOT NULL,
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY (tenant_id, person_type, person_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** Outreach A/B test: which email version a prospect gets (a = designed, b = plain personal note). */
+function migration_23(): void
+{
+    if (!column_exists('prospects', 'variant')) {
+        q('ALTER TABLE prospects ADD COLUMN variant CHAR(1) NULL');
+    }
+    if (!column_exists('prospect_sends', 'variant')) {
+        q('ALTER TABLE prospect_sends ADD COLUMN variant CHAR(1) NULL');
+    }
+}
+
+/** Website email sign-ups (free checklist slide-in): one row per address, with an unsubscribe token. */
+function migration_24(): void
+{
+    q('CREATE TABLE IF NOT EXISTS subscribers (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(190) NOT NULL,
+        kind VARCHAR(10) NOT NULL,
+        source VARCHAR(40) NULL,
+        token CHAR(32) NOT NULL,
+        ip VARCHAR(45) NULL,
+        created_at DATETIME NOT NULL,
+        welcome_sent TINYINT(1) NOT NULL DEFAULT 0,
+        followup_sent TINYINT(1) NOT NULL DEFAULT 0,
+        signed_up_at DATETIME NULL,
+        unsubscribed_at DATETIME NULL,
+        UNIQUE KEY email (email),
+        UNIQUE KEY token (token),
+        KEY created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+/** Founding customers (first 20 sign-ups: 90-day trial and 50% off for life). */
+function migration_25(): void
+{
+    if (!column_exists('tenants', 'founding')) {
+        q('ALTER TABLE tenants ADD COLUMN founding TINYINT(1) NOT NULL DEFAULT 0');
     }
 }

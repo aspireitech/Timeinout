@@ -1,0 +1,30 @@
+<p>Customers pay by card through Stripe (automatic monthly or yearly renewal), or by invoice through Wave.</p>
+<h2>Plans</h2>
+<table><thead><tr><th></th><th>Starter</th><th>Business</th><th>Enterprise</th></tr></thead><tbody>
+<tr><td>Monthly / yearly</td><td>$39 / $390</td><td>$79 / $790</td><td>$149 / $1,490</td></tr>
+<tr><td>People</td><td>75</td><td>500</td><td>Unlimited</td></tr>
+<tr><td>Staff logins</td><td>3</td><td>Unlimited</td><td>Unlimited</td></tr>
+<tr><td>Report history</td><td>90 days</td><td>180 days</td><td>Unlimited</td></tr>
+</tbody></table>
+<p>Yearly = 10 months charged (2 months free). Free trial: 7 days, no card. Prices live in <code>app/lib/billing.php</code> (<code>PLAN_CATALOG</code>).</p>
+<h2>What the customer sees</h2>
+<img src="{{IMGROOT}}/screens/26-admin-billing.jpg" alt="Customer billing page" width="900">
+<p>When the trial ends, the admin portal opens only Billing (and Help) until a plan is paid. The kiosk keeps working 7 more days, then pauses.</p>
+<h2>Stripe setup (step by step)</h2>
+<ol>
+<li><strong>Product:</strong> Stripe → Product catalog → Add product "ClockInOut", tax code <code>txcd_10103001</code> (SaaS, business use).</li>
+<li><strong>6 prices</strong> on that product, all <em>Recurring</em>: monthly $39, $79, $149 and yearly $390, $790, $1,490.</li>
+<li>Copy each <strong>price ID</strong> (starts with <code>price_</code>, not <code>prod_</code>) into <code>/super → Settings → Stripe</code>: monthly and yearly field for each plan.</li>
+<li><strong>Secret key:</strong> Developers → API keys → Secret key (<code>sk_live_…</code>) → paste in <code>/super → Settings</code>. Never the publishable key.</li>
+<li><strong>Webhook:</strong> Developers → Webhooks → Add destination → "Your account" → snapshot payload → URL <code>https://clockinoutapp.com/webhooks/stripe</code> → events <code>checkout.session.completed</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>, <code>invoice.paid</code>, <code>invoice.payment_failed</code> → copy the <strong>signing secret</strong> (<code>whsec_…</code>) into <code>/super → Settings</code>.</li>
+<li><strong>Customer portal:</strong> Stripe → Settings → Billing → Customer portal → turn on (lets customers change card or cancel).</li>
+<li><strong>Sales tax (optional):</strong> turn on Stripe Tax and add your Utah registration, then tick "Collect sales tax with Stripe Tax" in <code>/super → Settings</code>. Utah taxes SaaS; confirm with your accountant.</li>
+</ol>
+<div data-type="panel-info"><p>Only the signed Stripe webhook can mark a customer as paid. Renewals, failed cards and cancellations update the portal automatically, and you get an alert email for each.</p></div>
+<h2>Test mode</h2>
+<ol><li>Stripe → toggle <strong>Test mode</strong> → create the same 6 prices and a test webhook → paste the test keys and IDs in <code>/super → Settings</code>.</li><li>Pay with card <code>4242 4242 4242 4242</code>, any future date, any CVC.</li><li>Switch back to the live keys and IDs afterwards.</li></ol>
+<h2>Wave (invoices)</h2>
+<ol><li>Wave → create one product per plan (Sales → Products) and an API token (needs a Wave plan with API access).</li><li>Paste token, business ID and product IDs in <code>/super → Settings → Wave</code>.</li><li>When a customer clicks "Choose plan" without card payment, you get an email; send the invoice and set the portal to <strong>active</strong> in <code>/super → Subscribers</code>. Paid status syncs hourly.</li></ol>
+<h2>Where to see money</h2>
+<p><code>/super → Payments</code> (history, monthly recurring revenue) and the Monday scorecard.</p>
+<img src="{{IMGROOT}}/screens/15-super-payments.jpg" alt="Payments page" width="900">

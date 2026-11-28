@@ -2,8 +2,14 @@
 // Sends HTML email via PHP mail() or a minimal built-in SMTP client
 // (STARTTLS / SSL + AUTH LOGIN), so no Composer packages are needed.
 
-/** Email settings: the provider console (saved in the database) wins over config.php. */
-function mail_config(): array
+/**
+ * Email settings for one sender mailbox.
+ *   'contact'  sign-in codes, account notices, leads   (default: contact@<base_domain>)
+ *   'reports'  daily / weekly / monthly / on-demand reports  (default: reports@<base_domain>)
+ * Server settings come from config.php 'mail', overridden by /super → Settings; each sender's
+ * address, login and password come from config.php 'mail_senders' when set there.
+ */
+function mail_config(string $sender = 'contact'): array
 {
     $m = cfg('mail', []);
     try {
@@ -16,28 +22,98 @@ function mail_config(): array
     } catch (Throwable $e) {
         // settings table not there yet: use config.php
     }
+    if ((cfg('mail')['driver'] ?? '') === 'graph') {
+        $m['driver'] = 'graph'; // Microsoft Graph chosen in config.php always wins
+    }
+    if ($sender === 'outreach' && ($ob = outreach_from_email()) !== null) {
+        $m['from_email'] = $ob; // cold outreach from its own domain, so the main domain's reputation stays clean
+        $m['from_name'] = trim((string) setting('outreach_name', '')) ?: ($m['from_name'] ?? '');
+    }
+    $s = cfg('mail_senders', [])[$sender] ?? [];
+    foreach (['from_email', 'from_name', 'user', 'pass'] as $k) {
+        if (($s[$k] ?? '') !== '') {
+            $m[$k] = $s[$k];
+        }
+    }
     return $m;
+}
+
+/** The mailbox that receives copies, leads and suspicious-activity reports. */
+function contact_email(): string
+{
+    return (string) (cfg('contact_email') ?: cfg('lead_email') ?: 'contact@' . cfg('base_domain'));
+}
+
+/** Extra addresses that get a copy of every provider alert (/super → Settings → "Also send alerts to"). */
+function alert_copies(): array
+{
+    try {
+        $list = preg_split('/[\s,;]+/', (string) setting('alert_emails', ''), -1, PREG_SPLIT_NO_EMPTY);
+    } catch (Throwable $e) {
+        return [];
+    }
+    return array_values(array_filter(array_map('strtolower', $list), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL)));
+}
+
+/** An email to you, the provider (contact mailbox), with a copy to the extra alert addresses. */
+function provider_alert(string $subject, string $html): bool
+{
+    return send_mail([contact_email()], $subject, '<div style="font-family:Arial,sans-serif;max-width:600px;color:#161B36">' . $html . '</div>', [], 'contact', alert_copies());
 }
 
 $GLOBALS['mail_error'] = null;
 
 /**
  * Sends an HTML email, optionally with attachments: [[filename, mime type, bytes], ...].
+ * $sender picks the mailbox ('contact' or 'reports'); $bcc gets a hidden copy.
  * On failure the reason is left in $GLOBALS['mail_error'].
  */
-function send_mail(array $to, string $subject, string $html, array $attachments = []): bool
+/** Sends an email and records the outcome for the status page. */
+function send_mail(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = [], array $extraHeaders = []): bool
 {
-    $GLOBALS['mail_error'] = null;
-    $to = array_values(array_filter(array_map('trim', $to), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL)));
+    $ok = send_mail_now($to, $subject, $html, $attachments, $sender, $bcc, $extraHeaders);
+    try {
+        setting_set($ok ? 'mail_last_ok' : 'mail_last_fail', gmdate('Y-m-d H:i:s'));
+        if (!$ok) {
+            setting_set('mail_last_error', mb_substr((string) ($GLOBALS['mail_error'] ?? ''), 0, 300));
+        }
+    } catch (Throwable $e) {
+        // status bookkeeping must never break sending
+    }
+    return $ok;
+}
+
+/**
+ * After a successful send: $GLOBALS['mail_reply'] (the mail server's "250 … queued as …" answer, SMTP only),
+ * $GLOBALS['mail_message_id'] and $GLOBALS['mail_raw'] (the whole message, to file a copy in the Sent folder).
+ * $extraHeaders: e.g. List-Unsubscribe (SMTP and mail() only).
+ */
+function send_mail_now(array $to, string $subject, string $html, array $attachments = [], string $sender = 'contact', array $bcc = [], array $extraHeaders = []): bool
+{
+    $GLOBALS['mail_error'] = $GLOBALS['mail_reply'] = $GLOBALS['mail_message_id'] = $GLOBALS['mail_raw'] = null;
+    $GLOBALS['mail_in_sent'] = false; // true when the mail service itself filed a copy in Sent Items
+    $extraHeaders = array_values(array_filter($extraHeaders, fn($h) => is_string($h) && !preg_match('/[\r\n]/', $h) && str_contains($h, ':')));
+    $valid = fn(array $list) => array_values(array_unique(array_filter(array_map('trim', $list), fn($a) => filter_var($a, FILTER_VALIDATE_EMAIL))));
+    $to = $valid($to);
+    $bcc = array_values(array_diff($valid($bcc), $to));
     if (!$to) {
         $GLOBALS['mail_error'] = 'No valid recipient email address.';
         return false;
     }
-    $m = mail_config();
-    $from = ($m['from_email'] ?? '') ?: 'no-reply@' . cfg('base_domain');
+    $m = mail_config($sender);
+    $from = ($m['from_email'] ?? '') ?: $sender . '@' . cfg('base_domain');
     $fromName = ($m['from_name'] ?? '') ?: cfg('app_name');
+    if (($m['driver'] ?? '') === 'graph' && !$extraHeaders) {
+        return graph_send($from, $fromName, $to, $bcc, $subject, $html, $attachments, $sender !== 'contact' ? contact_email() : null);
+    }
     $encSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $headers = ['MIME-Version: 1.0', 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <$from>"];
+    if ($sender !== 'contact') {
+        if (!preg_grep('/^Reply-To:/i', $extraHeaders)) {
+            $headers[] = 'Reply-To: ' . contact_email(); // replies to a report reach a person
+        }
+    }
+    $headers = array_merge($headers, $extraHeaders);
 
     if ($attachments) {
         $b = 'b' . bin2hex(random_bytes(12));
@@ -54,20 +130,33 @@ function send_mail(array $to, string $subject, string $html, array $attachments 
         $body = chunk_split(base64_encode($html));
     }
 
+    if (($m['driver'] ?? '') === 'graph') { // with extra headers (outreach): send the whole message as MIME
+        $msgId = '<' . bin2hex(random_bytes(12)) . '@' . cfg('base_domain') . '>';
+        $raw = implode("\r\n", array_merge($headers, ['To: ' . implode(', ', $to), 'Subject: ' . $encSubject, 'Date: ' . date('r'), 'Message-ID: ' . $msgId]))
+            . "\r\n\r\n" . $body;
+        return graph_send_mime($from, $raw, $msgId);
+    }
     if (($m['driver'] ?? 'mail') === 'smtp') {
+        $msgId = '<' . bin2hex(random_bytes(12)) . '@' . cfg('base_domain') . '>';
+        $all = array_merge($headers, [
+            'To: ' . implode(', ', $to),
+            'Subject: ' . $encSubject,
+            'Date: ' . date('r'),
+            'Message-ID: ' . $msgId,
+        ]);
         try {
-            smtp_send($m, $from, $to, array_merge($headers, [
-                'To: ' . implode(', ', $to),
-                'Subject: ' . $encSubject,
-                'Date: ' . date('r'),
-                'Message-ID: <' . bin2hex(random_bytes(8)) . '@' . cfg('base_domain') . '>',
-            ]), $body);
+            $GLOBALS['mail_reply'] = smtp_send($m, $from, array_merge($to, $bcc), $all, $body);
+            $GLOBALS['mail_message_id'] = $msgId;
+            $GLOBALS['mail_raw'] = implode("\r\n", $all) . "\r\n\r\n" . $body;
             return true;
         } catch (Throwable $ex) {
             $GLOBALS['mail_error'] = 'SMTP: ' . $ex->getMessage();
             error_log('SMTP error: ' . $ex->getMessage());
             return false;
         }
+    }
+    if ($bcc) {
+        $headers[] = 'Bcc: ' . implode(', ', $bcc);
     }
     $ok = @mail(implode(', ', $to), $encSubject, $body, implode("\r\n", $headers));
     if (!$ok) {
@@ -76,7 +165,8 @@ function send_mail(array $to, string $subject, string $html, array $attachments 
     return $ok;
 }
 
-function smtp_send(array $c, string $from, array $to, array $headers, string $body): void
+/** Sends one message over SMTP. Returns the server's answer to the message ("250 2.0.0 Ok: queued as …"). */
+function smtp_send(array $c, string $from, array $to, array $headers, string $body): string
 {
     $secure = $c['secure'] ?? '';
     $fp = @stream_socket_client(($secure === 'ssl' ? 'ssl://' : 'tcp://') . $c['host'] . ':' . (int) $c['port'], $errno, $errstr, 15);
@@ -122,7 +212,124 @@ function smtp_send(array $c, string $from, array $to, array $headers, string $bo
     $cmd('DATA', [354]);
     $data = implode("\r\n", $headers) . "\r\n\r\n" . $body;
     $data = preg_replace('/^\./m', '..', $data);
-    $cmd($data . "\r\n.", [250]);
-    $cmd('QUIT', [221]);
+    $accepted = trim($cmd($data . "\r\n.", [250]));
+    try {
+        $cmd('QUIT', [221]);
+    } catch (Throwable $e) {
+        // the message is already accepted; a rude goodbye does not matter
+    }
     fclose($fp);
+    return mb_substr(preg_replace('/\s+/', ' ', $accepted), 0, 250);
+}
+
+// ---------- Microsoft 365 through Microsoft Graph (no SMTP, no mailbox passwords) ----------
+// config.php: 'mail' => ['driver' => 'graph', …] and 'graph' => ['tenant_id', 'client_id', 'client_secret'].
+// The Entra app needs the Mail.Send application permission, limited to the sending mailboxes.
+
+function graph_http(string $method, string $url, array $headers, string $body): array
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_HTTPHEADER => $headers, CURLOPT_POSTFIELDS => $body]);
+    $resp = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    if ($resp === false) {
+        throw new RuntimeException('Could not reach Microsoft: ' . $err);
+    }
+    return [$code, json_decode((string) $resp, true) ?: []];
+}
+
+/** App-only access token, cached until shortly before it expires. */
+function graph_token(): string
+{
+    $g = cfg('graph', []);
+    if (empty($g['tenant_id']) || empty($g['client_id']) || empty($g['client_secret'])) {
+        throw new RuntimeException('Microsoft Graph is not set up: add tenant_id, client_id and client_secret under graph in app/config.php.');
+    }
+    $cache = APP_DIR . '/sessions/graph_token.json';
+    $c = is_file($cache) ? json_decode((string) file_get_contents($cache), true) : null;
+    if ($c && ($c['client'] ?? '') === $g['client_id'] && ($c['exp'] ?? 0) > time() + 120) {
+        return (string) decrypt_pii($c['token']);
+    }
+    [$code, $d] = graph_http('POST', rtrim($g['login_url'] ?? 'https://login.microsoftonline.com', '/') . '/' . rawurlencode($g['tenant_id']) . '/oauth2/v2.0/token',
+        ['Content-Type: application/x-www-form-urlencoded'], http_build_query([
+            'client_id' => $g['client_id'], 'client_secret' => $g['client_secret'],
+            'scope' => 'https://graph.microsoft.com/.default', 'grant_type' => 'client_credentials']));
+    if ($code !== 200 || empty($d['access_token'])) {
+        throw new RuntimeException('Microsoft sign-in failed: ' . ($d['error_description'] ?? $d['error'] ?? "HTTP $code"));
+    }
+    @file_put_contents($cache, json_encode(['client' => $g['client_id'], 'exp' => time() + (int) ($d['expires_in'] ?? 3600), 'token' => encrypt_pii($d['access_token'])]));
+    @chmod($cache, 0600);
+    return (string) $d['access_token'];
+}
+
+/**
+ * Microsoft 365: sends a complete MIME message (keeps headers such as List-Unsubscribe and our Message-ID,
+ * which the JSON form drops). Microsoft files a copy in the mailbox's Sent Items.
+ */
+function graph_send_mime(string $from, string $raw, string $msgId): bool
+{
+    try {
+        [$code, $d] = graph_http('POST', rtrim(cfg('graph')['api_url'] ?? 'https://graph.microsoft.com', '/') . '/v1.0/users/' . rawurlencode($from) . '/sendMail',
+            ['Authorization: Bearer ' . graph_token(), 'Content-Type: text/plain'], base64_encode($raw));
+        if ($code === 202) {
+            $GLOBALS['mail_reply'] = 'Accepted by Microsoft 365 (202)';
+            $GLOBALS['mail_message_id'] = $msgId;
+            $GLOBALS['mail_in_sent'] = true;
+            return true;
+        }
+        $GLOBALS['mail_error'] = 'Microsoft Graph: ' . ($d['error']['message'] ?? "HTTP $code");
+    } catch (Throwable $e) {
+        $GLOBALS['mail_error'] = $e->getMessage();
+    }
+    error_log('Graph mail error: ' . $GLOBALS['mail_error']);
+    return false;
+}
+
+function graph_send(string $from, string $fromName, array $to, array $bcc, string $subject, string $html, array $attachments, ?string $replyTo): bool
+{
+    $addr = fn(array $list) => array_map(fn($a) => ['emailAddress' => ['address' => $a]], $list);
+    $msg = [
+        'subject' => $subject,
+        'body' => ['contentType' => 'HTML', 'content' => $html],
+        'from' => ['emailAddress' => ['address' => $from, 'name' => $fromName]],
+        'toRecipients' => $addr($to),
+    ];
+    if ($bcc) {
+        $msg['bccRecipients'] = $addr($bcc);
+    }
+    if ($replyTo) {
+        $msg['replyTo'] = $addr([$replyTo]);
+    }
+    foreach ($attachments as [$name, $mime, $data]) {
+        $msg['attachments'][] = ['@odata.type' => '#microsoft.graph.fileAttachment', 'name' => $name, 'contentType' => $mime, 'contentBytes' => base64_encode($data)];
+    }
+    try {
+        [$code, $d] = graph_http('POST', rtrim(cfg('graph')['api_url'] ?? 'https://graph.microsoft.com', '/') . '/v1.0/users/' . rawurlencode($from) . '/sendMail',
+            ['Authorization: Bearer ' . graph_token(), 'Content-Type: application/json'], json_encode(['message' => $msg, 'saveToSentItems' => false]));
+        if ($code === 202) {
+            return true;
+        }
+        $GLOBALS['mail_error'] = 'Microsoft Graph: ' . ($d['error']['message'] ?? "HTTP $code") . ($code === 403 ? ' (check the Mail.Send permission, admin consent and that ' . $from . ' is in the allowed mailboxes)' : '');
+    } catch (Throwable $e) {
+        $GLOBALS['mail_error'] = $e->getMessage();
+    }
+    error_log('Graph mail error: ' . $GLOBALS['mail_error']);
+    return false;
+}
+
+/** "Powered by ClockInOut" line for emails customers' staff and families receive (a link back, tagged by source). */
+function powered_by_html(string $from): string
+{
+    $url = scheme() . '://' . cfg('base_domain') . base_path() . '/?src=powered-' . preg_replace('/[^a-z]/', '', $from);
+    return 'Powered by <a href="' . e($url) . '" style="color:#8A8FA8">' . e(cfg('app_name')) . '</a>: sign-in and sign-out for schools and small businesses';
+}
+
+/** The separate mailbox outreach is sent from (/super → Prospects), or null to use the main contact mailbox. Graph driver only. */
+function outreach_from_email(): ?string
+{
+    $e = strtolower(trim((string) setting('outreach_from_email', '')));
+    return $e !== '' && filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : null;
 }

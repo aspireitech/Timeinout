@@ -21,4 +21,12 @@
     <button class="link-btn" style="color:var(--brand)" type="submit">Send a new code</button>
     <span class="muted small"> · </span><a class="small" href="<?= e($back) ?>">Start over</a>
   </form>
+  <?php if (!empty($recovery)): ?>
+    <details style="margin-top:16px" <?= $info && str_contains($info, 'recovery') ? 'open' : '' ?>><summary class="small" style="cursor:pointer;color:var(--brand)">Email not arriving? Use a recovery code</summary>
+      <form method="post" action="<?= e($action) ?>" style="margin-top:10px">
+        <?= csrf_field() ?>
+        <div class="field"><label for="rc">Recovery code</label><input type="text" id="rc" name="recovery" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" style="letter-spacing:.15em;text-align:center"></div>
+        <button class="btn btn-block">Sign in with recovery code</button>
+      </form></details>
+  <?php endif; ?>
 </div>

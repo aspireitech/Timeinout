@@ -1,0 +1,55 @@
+<p>Everything you need to see how outreach and the website turn into customers, and who to call today. Open it at <code>clockinoutapp.com/super/sales</code> (button <strong>Sales dashboard</strong> in the provider console). Screenshots use made-up example data.</p>
+<div data-type="panel-info"><p><strong>Every number is clickable.</strong> Click any card, ring, funnel row, chart bar or table number to open the list of people or visits behind it, for the same dates, with a <strong>Download CSV</strong> button.</p></div>
+<h2>1. Pick the period</h2>
+<ol>
+<li>Click <strong>Last 7 days</strong>, <strong>Last 30 days</strong>, <strong>Last 90 days</strong>, <strong>This month</strong>, <strong>Last month</strong> or <strong>This year</strong>.</li>
+<li>Or type your own dates in the two date boxes, choose <strong>By day</strong>, <strong>By week</strong> or <strong>By month</strong>, and click <strong>Apply</strong>.</li>
+<li>Times follow your outreach time zone (America/Denver). Arrows ▲▼ compare with the same number of days just before.</li>
+</ol>
+<img src="{{IMGROOT}}/screens/40-sales-cards.jpg" alt="Sales dashboard headline cards" width="1000">
+<h2>2. Headline cards: what each one means</h2>
+<table><thead><tr><th>Card</th><th>Counts</th><th>Click it to see</th></tr></thead><tbody>
+<tr><td>Prospects found</td><td>Organizations added by the daily finder or by you</td><td>Each organization, type, place, email, phone</td></tr>
+<tr><td>Emails sent</td><td>Every outreach email (email 1, follow-up, last note)</td><td>One row per email</td></tr>
+<tr><td>Delivered</td><td>Emailed and not bounced (keep above 97%)</td><td>Everyone emailed who did not bounce</td></tr>
+<tr><td>Clicked</td><td>People who clicked the trial, demo or website link (link scanners left out)</td><td>Who, and which page they looked at</td></tr>
+<tr><td>Replied</td><td>People who answered (found automatically in the inbox, or set by you)</td><td>Who, with the reply subject</td></tr>
+<tr><td>Demos booked / Signed up</td><td>Prospects who requested a demo or started a trial</td><td>Who, and their status now</td></tr>
+<tr><td>Opened (only if turned on)</td><td>An estimate; off by default because iPhones "open" every email by themselves</td><td>Who</td></tr>
+</tbody></table>
+<h2>3. Call today (hot list)</h2>
+<p>Prospects who clicked a link in the last 7 days and have not replied. Those who looked at the free-trial or demo page are listed first. A two-minute phone call ("I saw you had a look, any questions?") converts far better than another email. After the call, set the prospect to <strong>Replied</strong> or <strong>Booked demo</strong> in Prospects.</p>
+<img src="{{IMGROOT}}/screens/41-sales-hot-list.jpg" alt="Call today hot list" width="1000">
+<p>The same list arrives by email <strong>every weekday at 8:00</strong> (your time), together with yesterday's visits, demo requests, sign-ups, outreach emails and replies. It goes to contact@ and to the extra alert addresses in <code>/super → Settings</code>.</p>
+<img src="{{IMGROOT}}/screens/46-hot-list-email.jpg" alt="Morning hot list email" width="700">
+<h2>4. Website traffic</h2>
+<p>Visits are counted on our own server, so ad blockers do not hide them. One visit = one person per day (no tracking cookie; bots and link previews are left out; your own /super visits do not count).</p>
+<ul>
+<li><strong>Visits</strong>, share on a phone, demo requests, sign-ups and <strong>Visit → lead</strong> (a good rate is 2–5%).</li>
+<li><strong>Where visitors land</strong>: the first page of each visit.</li>
+<li><strong>Where visitors come from</strong>: google, facebook, chatgpt, outreach, direct, or any <code>?src=</code> tag, with each source's demo requests, sign-ups and conversion. Click a number to see the visits or leads.</li>
+</ul>
+<img src="{{IMGROOT}}/screens/42-sales-traffic.jpg" alt="Website traffic section" width="1000">
+<div data-type="panel-note"><p><strong>Tag every link you share</strong> with <code>?src=</code>, e.g. <code>clockinoutapp.com/?src=chamber</code>, <code>?src=capterra</code>, <code>?src=google-profile</code>, or use the short links <code>/facebook</code>, <code>/linkedin</code>, <code>/email</code>, <code>/friend</code>. The first source a person came from is remembered for 90 days, so a sign-up days later is still credited to it.</p></div>
+<h2>5. Funnel, trends and who answers</h2>
+<ul>
+<li><strong>Funnel</strong> rings and bars: emailed → delivered → clicked → replied → demo → signed up.</li>
+<li><strong>Over time</strong>: one small chart per measure. Hover a bar for its number; click it for that day's list.</li>
+<li><strong>Where every prospect stands today</strong>: waiting, in the sequence, no answer, interested, stopped.</li>
+<li><strong>Which businesses answer?</strong> by type of business and by state. Put more effort into the rows at the top of "Interested"; tell Claude to shift the daily finder towards them.</li>
+</ul>
+<h2>6. The list behind a number</h2>
+<img src="{{IMGROOT}}/screens/43-sales-list.jpg" alt="List behind a number" width="1000">
+<ol><li>Click any number.</li><li>Click an email to write, a phone number to call.</li><li><strong>Download CSV</strong> for Excel. <strong>← Sales dashboard</strong> goes back with the same dates.</li></ol>
+<h2>7. How tracking works (technical)</h2>
+<table><thead><tr><th>What</th><th>How</th></tr></thead><tbody>
+<tr><td>Clicks</td><td>Links in outreach emails go through <code>/r?t=&lt;token&gt;&amp;s=&lt;step&gt;&amp;to=signup|demo|home</code>, which records the click and opens a fixed page (never any other address). "home" opens the landing page for the prospect's business type, e.g. <code>/for/dental</code>.</td></tr>
+<tr><td>Conversions</td><td>A demo request or sign-up from the same email address or organization, or from the browser that clicked the outreach link (cookie <code>cio_p</code>, 90 days), marks the prospect.</td></tr>
+<tr><td>Replies and bounces</td><td>Read hourly from the contact inbox (page 4, "Outreach on Microsoft 365").</td></tr>
+<tr><td>Data</td><td>Tables <code>prospect_events</code> (one dated row per step), <code>prospect_sends</code> (one row per email with the mail server's answer), <code>site_visits</code> (kept 400 days). Dates before 16 Nov 2026 were estimated from the email schedule.</td></tr>
+</tbody></table>
+<h2>8. Email A/B test</h2>
+<p>Shows, for first emails in the last 30 days, version A (designed email) against version B (plain personal note): emailed, clicked, replied, demo or sign-up, bounced and unsubscribed, the share version B gets now, paused business types, and the last nightly review (click to open). Details on page 8, section 9.</p>
+<h2>9. Checklist sign-ups (since 20 Nov 2026)</h2>
+<p>The <strong>Website traffic</strong> card has a new tile, <strong>Checklist sign-ups</strong>: visitors who left their email for the free checklist in the chosen period. Click it for the list: when, email, which checklist, source (google, gads, linkedin, direct…) and status now (Checklist sent, Follow-up sent, Signed up, Unsubscribed), with Download CSV. Visits from the Google Ads test show as source <code>gads</code>.</p>
+<img src="{{IMGROOT}}/screens/59-checklist-list.jpg" alt="Checklist sign-ups list" width="1000">

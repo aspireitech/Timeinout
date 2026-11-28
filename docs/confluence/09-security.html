@@ -1,0 +1,46 @@
+<p>How ClockInOut is protected, and the result of the latest security review (November 2026).</p>
+<h2>Controls</h2>
+<table><thead><tr><th>Layer</th><th>Protection</th></tr></thead><tbody>
+<tr><td>Connection</td><td>HTTPS only (HSTS), content security policy, clickjacking protection, nosniff, referrer policy, PHP version hidden</td></tr>
+<tr><td>Files</td><td><code>.htaccess</code> blocks app/, database/, cron/, docs/, backups/, .git — tested on the live site: all 403</td></tr>
+<tr><td>Sign-in</td><td>Emailed codes for admins; provider chain Google → email code → break-glass; lockout after 5 tries per email or 20 per network in 15 minutes; idle sign-out (30 min admins/provider, 12 h kiosk); strong password rules; temporary passwords must be changed</td></tr>
+<tr><td>Requests</td><td>CSRF token on every form, prepared SQL statements, escaped output, kiosk escapes every name</td></tr>
+<tr><td>Abuse limits</td><td>Sign-up bot trap and rate limits; demo form 5/hour per network; import max 5 MB and zip-bomb guard; CSV exports neutralise spreadsheet formulas</td></tr>
+<tr><td>Data</td><td>Customers separated (own database or customer tag on every row and query); AES-256-GCM encryption of contacts and secrets; hashed passwords</td></tr>
+<tr><td>Payments</td><td>Only signed Stripe webhooks (under 5 minutes old) can mark a customer paid</td></tr>
+<tr><td>Outreach and tracking</td><td>Tracked links open fixed pages only (no open redirect); one-click unsubscribe needs the secret 32-character token; tracking cookies are first-party, HttpOnly, Secure and SameSite=Lax; visits counted without cookies (daily-changing hash, IP not stored); forged replies and bounces ignored (DMARC/SPF/DKIM)</td></tr>
+<tr><td>Kiosk check-in method</td><td>"Scan badge only" enforced on the server; front-desk code hashed and rate-limited (5 tries per 15 minutes)</td></tr>
+<tr><td>Microsoft 365 app</td><td>Mail.Send + Mail.Read application permissions, limited to contact@ and reports@ by an Exchange application access policy (verify with Test-ApplicationAccessPolicy, page 4); the inbox is only read, never changed</td></tr>
+<tr><td>Release gate</td><td>Every update zip is built only after <code>php cron/release_check.php --zip …</code> passes: syntax, no secrets, headers, CSRF and webhook checks, no request data in SQL or redirects, no new unescaped output, additive migrations (page 10, section 10)</td></tr>
+<tr><td>Audit</td><td>Every sign-in, change, import, export and payment recorded</td></tr>
+<tr><td>Privacy</td><td>Portals hidden from search engines; no analytics in portals or <code>/super</code></td></tr>
+</tbody></table>
+<h2>Security review, November 2026</h2>
+<table><thead><tr><th>Attack tried</th><th>Result</th></tr></thead><tbody>
+<tr><td>Download config, key, backups, database file, git history</td><td>Blocked</td></tr>
+<tr><td>SQL injection</td><td>Blocked</td></tr>
+<tr><td>Open another customer's records by changing a number</td><td>Blocked</td></tr>
+<tr><td>Reuse a login on another portal; staff opening admin pages</td><td>Blocked</td></tr>
+<tr><td>Script in a name (XSS); malicious logo upload</td><td>Blocked</td></tr>
+<tr><td>Fake Stripe payment; password/code guessing; /super takeover</td><td>Blocked</td></tr>
+</tbody></table>
+<p><strong>Fixed during the review:</strong> unlimited sign-ups, zip-bomb spreadsheet, CSV tab trick, PHP version shown, blocked web-cron address.</p>
+<p><strong>Accepted lower risks:</strong> "Open kiosk without login" (off by default, warned), an admin can reset another admin's password (not the owner's), portal names can be checked for existence, inline scripts allowed by the content policy.</p>
+<h2>Your security habits</h2>
+<ul data-type="task-list">
+<li data-type="task-item"><input type="checkbox"> Two copies of <code>app.key</code> and <code>config.php</code> in the password manager</li>
+<li data-type="task-item"><input type="checkbox"> Recovery codes saved; create new ones after using any</li>
+<li data-type="task-item"><input type="checkbox"> 2-Step Verification on Google, Microsoft 365, Hostinger, Namecheap, Stripe, GitHub, Atlassian, Claude</li>
+<li data-type="task-item"><input type="checkbox"> Calendar reminder for the Microsoft Graph client secret expiry</li>
+<li data-type="task-item"><input type="checkbox"> Never paste a key or password into chat, email, Confluence or GitHub</li>
+<li data-type="task-item"><input type="checkbox"> Check that the Microsoft app is limited to contact@ and reports@ (Test-ApplicationAccessPolicy, page 4)</li>
+</ul>
+<h2>Review of the 16 Nov 2026 changes</h2>
+<table><thead><tr><th>Checked</th><th>Result</th></tr></thead><tbody>
+<tr><td>SQL in the new sales, traffic and inbox code</td><td>All visitor input passed as parameters; dynamic parts come from fixed lists</td></tr>
+<tr><td>Script injection through referrer, source tags, prospect names, email subjects</td><td>Escaped everywhere; source tags limited to letters, digits, dot, dash</td></tr>
+<tr><td>Redirect abuse through <code>/r?to=…</code></td><td>Blocked: only signup, demo or the home/landing page</td></tr>
+<tr><td>Header injection in outgoing email</td><td>Blocked: extra headers with line breaks are dropped</td></tr>
+<tr><td>Fake "reply" or "Undeliverable" email to stop outreach</td><td>Fixed: messages failing DMARC (or SPF and DKIM) are ignored</td></tr>
+<tr><td>Secrets in the public repository</td><td>None: no config.php, keys, passwords or hosting account IDs</td></tr>
+</tbody></table>

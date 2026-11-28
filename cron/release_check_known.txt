@@ -1,0 +1,71 @@
+# Reviewed 2026-11-16: unescaped template output that is safe (numbers, fixed CSS classes, HTML built in code).
+app/views/admin/attendance.php: $cls[$r['status']]
+app/views/admin/attendance.php: $count['absent']
+app/views/admin/attendance.php: $count['in']
+app/views/admin/attendance.php: $count['out']
+app/views/admin/attendance.php: $count['present']
+app/views/admin/audit.php: $page
+app/views/admin/audit.php: $total
+app/views/admin/billing.php: $free
+app/views/admin/billing.php: $sc
+app/views/admin/billing.php: $stateCls
+app/views/admin/features.php: $toggle($key, $f, pack_active($t))
+app/views/admin/features.php: $toggle($key, $f, true)
+app/views/admin/help.php: $a
+app/views/admin/logs.php: $cls
+app/views/admin/logs.php: $page
+app/views/admin/logs.php: $total
+app/views/admin/reports.php: $d
+app/views/admin/reports.php: $h
+app/views/admin/reports.php: $n
+app/views/admin/reports.php: $r['totals']['pickups']
+app/views/admin/reports.php: $r['totals']['student_in']
+app/views/admin/reports.php: $r['totals']['student_out']
+app/views/admin/reports.php: $r['totals']['teacher_in']
+app/views/admin/reports.php: $r['unique_students']
+app/views/admin/reports.php: $r['unique_teachers']
+app/views/admin/settings.php: $n
+app/views/admin/students.php: $rel
+app/views/admin/tiles.php: $colorField('color', $tl['color'])
+app/views/admin/tiles.php: $colorField('color', 'blue')
+app/views/admin/tiles.php: $tl['id']
+app/views/layouts/admin.php: $nav('/admin', 'home', 'Dashboard')
+app/views/layouts/admin.php: $nav('/admin/attendance', 'calendar', "Today's attendance")
+app/views/layouts/admin.php: $nav('/admin/audit', 'list', 'Audit log')
+app/views/layouts/admin.php: $nav('/admin/badges', 'grid', 'QR badges')
+app/views/layouts/admin.php: $nav('/admin/billing', 'card', 'Billing')
+app/views/layouts/admin.php: $nav('/admin/features', 'grid', 'Features & add-ons')
+app/views/layouts/admin.php: $nav('/admin/help', 'help', 'Help & FAQ')
+app/views/layouts/admin.php: $nav('/admin/import', 'upload', 'Import')
+app/views/layouts/admin.php: $nav('/admin/logs', 'list', 'Activity log')
+app/views/layouts/admin.php: $nav('/admin/materials', 'box', 'Pickup ' . strtolower(term('items')))
+app/views/layouts/admin.php: $nav('/admin/reports', 'chart', 'Reports')
+app/views/layouts/admin.php: $nav('/admin/rollcall', 'shield', 'Emergency roll call')
+app/views/layouts/admin.php: $nav('/admin/settings', 'settings', 'Branding & settings')
+app/views/layouts/admin.php: $nav('/admin/teachers', 'teacher', term('b2'))
+app/views/layouts/admin.php: $nav('/admin/tiles', 'grid', 'Kiosk tiles')
+app/views/layouts/admin.php: $nav('/admin/users', 'shield', 'Users')
+app/views/layouts/admin.php: $nav('/admin/whats-new', 'spark', "What's new")
+app/views/partials/event_row.php: $cls
+app/views/partials/whats_new.php: $cta
+app/views/platform/campaign.php: $c['title']
+app/views/platform/campaign.php: $demo
+app/views/platform/campaign.php: $n * .35
+app/views/platform/campaign.php: $trial
+app/views/platform/home.php: $free
+app/views/platform/signup.php: $code
+app/views/platform/status.php: $b
+app/views/platform/status.php: $bg
+app/views/platform/status.php: $f
+app/views/platform/status.php: $fg
+app/views/platform/super_audit.php: $page
+app/views/platform/super_audit.php: $total
+app/views/platform/super_check.php: $badge[$r['status']]
+app/views/platform/super_check.php: $c['fail']
+app/views/platform/super_check.php: $c['ok']
+app/views/platform/super_check.php: $c['warn']
+app/views/platform/super_check.php: $word[$r['status']]
+app/views/platform/super_payments.php: $st[$x['status']]
+app/views/platform/super_payments.php: $stats['paying']
+app/views/platform/super_portal_new.php: $code
+app/views/platform/super_tenants.php: $s

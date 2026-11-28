@@ -19,6 +19,13 @@
       <button class="btn btn-primary">Save</button>
     </form>
   </div>
+  <?php if ($extra = person_extra($teacher)): ?>
+  <div class="card">
+    <h3><?= icon('badge') ?> Extra info</h3>
+    <p class="muted small">From imported columns. Upload a file with the same columns to update it.</p>
+    <table class="table small"><?php foreach ($extra as $k => $v): ?><tr><th style="width:40%"><?= e($k) ?></th><td><?= e($v) ?></td></tr><?php endforeach; ?></table>
+  </div>
+  <?php endif; ?>
   <div class="card">
     <h3><?= icon('clock') ?> Recent activity</h3>
     <?php if (!$history): ?><div class="empty">No check-ins yet.</div><?php endif; ?>

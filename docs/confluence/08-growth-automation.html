@@ -1,0 +1,125 @@
+<p>Everything that brings and keeps customers without you lifting a finger: trial emails, alerts, the weekly scorecard, automatic outreach to new leads, the daily lead finder, and Facebook posts.</p>
+<h2>Overview</h2>
+<table><thead><tr><th>Automation</th><th>Runs on</th><th>When</th><th>Turn on/off</th></tr></thead><tbody>
+<tr><td>Trial follow-up emails to new customers</td><td>Hostinger hourly cron</td><td>9:00–17:00 customer's time</td><td><code>/super → Settings → Trial follow-up</code></td></tr>
+<tr><td>Alerts to you (sign-ups, payments, trials needing a call)</td><td>The app</td><td>Instantly; trial alerts 8:00–18:00 your time</td><td>Always on; extra addresses in <code>/super → Settings</code></td></tr>
+<tr><td>Weekly scorecard</td><td>Hostinger hourly cron</td><td>Monday 8:00 your time</td><td>Same switch as trial follow-up</td></tr>
+<tr><td>Outreach emails to prospects</td><td>Hostinger hourly cron</td><td>Weekdays, prospect's business hours</td><td><code>/super → Prospects</code></td></tr>
+<tr><td>Daily lead finder</td><td>Claude (cloud)</td><td>5:47 AM Utah time daily</td><td>claude.ai → scheduled tasks</td></tr>
+<tr><td>Inbox check (replies and bounces)</td><td>Hostinger hourly cron</td><td>Every hour, before sending</td><td>Automatic (needs Mail.Read, page 4)</td></tr>
+<tr><td>Hot list email (people to call)</td><td>Hostinger hourly cron</td><td>Weekdays 8:00 your time</td><td>Automatic; list also on the Sales dashboard</td></tr>
+<tr><td>Website traffic counting</td><td>The app</td><td>Every page view</td><td>Always on (no cookies, bots left out)</td></tr>
+<tr><td>Facebook posts</td><td>Metricool</td><td>10:00 AM Utah time daily</td><td>Metricool → Planner</td></tr>
+</tbody></table>
+<h2>1. Trial follow-up</h2>
+<ol>
+<li>Day 1+, no own people yet: "Add your people (we can do it for you)".</li>
+<li>Day 2+, nobody signed in yet: "Put your kiosk at the door" (3 steps).</li>
+<li>2 days left, then last day: "Choose a plan" (with the optional promotion line from <code>/super → Settings</code>).</li>
+</ol>
+<p>Each email once, at most one a day, never to paying customers or the demo.</p>
+<h2>2. Alerts to you</h2>
+<p>New sign-up · new card customer · payment received · <strong>ACTION: payment failed</strong> · cancellation · demo request · "chose a plan, send invoice" · subdomain to-do · trial with no check-ins after 2 days · trial ends tomorrow · feature request · suspicious sign-in report · recovery code or break-glass used · <strong>prospect replied</strong>. Sent to contact@ and every address in "Also send alerts to".</p>
+<h2>3. Weekly scorecard (Monday 8:00)</h2>
+<p>New sign-ups, payments, paying customers, monthly recurring revenue, sign-ups and demo requests by source, website visits and top sources, outreach numbers (added, emailed, replied, demos, signed up, unsubscribed), and every open trial (red = no check-ins yet: call them).</p>
+<h2>4. Outreach to prospects</h2>
+<img src="{{IMGROOT}}/screens/12-super-prospects.jpg" alt="Prospects page" width="1000">
+<h3>Settings (one time)</h3>
+<ol>
+<li><code>/super → Prospects</code> → your name, phone, <strong>business postal address</strong> (required by US law), emails per day (25), time zone → tick <strong>Send outreach emails automatically</strong> → Save.</li>
+</ol>
+<h3>What each lead receives</h3>
+<ol>
+<li><strong>Email 1</strong>, written for their kind of business (childcare/tutoring/schools, clinics and dental, offices/retail/restaurants, gyms, construction and field crews) with a matching banner. Example subject: "Smile Bright Dental: staff hours without the paper timesheet".</li>
+<li><strong>Follow-up</strong> 4 days later.</li>
+<li><strong>Last note</strong> 5 days after that, then status "No answer".</li>
+</ol>
+<p>Sent from contact@ in the lead's own business hours (by state): Tue–Thu 9–12 and 13–15, Mon 10–12 and 13–15, Fri 9–12; at most 7 per hour and 25 per day. It stops automatically on sign-up, demo request, unsubscribe, <strong>reply or bounce</strong> (the inbox is read every hour; you get an alert email for each reply). Every email is logged in <code>/super → Prospects → Delivery log</code> and copied to Sent Items. Every email has an unsubscribe link and your postal address. Preview any email with the <em>Preview</em> link on each row.</p>
+<h3>Adding leads by hand</h3>
+<p>Paste one per line: <code>Organization, First name, Email, City, State, Type, Website, Phone</code> (Type: clinic, dental, daycare, tutoring, school, office, gym, construction, retail, restaurant, other). District and government addresses are skipped automatically.</p>
+<h2>5. Daily lead finder (Claude)</h2>
+<ul>
+<li><strong>What:</strong> a Claude scheduled task named <strong>"ClockInOut daily prospect finder"</strong>, every day at 5:47 AM Utah time.</li>
+<li><strong>Where it searches:</strong> one state per day, rotating through Utah, Idaho, Nevada, Colorado, Wyoming, Montana, Washington, Oregon, California, Alaska, Hawaii.</li>
+<li><strong>Who:</strong> small businesses (about 5–150 staff): clinics and dental, daycares, tutoring, offices, gyms, construction and trades. Only emails published on the business's own website.</li>
+<li><strong>How it delivers:</strong> posts to <code>https://clockinoutapp.com/api/prospects</code> with the finder key (header <code>X-Api-Key</code>).</li>
+<li><strong>Runs in:</strong> Claude cloud environment <strong>"Timeinout"</strong> (claude.ai → Settings → Code → Cloud environments), which has web access and holds the key as a protected network secret.</li>
+</ul>
+<h3>Change or pause it</h3>
+<ol><li>Open a Claude Code session and ask "pause the daily prospect finder" or "change the states to …".</li><li>Or claude.ai → scheduled tasks → ClockInOut daily prospect finder → disable.</li></ol>
+<h3>Replace the finder key (if it ever leaks)</h3>
+<ol><li><code>/super → Prospects → Replace finder key</code> → the new key is shown once.</li><li>claude.ai → Settings → Code → Cloud environments → <strong>Timeinout</strong> → network secrets → "ClockInOut prospect finder key" → replace the value (or ask Claude to show the secure form).</li></ol>
+<h2>6. Facebook posts (Metricool)</h2>
+<ul>
+<li>Metricool brand <strong>"ClockinOut"</strong> connected to the ClockInOut Facebook page; time zone America/Denver.</li>
+<li>30 posts scheduled at 10:00 AM daily (Nov 13 – Dec 12, 2026): industry tips, feature highlights, polls, pricing; each links to the matching page with <code>?src=facebook</code> so sign-ups show "via facebook".</li>
+<li>See or edit: <a href="https://app.metricool.com">app.metricool.com</a> → Planner.</li>
+<li><strong>Refill monthly:</strong> around the 8th, ask Claude "schedule the next month of Facebook posts" (Claude reads the best-performing posts first).</li>
+<li>LinkedIn and Google Business Profile need a paid Metricool plan; Google Business Profile posts are added by hand (texts and images from Claude).</li>
+</ul>
+<h2>7. Tracked links (where sign-ups come from)</h2>
+<table><thead><tr><th>Link</th><th>Use for</th></tr></thead><tbody>
+<tr><td><code>clockinoutapp.com/facebook</code>, <code>/linkedin</code>, <code>/email</code>, <code>/web</code>, <code>/friend</code></td><td>Short share links that record the source</td></tr>
+<tr><td><code>clockinoutapp.com/for/schools</code>, <code>/tutoring</code>, <code>/offices</code>, <code>/healthcare</code>, <code>/dental</code>, <code>/gyms</code>, <code>/construction</code>, <code>/retail</code></td><td>Industry pages; add <code>?src=channel</code></td></tr>
+</tbody></table>
+<h2>8. Search and analytics</h2>
+<p>Google Search Console (site verification tag) and Google Analytics 4 (measurement ID) are set in <code>/super → Settings</code>; analytics run on the public site only, never inside customer portals. Website visits are also counted on our own server and shown on the Sales dashboard (page 15).</p>
+<h2>Getting found (done 16 Nov 2026)</h2>
+<table><thead><tr><th>Channel</th><th>Status</th><th>Track it with</th></tr></thead><tbody>
+<tr><td>Google Search Console</td><td>Verified; sitemap read (12 pages)</td><td>Search Console → Performance (weekly)</td></tr>
+<tr><td>Google Business Profile</td><td>ClockInOut added as a product and posts on the existing <strong>Aspire iTECH Solutions</strong> profile (one profile per business; never a second one at the same address)</td><td><code>?src=google-profile</code> on the Sales dashboard</td></tr>
+<tr><td>Landing pages</td><td><code>/for/schools</code>, <code>/tutoring</code>, <code>/offices</code>, <code>/healthcare</code>, <code>/dental</code>, <code>/gyms</code>, <code>/construction</code>, <code>/retail</code>; outreach links open the page for the prospect's business type</td><td>Sales dashboard → Where visitors land</td></tr>
+<tr><td>Phone visitors</td><td>A "Start free trial / Book a demo" bar stays at the bottom once the page is scrolled</td><td>—</td></tr>
+<tr><td>Next (by you)</td><td>Capterra and G2 listings, 2–3 customer reviews, Chamber of Commerce, LinkedIn page, Crunchbase, AlternativeTo / SaaSHub</td><td>Use <code>?src=capterra</code>, <code>?src=g2</code>, <code>?src=chamber</code>…</td></tr>
+</tbody></table>
+<img src="{{IMGROOT}}/screens/47-landing-phone-bar.jpg" alt="Landing page on a phone with the start-trial bar" width="360">
+<h2>9. Email A/B test, founding offer and call-back page (since 18 Nov 2026)</h2>
+<table><thead><tr><th>Version</th><th>What the prospect gets</th></tr></thead><tbody>
+<tr><td><strong>A</strong> designed email</td><td>Banner image, orange button, checkmark list, founding offer box. Subject: "{org}: staff hours without the paper timesheet" (by business type).</td></tr>
+<tr><td><strong>B</strong> plain personal note</td><td>About 80 words, no images, signed by you, one link "pick a time for a quick call". Subject: "Quick question about {org}". Follow-ups thread under it ("Re: …").</td></tr>
+</tbody></table>
+<ol>
+<li>Each new prospect gets A or B at random (default 50/50) and keeps it for the follow-ups. Results: <code>/super → Sales dashboard → Email A/B test</code>.</li>
+<li><strong>Founding offer</strong> in both versions: free done-for-you setup and 50% off the first 3 months, for the first 20 businesses.</li>
+<li><strong>Call-back page</strong> <code>clockinoutapp.com/hello</code>: name, phone, best time (prefilled from the prospect). It saves a demo request, marks the prospect Booked demo and emails you. Call them at the time they chose.</li>
+</ol>
+<img src="{{IMGROOT}}/screens/55-callback-page.jpg" alt="Call-back page" width="1000">
+<h3>Create the FOUNDING50 code in Stripe (5 minutes, once)</h3>
+<ol>
+<li>Stripe → <strong>Product catalog → Coupons → + New</strong>: name "Founding customer", <strong>Percentage discount 50%</strong>, Duration <strong>Repeating, 3 months</strong>, Redemption limit <strong>20</strong> → Create.</li>
+<li>On that coupon → <strong>Promotion codes → + Add</strong>: code <code>FOUNDING50</code> → Create.</li>
+<li>Customers who sign up from outreach can enter it on the Stripe payment page ("Add promotion code"). For invoice (Wave) customers, apply 50% by hand for 3 months.</li>
+<li>The free setup: when they send their list, import it in their portal (Admin → Import) or ask Claude.</li>
+</ol>
+<h3>Nightly sales review (Claude, 9 PM Mountain)</h3>
+<p>Every night a Claude scheduled task reads the day's numbers and adjusts the next day within safe limits, then emails you "Nightly sales review":</p>
+<ul>
+<li>Shifts the A/B share towards the version that gets more clicks and replies (only with enough emails to judge).</li>
+<li>Raises the daily amount slowly (at most +10 a night, never over 50) while bounces stay under 3%, or lowers it if bounces or unsubscribes rise.</li>
+<li>Pauses new first emails to a business type that keeps getting nothing back (follow-ups continue).</li>
+<li>Lists who to call today.</li>
+</ul>
+<p>Change or stop it: claude.ai → scheduled tasks → "ClockInOut nightly sales review".</p>
+<h2>10. Free checklist slide-in and email list (since 20 Nov 2026)</h2>
+<p>Most visitors are not ready to start a trial on their first visit. The free checklist turns some of them into an email address you can follow up.</p>
+<ol>
+<li>On the home page and every landing page (<code>/for/…</code>), a small card slides in at the bottom right after 40 seconds or when the visitor has scrolled 60% of the page. It offers a free printable checklist: <strong>Safe drop-off and pickup</strong> (schools, daycares, tutoring) or <strong>Staff hours and front desk</strong> (every other business). On a school or tutoring landing page the right one is already chosen.</li>
+<li>It shows at most once a month per visitor, never again after they sign up, and on phones it is a slim card above the "Start free trial" bar, so it never covers the page (Google ranks pages with full-screen pop-ups lower).</li>
+<li>The visitor enters their email and gets the checklist at once by email, and sees it on screen (<code>/checklist/care</code> or <code>/checklist/work</code>, both public and printable).</li>
+<li>Three days later they get one follow-up email: the free trial and the founding offer with code <strong>FOUNDING50</strong>. Nothing is sent if they have already signed up. Every email has an unsubscribe link and your postal address.</li>
+<li>See everyone who signed up: <code>/super → Sales dashboard → Website traffic → Checklist sign-ups</code> (list with source and status, Download CSV).</li>
+<li>Turn the slide-in off or on: <code>/super → Settings → Free checklist slide-in</code>.</li>
+</ol>
+<img src="{{IMGROOT}}/screens/57-checklist-popup.jpg" alt="Free checklist slide-in on the website" width="1000">
+<img src="{{IMGROOT}}/screens/58-checklist-page.jpg" alt="The free checklist page" width="800">
+<p>Google Ads conversion tracking and the paid search test are on page 16 (Google Ads plan and demo videos).</p>
+<h2>11. Marketing reset (since 24 Nov 2026)</h2>
+<p><strong>Why:</strong> about 150 businesses emailed, 4 clicks, no replies or unsubscribes. The main domain is one month old (cold emails land in Junk), the prospect finder found too few emails, the site spoke to "any front door" and the offer was weak.</p>
+<ol>
+<li><strong>Offer:</strong> free trial 30 days (/super → Settings). First 20 sign-ups are <strong>founding customers</strong>: 90 days free, we set it up, then 50% off for life with code <code>FOUNDING50</code>. Places left show on the website and in emails. In Stripe the coupon must be <strong>50%, duration Forever, 20 redemptions</strong>.</li>
+<li><strong>Free plan:</strong> up to 10 people and 1 login, forever (Admin → Billing → Use the Free plan; on/off in /super → Settings).</li>
+<li><strong>Website:</strong> home page focused on one job ("Sign in and out at the door. Know who's here."), two 40-second demo videos, founder block (name and phone from /super → Prospects; photo file <code>public/assets/img/founder.jpg</code>), Free plan under pricing. Landing pages show the offer, the video and the founder block.</li>
+<li><strong>Powered by ClockInOut:</strong> line on the kiosk and a link in report and reminder emails.</li>
+<li><strong>Outreach:</strong> spread out (at most 1/6 of the day per hour, 40–90 s between emails), 20–30 a day from the main domain. A separate mailbox on a second domain can be set in /super → Prospects → Send outreach from; after 2–3 weeks of warm-up the nightly review may raise to 50 a day. Plain email adds a 40-second video link; childcare emails mention capacity and licensing.</li>
+<li><strong>Prospects:</strong> the daily finder adds 40 Texas licensed childcare centers a day from the state's open data (independent centers, 25–200 children, greeted by the director's name when the email is theirs) plus 15 dental, clinic, tutoring and office businesses from any US state.</li>
+</ol>
