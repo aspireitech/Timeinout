@@ -264,6 +264,9 @@ flowchart LR
 
 ---
 
+
+**Planned (owner, 28 Nov 2026): Okta as a backup sign-in.** If Microsoft or Google sign-in is down, staff and the provider should still get in. ClockInOut already has fallbacks (provider: Google → emailed code → break-glass password; customers: password + emailed code), but email itself goes through Microsoft 365 (Graph), so a Microsoft outage also stops the emailed codes. Plan: add Okta (OpenID Connect, same flow as Google sign-in) for the provider console and optionally for customer admins, with the same allowed-people rules; and a second mail route (SMTP) so codes still arrive when Graph is down. The Directory Portal (directory.aspireitech.com) has the same note in its README.
+
 ## 7. Configuration reference
 
 ### 7.1 `app/config.php` (on the server only; template: `app/config.sample.php`)
